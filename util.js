@@ -46,7 +46,7 @@ window.KemonoUtil = window.KemonoUtil || {
         
         if (this._activePreview) {
             const currentImg = this._activePreview.querySelector('img');
-            if (currentImg && currentImg.src === imageSrc) {
+            if (currentImg && this.compareImageUrls(currentImg.src, imageSrc)) {
                 this.positionPreviewAtCursor(mouseEvent);
                 return this._activePreview;
             }
@@ -230,7 +230,7 @@ window.KemonoUtil = window.KemonoUtil || {
                 this._hasOriginalImages = cachedData.hasOriginalImages;
                   // 檢查當前預覽的圖片並更新狀態
                 const currentImg = this._activePreview?.querySelector('img');
-                if (currentImg && this._coverImage && currentImg.src === this._coverImage) {
+                if (currentImg && this._coverImage && this.compareImageUrls(this._coverImage, currentImg.src)) {
                     // 當前顯示的是封面圖
                     const statusText = this._hasOriginalImages 
                         ? (this._relatedImages.length > 1 
@@ -241,8 +241,10 @@ window.KemonoUtil = window.KemonoUtil || {
                             : window.KemonoI18n.t('cover_preview'));
                     this.updatePreviewStatus(statusText);
                 } else if (this._relatedImages.length > 0) {
-                    // 找到當前圖片在列表中的索引
-                    const currentIndex = this._relatedImages.findIndex(img => img === (currentImg ? currentImg.src : ''));
+                    // 找到當前圖片在列表中的索引（使用智能比較）
+                    const currentIndex = this._relatedImages.findIndex(img => 
+                        currentImg ? this.compareImageUrls(img, currentImg.src) : false
+                    );
                     if (currentIndex >= 0) {
                         this._currentImageIndex = currentIndex;
                         const statusText = this._hasOriginalImages 
@@ -306,7 +308,7 @@ window.KemonoUtil = window.KemonoUtil || {
             this._hasOriginalImages = hasOriginalImages;
               // 更新狀態顯示
             const currentImg = this._activePreview?.querySelector('img');
-            if (currentImg && coverImage && currentImg.src === coverImage) {
+            if (currentImg && coverImage && this.compareImageUrls(coverImage, currentImg.src)) {
                 // 當前顯示的是封面圖
                 const statusText = hasOriginalImages 
                     ? (contentImages.length > 1 
@@ -317,8 +319,10 @@ window.KemonoUtil = window.KemonoUtil || {
                         : window.KemonoI18n.t('cover_preview'));
                 this.updatePreviewStatus(statusText);
             } else if (contentImages.length > 0) {
-                // 檢查當前是否顯示其他圖片
-                const currentIndex = contentImages.findIndex(img => img === (currentImg ? currentImg.src : ''));
+                // 檢查當前是否顯示其他圖片（使用智能比較）
+                const currentIndex = contentImages.findIndex(img => 
+                    currentImg ? this.compareImageUrls(img, currentImg.src) : false
+                );
                 if (currentIndex >= 0) {
                     this._currentImageIndex = currentIndex;
                     const statusText = hasOriginalImages 
@@ -367,7 +371,71 @@ window.KemonoUtil = window.KemonoUtil || {
         if (statusDiv) {
             statusDiv.textContent = statusText;
         }
-    },      navigateImages: function(direction) {
+    },
+    
+    // 比較兩個圖片 URL，即使格式不同也能匹配（例如縮圖 URL 和完整 URL）
+    compareImageUrls: function(url1, url2) {
+        if (!url1 || !url2) return false;
+        
+        // 如果完全相同，直接返回 true
+        if (url1 === url2) return true;
+        
+        try {
+            // 提取 URL 的路徑部分，移除查詢參數和錨點
+            const getPath = (url) => {
+                try {
+                    const urlObj = new URL(url);
+                    return urlObj.pathname;
+                } catch (e) {
+                    // 如果無法解析為 URL，嘗試手動提取路徑
+                    const match = url.match(/https?:\/\/[^\/]+(\/.*?)(?:\?|#|$)/);
+                    return match ? match[1] : url;
+                }
+            };
+            
+            const path1 = getPath(url1);
+            const path2 = getPath(url2);
+            
+            // 提取文件路徑中的唯一標識符（例如：d9/70/d970b0a7...）
+            // 對於 kemono.cr，圖片路徑格式通常是：/d9/70/d970b0a7... 或 /thumbnail/data/d9/70/d970b0a7...
+            const extractImageId = (path) => {
+                // 匹配路徑中的圖片 ID 部分（通常是兩層目錄加上文件名）
+                // 例如：/d9/70/d970b0a7... 或 /thumbnail/data/d9/70/d970b0a7...
+                const match = path.match(/\/([a-f0-9]{2})\/([a-f0-9]{2})\/([a-f0-9]+)/i);
+                if (match) {
+                    return match.slice(1).join('/'); // 返回 "d9/70/d970b0a7..."
+                }
+                // 如果沒有匹配到標準格式，返回整個路徑（去除開頭的斜線和常見前綴）
+                return path.replace(/^\/?(thumbnail\/data\/)?/, '').replace(/^\//, '');
+            };
+            
+            const id1 = extractImageId(path1);
+            const id2 = extractImageId(path2);
+            
+            // 比較提取的 ID
+            if (id1 && id2 && id1 === id2) {
+                return true;
+            }
+            
+            // 如果 ID 比較失敗，嘗試比較文件名（去除擴展名）
+            const getFileName = (path) => {
+                const parts = path.split('/');
+                const fileName = parts[parts.length - 1];
+                return fileName.split('.')[0]; // 去除擴展名
+            };
+            
+            const fileName1 = getFileName(path1);
+            const fileName2 = getFileName(path2);
+            
+            return fileName1 && fileName2 && fileName1 === fileName2;
+        } catch (e) {
+            // 如果比較過程中出錯，返回 false
+            window.KemonoLogger.log('比較圖片 URL 時出錯:', e, { url1, url2 });
+            return false;
+        }
+    },
+    
+    navigateImages: function(direction) {
         // 如果沒有活動預覽，無法導航
         if (!this._activePreview) {
             window.KemonoLogger.log('沒有活動預覽');
@@ -409,13 +477,25 @@ window.KemonoUtil = window.KemonoUtil || {
             return;
         }
         
-        // 找到當前圖片在完整列表中的索引
-        let currentIndex = allImages.findIndex(img => img === currentImg.src);
+        // 找到當前圖片在完整列表中的索引（使用智能比較）
+        let currentIndex = allImages.findIndex(img => this.compareImageUrls(img, currentImg.src));
         
-        // 如果找不到當前圖片，設為0
+        // 如果找不到當前圖片，嘗試使用已保存的索引
         if (currentIndex === -1) {
-            window.KemonoLogger.log('無法找到當前圖片在列表中的位置，設為第一張');
-            currentIndex = 0;
+            // 如果之前有保存的索引且仍在有效範圍內，使用它
+            if (this._currentImageIndex !== undefined && 
+                this._currentImageIndex >= 0 && 
+                this._currentImageIndex < allImages.length) {
+                currentIndex = this._currentImageIndex;
+                window.KemonoLogger.log('使用已保存的圖片索引:', currentIndex);
+            } else {
+                // 如果找不到且沒有有效索引，設為0
+                window.KemonoLogger.log('無法找到當前圖片在列表中的位置，設為第一張', {
+                    currentImgSrc: currentImg.src,
+                    allImagesSample: allImages.slice(0, 3)
+                });
+                currentIndex = 0;
+            }
         }
         
         // 計算下一張圖片的索引（循環切換）
