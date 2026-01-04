@@ -93,30 +93,59 @@ class RequestQueue {
         this.requestTimes = this.requestTimes.filter(time => now - time < 1000);
     }
 
-    // 檢查是否可以發送請求
+    // 檢查在當前時間往前1秒的窗口內，是否可以發送請求
+    // 這確保了在任何1秒的時間窗口內，請求數都不會超過限制
     canSendRequest() {
+        const now = Date.now();
+        // 清理超過1秒的舊記錄
         this.cleanRequestTimes();
+        
+        // 檢查當前1秒窗口內的請求數
+        // 使用嚴格的小於，因為我們即將要發送一個新請求
         return this.requestTimes.length < this.maxRequestsPerSecond;
     }
 
-    // 記錄請求時間
+    // 記錄請求時間（在實際發送請求時調用）
     recordRequest() {
-        this.requestTimes.push(Date.now());
+        const now = Date.now();
+        this.requestTimes.push(now);
+        // 保持陣列排序（雖然理論上應該已經是排序的，但為了安全起見）
+        this.requestTimes.sort((a, b) => a - b);
     }
 
     // 等待直到可以發送請求
+    // 使用滑動窗口確保在任何1秒時間窗口內都不超過限制
     async waitForSlot() {
-        while (!this.canSendRequest()) {
-            // 計算需要等待的時間
-            const oldestTime = this.requestTimes[0];
-            const now = Date.now();
-            const waitTime = 1000 - (now - oldestTime) + 10; // 加10ms緩衝
+        // 持續檢查直到可以發送請求
+        while (true) {
+            // 清理過期記錄（超過1秒的請求時間戳）
+            this.cleanRequestTimes();
             
-            if (waitTime > 0) {
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+            // 檢查當前1秒窗口內的請求數
+            if (this.requestTimes.length < this.maxRequestsPerSecond) {
+                // 可以發送請求，跳出循環
+                break;
             }
             
-            this.cleanRequestTimes();
+            // 如果超過限制，計算需要等待的時間
+            // 找到最舊的請求時間（在1秒窗口內最早的）
+            if (this.requestTimes.length > 0) {
+                const oldestTime = this.requestTimes[0];
+                const now = Date.now();
+                const elapsed = now - oldestTime;
+                
+                // 計算需要等待的時間，直到最舊的請求超過1秒
+                // 加10ms緩衝以避免邊界情況和時序問題
+                const waitTime = Math.max(10, 1000 - elapsed + 10);
+                
+                // 限制最大等待時間為2秒，防止異常情況
+                const actualWaitTime = Math.min(waitTime, 2000);
+                
+                await new Promise(resolve => setTimeout(resolve, actualWaitTime));
+            } else {
+                // 如果沒有記錄（理論上不應該發生），短暫等待後重試
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
         }
     }
 
@@ -139,7 +168,7 @@ class RequestQueue {
         });
         
         try {
-            // 等待可用的請求槽位
+            // 等待可用的請求槽位（確保在1秒窗口內不超過限制）
             await this.waitForSlot();
             
             // 檢查是否已被取消
@@ -147,7 +176,8 @@ class RequestQueue {
                 throw new Error('Request aborted');
             }
             
-            // 記錄請求時間
+            // 在實際發送請求之前記錄時間戳
+            // 這樣可以確保在發送時就佔用一個配額，防止同一時間窗口內發送過多請求
             this.recordRequest();
             
             // 發送請求
@@ -181,7 +211,7 @@ class RequestQueue {
         });
         
         return new Promise((resolve, reject) => {
-            // 等待可用的請求槽位
+            // 等待可用的請求槽位（確保在1秒窗口內不超過限制）
             this.waitForSlot().then(() => {
                 // 檢查是否已被取消
                 if (abortController.signal.aborted) {
@@ -190,7 +220,8 @@ class RequestQueue {
                     return;
                 }
                 
-                // 記錄請求時間
+                // 在實際載入圖片之前記錄時間戳
+                // 這樣可以確保在載入時就佔用一個配額，防止同一時間窗口內載入過多圖片
                 this.recordRequest();
                 
                 const img = new Image();
