@@ -448,12 +448,23 @@ window.KemonoUtil = window.KemonoUtil || {
             return;
         }
         
-        // 建立完整的圖片列表
+        // 建立完整的圖片列表（去重處理）
         let allImages = [];
         
         // 如果有內文圖片，使用內文圖片列表
         if (this._relatedImages.length > 0) {
-            allImages = [...this._relatedImages];
+            // 去重：使用智能比較確保同一張圖片不會重複出現
+            allImages = [this._relatedImages[0]]; // 先加入第一張
+            for (let i = 1; i < this._relatedImages.length; i++) {
+                const img = this._relatedImages[i];
+                // 檢查是否與已存在的圖片重複
+                const isDuplicate = allImages.some(existingImg => 
+                    this.compareImageUrls(existingImg, img)
+                );
+                if (!isDuplicate) {
+                    allImages.push(img);
+                }
+            }
         } 
         // 如果沒有內文圖片但有封面圖，創建只包含封面圖的列表
         else if (this._coverImage) {
@@ -478,7 +489,13 @@ window.KemonoUtil = window.KemonoUtil || {
         }
         
         // 找到當前圖片在完整列表中的索引（使用智能比較）
-        let currentIndex = allImages.findIndex(img => this.compareImageUrls(img, currentImg.src));
+        let currentIndex = -1;
+        for (let i = 0; i < allImages.length; i++) {
+            if (this.compareImageUrls(allImages[i], currentImg.src)) {
+                currentIndex = i;
+                break;
+            }
+        }
         
         // 如果找不到當前圖片，嘗試使用已保存的索引
         if (currentIndex === -1) {
@@ -492,20 +509,56 @@ window.KemonoUtil = window.KemonoUtil || {
                 // 如果找不到且沒有有效索引，設為0
                 window.KemonoLogger.log('無法找到當前圖片在列表中的位置，設為第一張', {
                     currentImgSrc: currentImg.src,
-                    allImagesSample: allImages.slice(0, 3)
+                    allImagesSample: allImages.slice(0, 3),
+                    allImagesLength: allImages.length
                 });
                 currentIndex = 0;
             }
+        } else {
+            window.KemonoLogger.log('找到當前圖片索引:', currentIndex, {
+                currentImgSrc: currentImg.src,
+                matchedImage: allImages[currentIndex]
+            });
         }
         
-        // 計算下一張圖片的索引（循環切換）
+        // 計算下一張圖片的索引（循環切換，跳過重複圖片）
         let nextIndex;
-        if (direction > 0) {
-            // 向前：到達最後一張時回到第一張
-            nextIndex = (currentIndex + 1) % allImages.length;
-        } else {
-            // 向後：到達第一張時回到最後一張
-            nextIndex = (currentIndex - 1 + allImages.length) % allImages.length;
+        let searchIndex = currentIndex; // 使用臨時變數追蹤搜索位置
+        let attempts = 0;
+        const maxAttempts = allImages.length; // 最多嘗試所有圖片
+        
+        do {
+            if (direction > 0) {
+                // 向前：到達最後一張時回到第一張
+                nextIndex = (searchIndex + 1) % allImages.length;
+            } else {
+                // 向後：到達第一張時回到最後一張
+                nextIndex = (searchIndex - 1 + allImages.length) % allImages.length;
+            }
+            
+            // 檢查下一張圖片是否與當前圖片相同
+            const candidateImage = allImages[nextIndex];
+            if (!this.compareImageUrls(candidateImage, currentImg.src)) {
+                // 找到不同的圖片，跳出循環
+                break;
+            }
+            
+            // 如果相同，繼續尋找下一張
+            window.KemonoLogger.log('跳過重複圖片', {
+                nextIndex,
+                candidateImage,
+                currentImgSrc: currentImg.src,
+                attempt: attempts + 1
+            });
+            
+            searchIndex = nextIndex; // 更新搜索索引，繼續尋找
+            attempts++;
+        } while (attempts < maxAttempts);
+        
+        // 如果嘗試了所有圖片都找不到不同的，說明所有圖片都相同
+        if (attempts >= maxAttempts) {
+            window.KemonoLogger.log('所有圖片都相同，無法切換');
+            return;
         }
         
         const nextImage = allImages[nextIndex];
