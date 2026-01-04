@@ -37,7 +37,19 @@ window.KemonoUtil = window.KemonoUtil || {
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
         if (!window.KemonoSettings || !window.KemonoSettings.settings || !window.KemonoSettings.settings.enabled) {
+            if (window.DebugLogger) {
+                window.DebugLogger.debug('預覽功能已停用');
+            }
             return null;
+        }
+        
+        // Debug logger
+        if (window.DebugLogger) {
+            window.DebugLogger.debug('建立預覽（含 API）', {
+                imageSrc: imageSrc,
+                postUrl: postUrl,
+                hasSiteHandler: !!siteHandler
+            });
         }
         
         // 創建基本預覽
@@ -78,6 +90,15 @@ window.KemonoUtil = window.KemonoUtil || {
         const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
         window.KemonoLogger.log('建立預覽圖，最大尺寸設定:', maxSize, 'px');
         
+        // Debug logger
+        if (window.DebugLogger) {
+            window.DebugLogger.debug('建立預覽圖', {
+                imageSrc: imageSrc,
+                maxSize: maxSize,
+                settings: window.KemonoSettings?.settings
+            });
+        }
+        
         const preview = document.createElement('div');
         preview.id = 'image-preview';
         preview.className = 'kemono-preview-container';
@@ -110,6 +131,16 @@ window.KemonoUtil = window.KemonoUtil || {
             // 計算圖片的自然尺寸
             const naturalWidth = img.naturalWidth;
             const naturalHeight = img.naturalHeight;
+            
+            // Debug logger
+            if (window.DebugLogger) {
+                window.DebugLogger.debug('圖片載入完成', {
+                    naturalWidth: naturalWidth,
+                    naturalHeight: naturalHeight,
+                    maxSize: currentMaxSize,
+                    maxHeightVh: maxHeightVh
+                });
+            }
             
             // 計算縮放比例，確保不超過最大尺寸
             let scale = 1;
@@ -156,7 +187,7 @@ window.KemonoUtil = window.KemonoUtil || {
                 const imgWidth = img.offsetWidth;
                 const imgHeight = img.offsetHeight;
                 
-                window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', {
+                const sizeInfo = {
                     maxWidth: currentMaxSize,
                     maxHeight: maxHeightVh,
                     naturalWidth: naturalWidth,
@@ -167,18 +198,37 @@ window.KemonoUtil = window.KemonoUtil || {
                     actualHeight: actualHeight,
                     imgWidth: imgWidth,
                     imgHeight: imgHeight
-                });
+                };
+                
+                window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', sizeInfo);
+                
+                // Debug logger
+                if (window.DebugLogger) {
+                    window.DebugLogger.debug('預覽尺寸檢查', sizeInfo);
+                }
                 
                 // 如果實際寬度超過限制，強制設定寬度
                 if (actualWidth > currentMaxSize) {
                     preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
                     window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize, '實際寬度:', actualWidth);
+                    if (window.DebugLogger) {
+                        window.DebugLogger.warn('預覽寬度超出限制，已強制修正', {
+                            maxSize: currentMaxSize,
+                            actualWidth: actualWidth
+                        });
+                    }
                 }
                 
                 // 如果實際高度超過限制，強制設定高度
                 if (actualHeight > maxHeightVh) {
                     preview.style.setProperty('height', `${maxHeightVh}px`, 'important');
                     window.KemonoLogger.warn('強制修正預覽高度:', maxHeightVh, '實際高度:', actualHeight);
+                    if (window.DebugLogger) {
+                        window.DebugLogger.warn('預覽高度超出限制，已強制修正', {
+                            maxHeight: maxHeightVh,
+                            actualHeight: actualHeight
+                        });
+                    }
                 }
                 
                 // 如果圖片寬度超過容器，再次強制限制
@@ -186,12 +236,21 @@ window.KemonoUtil = window.KemonoUtil || {
                     const newScale = currentMaxSize / imgWidth;
                     img.style.setProperty('width', `${currentMaxSize}px`, 'important');
                     window.KemonoLogger.warn('強制修正圖片寬度:', currentMaxSize, '實際圖片寬度:', imgWidth);
+                    if (window.DebugLogger) {
+                        window.DebugLogger.warn('圖片寬度超出限制，已強制修正', {
+                            maxSize: currentMaxSize,
+                            imgWidth: imgWidth
+                        });
+                    }
                 }
             });
         };
         
         img.onerror = () => {
             window.KemonoLogger.error('Failed to load image:', imageSrc);
+            if (window.DebugLogger) {
+                window.DebugLogger.error('預覽圖片載入失敗', { imageSrc });
+            }
             const errorMsg = document.createElement('div');
             errorMsg.className = 'kemono-error-message';
             errorMsg.textContent = window.KemonoI18n.t('image_failed_to_load');
@@ -328,6 +387,14 @@ window.KemonoUtil = window.KemonoUtil || {
             const result = await siteHandler.fetchPostImages(postUrl);
             
             window.KemonoLogger.log('API 回應結果:', result);
+            if (window.DebugLogger) {
+                window.DebugLogger.debug('API 回應結果', {
+                    postUrl: postUrl,
+                    coverImage: result.coverImage ? '有' : '無',
+                    contentImagesCount: result.contentImages?.length || 0,
+                    hasOriginalImages: result.hasOriginalImages || false
+                });
+            }
             
             // 處理新的 API 回應格式
             const coverImage = result.coverImage || null;
@@ -495,6 +562,11 @@ window.KemonoUtil = window.KemonoUtil || {
     },
     
     loadImageWithIndicator: function(imgElement, newSrc, statusText) {
+        // Debug logger
+        if (window.DebugLogger) {
+            window.DebugLogger.debug('切換預覽圖片', { newSrc, statusText });
+        }
+        
         // 顯示載入狀態
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
@@ -554,12 +626,21 @@ window.KemonoUtil = window.KemonoUtil || {
                     if (imgWidth > maxSize) {
                         imgElement.style.setProperty('width', `${maxSize}px`, 'important');
                         window.KemonoLogger.warn('切換圖片後強制修正圖片寬度:', maxSize, '實際圖片寬度:', imgWidth);
+                        if (window.DebugLogger) {
+                            window.DebugLogger.warn('切換圖片後圖片寬度超出限制', {
+                                maxSize: maxSize,
+                                imgWidth: imgWidth
+                            });
+                        }
                     }
                 });
             }
             
             this.updatePreviewStatus(statusText);
             window.KemonoLogger.log(statusText);
+            if (window.DebugLogger) {
+                window.DebugLogger.debug('圖片切換完成', { statusText });
+            }
         };
         
         newImg.onerror = () => {
@@ -568,6 +649,9 @@ window.KemonoUtil = window.KemonoUtil || {
             imgElement.style.filter = 'none';
             this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
             window.KemonoLogger.error('圖片載入失敗:', newSrc);
+            if (window.DebugLogger) {
+                window.DebugLogger.error('圖片載入失敗', { newSrc });
+            }
         };
         
         // 開始預載入
