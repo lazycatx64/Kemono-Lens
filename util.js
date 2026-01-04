@@ -75,16 +75,26 @@ window.KemonoUtil = window.KemonoUtil || {
         }
         
         const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+        window.KemonoLogger.log('建立預覽圖，最大尺寸設定:', maxSize, 'px');
+        
         const preview = document.createElement('div');
         preview.id = 'image-preview';
         preview.className = 'kemono-preview-container';
-        preview.style.maxWidth = `${maxSize}px`;
-        preview.style.maxHeight = '70vh';
+        // 使用 !important 確保設定值優先於 CSS，並設定明確的寬度限制
+        preview.style.setProperty('max-width', `${maxSize}px`, 'important');
+        preview.style.setProperty('max-height', '70vh', 'important');
+        preview.style.setProperty('width', 'auto', 'important');
+        preview.style.setProperty('height', 'auto', 'important');
+        preview.style.setProperty('box-sizing', 'border-box', 'important');
         
         const img = document.createElement('img');
-        // 確保圖片受到容器尺寸限制
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '100%';
+        // 確保圖片受到容器尺寸限制，使用 width 而不是 max-width 來強制限制
+        img.style.setProperty('max-width', '100%', 'important');
+        img.style.setProperty('max-height', '100%', 'important');
+        img.style.setProperty('width', 'auto', 'important');
+        img.style.setProperty('height', 'auto', 'important');
+        img.style.setProperty('display', 'block', 'important');
+        img.style.setProperty('object-fit', 'contain', 'important');
         
         // 創建狀態顯示區域
         const statusDiv = document.createElement('div');
@@ -92,9 +102,41 @@ window.KemonoUtil = window.KemonoUtil || {
         statusDiv.textContent = window.KemonoI18n.t('loading_post_images');
         
         img.onload = () => {
+            // 確保載入後尺寸限制仍然有效
+            const currentMaxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+            preview.style.setProperty('max-width', `${currentMaxSize}px`, 'important');
+            preview.style.setProperty('max-height', '70vh', 'important');
+            preview.style.setProperty('width', 'auto', 'important');
+            preview.style.setProperty('height', 'auto', 'important');
+            
+            // 強制重新計算圖片尺寸
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('max-height', '100%', 'important');
+            img.style.setProperty('width', 'auto', 'important');
+            img.style.setProperty('height', 'auto', 'important');
+            
+            // 強制瀏覽器重新計算尺寸
+            const computedStyle = window.getComputedStyle(preview);
+            const actualWidth = preview.offsetWidth;
+            const actualHeight = preview.offsetHeight;
+            
+            // 如果實際尺寸超過限制，強制縮放
+            if (actualWidth > currentMaxSize) {
+                preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
+            }
+            
             this.positionPreviewAtCursor(mouseEvent);
             preview.style.visibility = 'visible';
             this._previewReady = true;
+            
+            window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', {
+                maxWidth: preview.style.maxWidth,
+                maxHeight: preview.style.maxHeight,
+                actualWidth: actualWidth,
+                actualHeight: actualHeight,
+                imgWidth: img.offsetWidth,
+                imgHeight: img.offsetHeight
+            });
         };
         
         img.onerror = () => {
@@ -414,6 +456,27 @@ window.KemonoUtil = window.KemonoUtil || {
             imgElement.src = newSrc;
             imgElement.style.opacity = '1';
             imgElement.style.filter = 'none';
+            
+            // 確保容器尺寸限制仍然有效
+            if (this._activePreview) {
+                const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+                this._activePreview.style.setProperty('max-width', `${maxSize}px`, 'important');
+                this._activePreview.style.setProperty('max-height', '70vh', 'important');
+                this._activePreview.style.setProperty('width', 'auto', 'important');
+                this._activePreview.style.setProperty('height', 'auto', 'important');
+                
+                // 確保圖片尺寸限制仍然有效
+                imgElement.style.setProperty('max-width', '100%', 'important');
+                imgElement.style.setProperty('max-height', '100%', 'important');
+                imgElement.style.setProperty('width', 'auto', 'important');
+                imgElement.style.setProperty('height', 'auto', 'important');
+                
+                // 強制檢查並修正尺寸
+                const actualWidth = this._activePreview.offsetWidth;
+                if (actualWidth > maxSize) {
+                    this._activePreview.style.setProperty('width', `${maxSize}px`, 'important');
+                }
+            }
             
             this.updatePreviewStatus(statusText);
             window.KemonoLogger.log(statusText);
