@@ -242,14 +242,19 @@ class KemonoFriends {
         console.log('[KemonoFriends] 找到', cards.length, '個卡片');
         
         cards.forEach((card) => {
-            // 檢查是否已經處理過
-            if (card.dataset.blacklistProcessed) {
+            // 檢查是否已經有按鈕，如果有就跳過
+            if (card.querySelector('.kemono-blacklist-btn')) {
+                // 如果已經有按鈕但沒有處理標記，設置標記
+                if (!card.dataset.blacklistProcessed) {
+                    card.dataset.blacklistProcessed = 'true';
+                }
                 return;
             }
             
-            // 檢查是否已經有按鈕
-            if (card.querySelector('.kemono-blacklist-btn')) {
-                return;
+            // 如果已經處理過但沒有按鈕，可能是之前的處理失敗了，清除標記重新處理
+            if (card.dataset.blacklistProcessed) {
+                console.log('[KemonoFriends] 卡片已標記為處理過但缺少按鈕，重新處理:', card);
+                delete card.dataset.blacklistProcessed;
             }
             
             card.dataset.blacklistProcessed = 'true';

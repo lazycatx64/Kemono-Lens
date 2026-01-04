@@ -46,6 +46,24 @@ class DOMManager {
 
     waitForContent(processCallback) {
         let isProcessing = false;
+        let checkCount = 0;
+        const maxChecks = 10; // 最多檢查10次（20秒）
+        
+        // 檢查是否有卡片但沒有按鈕的輔助函數
+        const hasCardsWithoutButtons = () => {
+            const cards = this.findUserCards();
+            if (cards.length === 0) return false;
+            
+            // 檢查是否有卡片缺少按鈕
+            const cardsWithoutButtons = Array.from(cards).filter(card => {
+                // 檢查是否已經處理過
+                if (card.dataset.blacklistProcessed) return false;
+                // 檢查是否已經有按鈕
+                return !card.querySelector('.kemono-blacklist-btn');
+            });
+            
+            return cardsWithoutButtons.length > 0;
+        };
         
         // 使用MutationObserver來監控DOM變化
         this.observer = new MutationObserver((mutations) => {
@@ -86,15 +104,41 @@ class DOMManager {
             subtree: true
         });
 
-        // 初始處理
+        // 初始處理 - 增加多次嘗試以應對直接訪問URL的情況
+        const initialProcess = () => {
+            if (!this.isActive) return;
+            
+            // 立即處理一次（針對已存在的卡片）
+            processCallback();
+            
+            // 然後在延遲後再處理
+            setTimeout(() => {
+                if (this.isActive) processCallback();
+            }, 500);
+        };
+        
+        // 立即執行一次（針對直接訪問URL的情況）
+        initialProcess();
+        
+        // 1秒後處理
         setTimeout(() => {
             if (this.isActive) processCallback();
         }, 1000);
         
-        // 延遲處理一次以防動態內容
+        // 2秒後處理
+        setTimeout(() => {
+            if (this.isActive) processCallback();
+        }, 2000);
+        
+        // 3秒後處理
         setTimeout(() => {
             if (this.isActive) processCallback();
         }, 3000);
+        
+        // 5秒後處理（針對較慢的渲染）
+        setTimeout(() => {
+            if (this.isActive) processCallback();
+        }, 5000);
         
         // 對於個人頁面，設置定期檢查機制
         if (this.isUserProfilePage()) {
@@ -115,6 +159,28 @@ class DOMManager {
             setTimeout(() => {
                 clearInterval(profileCheckInterval);
             }, 10000);
+        } else {
+            // 對於卡片列表頁面，也設置定期檢查機制
+            const cardListCheckInterval = setInterval(() => {
+                if (!this.isActive) {
+                    clearInterval(cardListCheckInterval);
+                    return;
+                }
+                
+                checkCount++;
+                
+                // 檢查是否有卡片但沒有按鈕
+                if (hasCardsWithoutButtons()) {
+                    console.log('[KemonoFriends] 發現卡片缺少按鈕，重新處理 (檢查次數:', checkCount, ')');
+                    processCallback();
+                }
+                
+                // 達到最大檢查次數後停止
+                if (checkCount >= maxChecks) {
+                    console.log('[KemonoFriends] 達到最大檢查次數，停止定期檢查');
+                    clearInterval(cardListCheckInterval);
+                }
+            }, 2000); // 每2秒檢查一次
         }
     }
 
