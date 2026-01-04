@@ -354,6 +354,33 @@ window.KemonoUtil = window.KemonoUtil || {
     
     // 生成預覽狀態文字
     generatePreviewStatusText: function(currentImgSrc, coverImage, contentImages, nonImageCount = 0) {
+        // 計算去重後的實際圖片總數
+        // 邏輯：
+        // 1. contentImages 已經只包含圖片（非圖片已經被過濾掉）
+        // 2. 如果封面圖與第一張內文圖相同，總數 = contentImages.length（封面圖已經在 contentImages 中，且去重）
+        // 3. 如果封面圖與第一張內文圖不同，總數 = contentImages.length + 1（封面圖不在 contentImages 中）
+        // 4. 注意：nonImageCount 不需要從 totalImages 中扣除，因為 totalImages 已經只包含圖片
+        const calculateTotalImages = () => {
+            if (!contentImages || contentImages.length === 0) {
+                // 只有封面圖
+                return coverImage ? 1 : 0;
+            }
+            
+            // 檢查封面圖與第一張內文圖是否相同
+            const isCoverSameAsFirst = coverImage && 
+                this.compareImageUrls(coverImage, contentImages[0]);
+            
+            if (isCoverSameAsFirst) {
+                // 封面圖與第一張相同，總數 = contentImages.length（封面圖已經在 contentImages 中，且去重）
+                return contentImages.length;
+            } else {
+                // 封面圖與第一張不同，總數 = contentImages.length + 1（封面圖不在 contentImages 中）
+                return contentImages.length + (coverImage ? 1 : 0);
+            }
+        };
+        
+        const totalImages = calculateTotalImages();
+        
         // 輔助函數：在訊息後方添加非圖片數量
         const appendNonImageCount = (text) => {
             if (nonImageCount > 0) {
@@ -381,13 +408,13 @@ window.KemonoUtil = window.KemonoUtil || {
                 // 封面圖與第一張相同，顯示第 1 張
                 return appendNonImageCount(window.KemonoI18n.t('preview_content_image', { 
                     current: 1, 
-                    total: contentImages.length 
+                    total: totalImages 
                 }));
             } else {
                 // 封面圖與第一張不同，顯示第 2 張（因為封面圖不算在內文圖的編號中）
                 return appendNonImageCount(window.KemonoI18n.t('preview_content_image', { 
                     current: 2, 
-                    total: contentImages.length 
+                    total: totalImages 
                 }));
             }
         }
@@ -408,14 +435,14 @@ window.KemonoUtil = window.KemonoUtil || {
         if (currentIndex < 0) {
             // 如果當前圖片是封面圖，且封面圖與第一張內文圖不同
             if (isCurrentCover && !isCoverSameAsFirst) {
-                return appendNonImageCount(window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length }));
+                return appendNonImageCount(window.KemonoI18n.t('preview_cover_with_content_count', { total: totalImages }));
             }
             // 如果找不到且不是封面圖，預設顯示第一張的狀態
             // 根據封面圖與第一張的關係決定編號
             const displayNumber = isCoverSameAsFirst ? 1 : 2;
             return appendNonImageCount(window.KemonoI18n.t('preview_content_image', { 
                 current: displayNumber, 
-                total: contentImages.length 
+                total: totalImages 
             }));
         }
         
@@ -426,11 +453,11 @@ window.KemonoUtil = window.KemonoUtil || {
         if (isCurrentCover) {
             // 如果封面圖與第一張內文圖相同，且當前正在預覽第一張內文圖（索引為 0）
             if (isCoverSameAsFirst && displayIndex === 0) {
-                return appendNonImageCount(window.KemonoI18n.t('preview_cover_and_first', { total: contentImages.length }));
+                return appendNonImageCount(window.KemonoI18n.t('preview_cover_and_first', { total: totalImages }));
             }
             // 如果封面圖與第一張內文圖不同
             if (!isCoverSameAsFirst) {
-                return appendNonImageCount(window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length }));
+                return appendNonImageCount(window.KemonoI18n.t('preview_cover_with_content_count', { total: totalImages }));
             }
         }
         
@@ -449,7 +476,7 @@ window.KemonoUtil = window.KemonoUtil || {
         
         return appendNonImageCount(window.KemonoI18n.t('preview_content_image', { 
             current: contentImageNumber, 
-            total: contentImages.length 
+            total: totalImages 
         }));
     },
     
@@ -564,7 +591,8 @@ window.KemonoUtil = window.KemonoUtil || {
             const statusText = this.generatePreviewStatusText(
                 currentImg.src,
                 this._coverImage,
-                this._relatedImages
+                this._relatedImages,
+                this._nonImageCount
             );
             this.updatePreviewStatus(statusText);
             return;
