@@ -214,8 +214,51 @@ const coomer = {
         }
       }
       
-      // 如果沒有預覽圖片，嘗試從 attachments 獲取原圖
-      if (!coverImageUrl && postData.attachments && Array.isArray(postData.attachments) && postData.attachments.length > 0) {
+      // 處理 attachments 以計算非圖片數量（即使 previews 存在也要處理）
+      if (postData.attachments && Array.isArray(postData.attachments) && postData.attachments.length > 0) {
+        // 如果沒有封面圖，嘗試從 attachments 獲取原圖
+        if (!coverImageUrl) {
+          hasOriginalImages = true;
+          coomerLogger.warn('沒有找到預覽圖片，改用附件原圖');
+        }
+        
+        // 過濾出圖片格式的附件
+        const imageAttachments = [];
+        for (let i = 0; i < postData.attachments.length; i++) {
+          if (postData.attachments[i] && postData.attachments[i].path) {
+            if (coomer.isImageFile(postData.attachments[i].path)) {
+              imageAttachments.push(postData.attachments[i]);
+            } else {
+              nonImageCount++;
+              coomerLogger.log('過濾掉非圖片附件:', postData.attachments[i].path);
+            }
+          }
+        }
+        
+        // 如果沒有封面圖，第一張圖片附件作為封面圖
+        if (!coverImageUrl && imageAttachments.length > 0 && imageAttachments[0].path) {
+          coverImageUrl = baseUrl + imageAttachments[0].path;
+          // 轉換為 thumbnail URL
+          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
+          coomerLogger.log('找到附件封面原圖:', coverImageUrl);
+        }
+        
+        // 如果沒有封面圖，所有圖片附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
+        if (!coverImageUrl) {
+          for (let i = 0; i < imageAttachments.length; i++) {
+            if (imageAttachments[i] && imageAttachments[i].path) {
+              let fullImageUrl = baseUrl + imageAttachments[i].path;
+              // 轉換為 thumbnail URL
+              fullImageUrl = coomer.convertToThumbnailUrl(fullImageUrl);
+              contentImages.push(fullImageUrl);
+              coomerLogger.log('找到附件圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
+            }
+          }
+        }
+      }
+      
+      // 如果還是沒有封面圖，嘗試從主要文件獲取
+      if (!coverImageUrl && postData.file && postData.file.path) {
         hasOriginalImages = true;
         coomerLogger.warn('沒有找到預覽圖片，改用附件原圖');
         

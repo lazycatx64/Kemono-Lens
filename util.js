@@ -396,8 +396,10 @@ window.KemonoUtil = window.KemonoUtil || {
         
         // 輔助函數：在訊息後方添加非圖片數量
         const appendNonImageCount = (text) => {
-            if (nonImageCount > 0) {
-                return text + window.KemonoI18n.t('non_image_count', { count: nonImageCount });
+            // 確保 nonImageCount 是數字且大於 0
+            const count = Number(nonImageCount) || 0;
+            if (count > 0) {
+                return text + window.KemonoI18n.t('non_image_count', { count: count });
             }
             return text;
         };
