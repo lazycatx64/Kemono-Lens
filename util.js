@@ -32,6 +32,7 @@ window.KemonoUtil = window.KemonoUtil || {
     _apiCache: new Map(), // API 快取
     _currentPostUrl: null, // 當前貼文 URL
     _coverImage: null, // 封面圖像
+    _resizeObserver: null, // ResizeObserver 用於監聽尺寸變化
     
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
@@ -214,6 +215,9 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.appendChild(statusDiv);
         document.body.appendChild(preview);
         this._activePreview = preview;
+        
+        // 設定 ResizeObserver 來持續監聽尺寸變化
+        this.setupResizeObserver(preview, img);
         
         img.src = imageSrc;
         
@@ -649,11 +653,63 @@ window.KemonoUtil = window.KemonoUtil || {
         this.positionPreviewAtCursor(event);
     },
     
+    setupResizeObserver: function(preview, img) {
+        // 清除舊的觀察者
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
+        
+        // 建立新的 ResizeObserver 來監聽尺寸變化
+        this._resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const target = entry.target;
+                const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+                const maxHeightVh = window.innerHeight * 0.7;
+                
+                // 檢查容器尺寸
+                if (target === preview) {
+                    const width = entry.contentRect.width;
+                    const height = entry.contentRect.height;
+                    
+                    if (width > maxSize) {
+                        preview.style.setProperty('width', `${maxSize}px`, 'important');
+                        window.KemonoLogger.warn('ResizeObserver: 強制修正預覽容器寬度:', maxSize, '實際寬度:', width);
+                    }
+                    
+                    if (height > maxHeightVh) {
+                        preview.style.setProperty('height', `${maxHeightVh}px`, 'important');
+                        window.KemonoLogger.warn('ResizeObserver: 強制修正預覽容器高度:', maxHeightVh, '實際高度:', height);
+                    }
+                }
+                
+                // 檢查圖片尺寸
+                if (target === img) {
+                    const width = entry.contentRect.width;
+                    if (width > maxSize) {
+                        img.style.setProperty('width', `${maxSize}px`, 'important');
+                        window.KemonoLogger.warn('ResizeObserver: 強制修正圖片寬度:', maxSize, '實際寬度:', width);
+                    }
+                }
+            }
+        });
+        
+        // 開始觀察
+        this._resizeObserver.observe(preview);
+        this._resizeObserver.observe(img);
+    },
+    
     removeActivePreview: function() {
         // 清除任何待處理的預覽請求
         if (this._pendingPreview) {
             clearTimeout(this._pendingPreview);
             this._pendingPreview = null;
+        }
+        
+        // 清除 ResizeObserver
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
         }
         
         if (this._activePreview && this._activePreview.parentNode) {
