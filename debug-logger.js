@@ -2,6 +2,8 @@
  * Debug Logger - 將日誌發送到 popup 頁面
  */
 
+console.log('[DEBUG-LOGGER] debug-logger.js 開始載入');
+
 class DebugLogger {
     constructor() {
         this.enabled = true; // 開發階段預設啟用

@@ -1,9 +1,12 @@
 // 收藏內容管理器 - 處理收藏相關功能
 
-console.log('[KemonoFriends] FavoritesContentManager 加載');
+console.log('[FavoritesManager] ========== FavoritesContentManager.js 開始載入 ==========');
 
 class FavoritesContentManager {
     constructor(domManager) {
+        console.log('[FavoritesManager] ========== Constructor 開始 ==========');
+        console.log('[FavoritesManager] domManager 是否可用:', !!domManager);
+        
         this.favorites = new Set();
         this.favoritesData = {};
         this.domManager = domManager;
@@ -11,6 +14,8 @@ class FavoritesContentManager {
             blacklistVisualEffects: true,
             favoritesVisualEffects: true
         };
+        
+        console.log('[FavoritesManager] ========== Constructor 完成 ==========');
     }
 
     async loadFavorites() {

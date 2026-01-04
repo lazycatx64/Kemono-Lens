@@ -1,12 +1,20 @@
 // Kemono Friends Content Script - 主控制器
 // 整合黑名單、收藏和懸停預覽功能
 
-console.log('[KemonoFriends] content.js 加載');
+console.log('[CONTENT] ========== content.js 開始載入 ==========');
+console.log('[CONTENT] 當前 URL:', window.location.href);
+console.log('[CONTENT] document.readyState:', document.readyState);
+console.log('[CONTENT] window.KemonoLogger 是否存在:', !!window.KemonoLogger);
+console.log('[CONTENT] window.DebugLogger 是否存在:', !!window.DebugLogger);
 
 // 使用全域 logger 和工具
 const logger = window.KemonoLogger;
 const util = window.KemonoUtil;
 const siteManager = window.KemonoSites;
+
+console.log('[CONTENT] logger 是否可用:', !!logger);
+console.log('[CONTENT] util 是否可用:', !!util);
+console.log('[CONTENT] siteManager 是否可用:', !!siteManager);
 
 // 懸停預覽相關變數
 let currSite = window.location.href;
@@ -16,18 +24,40 @@ let altKeyPressed = false;
 // 黑名單和收藏管理器
 class KemonoFriends {
     constructor() {
+        console.log('[KemonoFriends] ========== Constructor 開始 ==========');
+        console.log('[KemonoFriends] 當前 URL:', window.location.href);
+        
         this.isActive = true;
+        
+        console.log('[KemonoFriends] 創建 DOMManager...');
         this.domManager = new DOMManager();
+        console.log('[KemonoFriends] DOMManager 創建完成');
+        
+        console.log('[KemonoFriends] 創建 BlacklistContentManager...');
         this.blacklistManager = new BlacklistContentManager(this.domManager);
+        console.log('[KemonoFriends] BlacklistContentManager 創建完成');
+        
+        console.log('[KemonoFriends] 創建 FavoritesContentManager...');
         this.favoritesManager = new FavoritesContentManager(this.domManager);
+        console.log('[KemonoFriends] FavoritesContentManager 創建完成');
+        
+        console.log('[KemonoFriends] 調用 init()...');
         this.init();
+        console.log('[KemonoFriends] ========== Constructor 完成 ==========');
     }
 
     async init() {
-        console.log('[KemonoFriends] 開始初始化, 當前 URL:', window.location.href);
+        console.log('[KemonoFriends] ========== init() 開始 ==========');
+        console.log('[KemonoFriends] 當前 URL:', window.location.href);
+        console.log('[KemonoFriends] document.readyState:', document.readyState);
+        console.log('[KemonoFriends] document.body 是否存在:', !!document.body);
         
         // 檢查是否應該在當前頁面運行（黑名單/收藏功能）
-        if (!this.domManager.shouldRunOnCurrentPage()) {
+        console.log('[KemonoFriends] 檢查是否應該在當前頁面運行...');
+        const shouldRun = this.domManager.shouldRunOnCurrentPage();
+        console.log('[KemonoFriends] shouldRunOnCurrentPage 結果:', shouldRun);
+        
+        if (!shouldRun) {
             console.log('[KemonoFriends] 當前頁面不需要運行黑名單/收藏功能，跳過初始化');
             this.isActive = false;
             // 即使不需要黑名單功能，仍需要初始化懸停預覽
@@ -38,21 +68,40 @@ class KemonoFriends {
         console.log('[KemonoFriends] 當前頁面符合條件，開始載入管理器');
         
         // 設置管理器之間的引用
+        console.log('[KemonoFriends] 設置管理器之間的引用...');
         this.blacklistManager.setFavoritesManager(this.favoritesManager);
+        console.log('[KemonoFriends] 管理器引用設置完成');
         
         // 載入設定和資料
+        console.log('[KemonoFriends] 開始載入設定和資料...');
         await this.loadVisualSettings();
+        console.log('[KemonoFriends] loadVisualSettings 完成');
+        
         await this.blacklistManager.loadBlacklist();
+        console.log('[KemonoFriends] loadBlacklist 完成');
+        
         await this.favoritesManager.loadFavorites();
+        console.log('[KemonoFriends] loadFavorites 完成');
         
         // 設置消息監聽器
+        console.log('[KemonoFriends] 設置消息監聽器...');
         this.setupMessageListeners();
+        console.log('[KemonoFriends] 消息監聽器設置完成');
         
         // 等待頁面內容載入
-        this.domManager.waitForContent(() => this.processUserCards());
+        console.log('[KemonoFriends] 調用 waitForContent...');
+        this.domManager.waitForContent(() => {
+            console.log('[KemonoFriends] waitForContent 回調被觸發，調用 processUserCards');
+            this.processUserCards();
+        });
+        console.log('[KemonoFriends] waitForContent 調用完成');
         
         // 初始化懸停預覽功能
+        console.log('[KemonoFriends] 初始化懸停預覽功能...');
         this.initHoverPreview();
+        console.log('[KemonoFriends] 懸停預覽功能初始化完成');
+        
+        console.log('[KemonoFriends] ========== init() 完成 ==========');
     }
 
     initHoverPreview() {
@@ -646,12 +695,27 @@ history.replaceState = function(...args) {
 };
 
 // 初始化
+console.log('[CONTENT] ========== 開始初始化流程 ==========');
+console.log('[CONTENT] document.readyState:', document.readyState);
+console.log('[CONTENT] window.location.href:', window.location.href);
+
 if (document.readyState === 'loading') {
+    console.log('[CONTENT] 文件仍在載入中，等待 DOMContentLoaded 事件...');
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('[CONTENT] DOMContentLoaded 事件觸發，創建 KemonoFriends 實例...');
         currentKemonoFriends = new KemonoFriends();
+        console.log('[CONTENT] KemonoFriends 實例創建完成');
     });
 } else {
+    console.log('[CONTENT] 文件已載入完成，立即創建 KemonoFriends 實例...');
     currentKemonoFriends = new KemonoFriends();
+    console.log('[CONTENT] KemonoFriends 實例創建完成');
 }
 
-logger.log('Content script fully initialized');
+if (logger) {
+    logger.log('Content script fully initialized');
+} else {
+    console.log('[CONTENT] logger 不可用，使用 console.log');
+}
+
+console.log('[CONTENT] ========== 初始化流程完成 ==========');

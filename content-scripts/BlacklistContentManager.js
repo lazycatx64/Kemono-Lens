@@ -1,9 +1,12 @@
 // 黑名單內容管理器 - 處理黑名單相關功能
 
-console.log('[KemonoFriends] BlacklistContentManager 加載');
+console.log('[BlacklistManager] ========== BlacklistContentManager.js 開始載入 ==========');
 
 class BlacklistContentManager {
     constructor(domManager) {
+        console.log('[BlacklistManager] ========== Constructor 開始 ==========');
+        console.log('[BlacklistManager] domManager 是否可用:', !!domManager);
+        
         this.blacklist = new Set();
         this.blacklistData = {};
         this.domManager = domManager;
@@ -14,6 +17,9 @@ class BlacklistContentManager {
             hideBlacklistedPosts: false
         };
         this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
+        
+        console.log('[BlacklistManager] logger 是否可用:', !!this.logger);
+        console.log('[BlacklistManager] ========== Constructor 完成 ==========');
     }
 
     setFavoritesManager(favoritesManager) {

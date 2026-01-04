@@ -1,12 +1,19 @@
 // DOM 管理器 - 處理 DOM 操作和用戶信息提取
 
-console.log('[KemonoFriends] DOMManager 加載');
+console.log('[DOMManager] ========== DOMManager.js 開始載入 ==========');
 
 class DOMManager {
     constructor() {
+        console.log('[DOMManager] ========== Constructor 開始 ==========');
+        console.log('[DOMManager] 當前 URL:', window.location.href);
+        console.log('[DOMManager] document.body 是否存在:', !!document.body);
+        
         this.observer = null;
         this.isActive = true;
         this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
+        
+        console.log('[DOMManager] logger 是否可用:', !!this.logger);
+        console.log('[DOMManager] ========== Constructor 完成 ==========');
     }
 
     shouldRunOnCurrentPage() {
