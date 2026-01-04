@@ -130,6 +130,10 @@ class KemonoFriends {
             }
         });
 
+        // 滾輪事件節流變數
+        let lastWheelTime = 0;
+        let wheelThrottleDelay = 50; // 最小間隔50ms，最多每秒20次切換
+        
         // 使用事件委派處理所有 wheel 事件
         document.addEventListener('wheel', function(e) {
             if (!window.KemonoSettings || !window.KemonoSettings.settings) return;
@@ -146,6 +150,13 @@ class KemonoFriends {
             if (!util || !util.getActivePreview) return;
             const preview = util.getActivePreview();
             if (!preview) return;
+            
+            // 節流處理：限制切換頻率
+            const now = Date.now();
+            if (now - lastWheelTime < wheelThrottleDelay) {
+                return; // 忽略過於頻繁的滾輪事件
+            }
+            lastWheelTime = now;
             
             e.preventDefault();
             const siteHandler = siteManager.getHandler(currSite);

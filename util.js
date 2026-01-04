@@ -601,71 +601,140 @@ window.KemonoUtil = window.KemonoUtil || {
         
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
-        const newImg = new Image();
-        
-        newImg.onload = () => {
-            // 重新讀取設定值並計算尺寸
-            let maxSize = 600;
-            if (window.KemonoSettings && window.KemonoSettings.settings) {
-                maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-            }
-            if (maxSize === 600) {
-                try {
-                    const localSettings = localStorage.getItem('kemono_preview_settings');
-                    if (localSettings) {
-                        const previewSettings = JSON.parse(localSettings);
-                        if (previewSettings.maxPreviewSize) {
-                            maxSize = previewSettings.maxPreviewSize;
+        // 使用請求排隊系統載入圖片
+        if (window.KemonoRequestQueue) {
+            window.KemonoRequestQueue.loadImage(newSrc)
+                .then((newImg) => {
+                    // 重新讀取設定值並計算尺寸
+                    let maxSize = 600;
+                    if (window.KemonoSettings && window.KemonoSettings.settings) {
+                        maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+                    }
+                    if (maxSize === 600) {
+                        try {
+                            const localSettings = localStorage.getItem('kemono_preview_settings');
+                            if (localSettings) {
+                                const previewSettings = JSON.parse(localSettings);
+                                if (previewSettings.maxPreviewSize) {
+                                    maxSize = previewSettings.maxPreviewSize;
+                                }
+                            }
+                        } catch (e) {
+                            // 忽略錯誤
                         }
                     }
-                } catch (e) {
-                    // 忽略錯誤
+                    
+                    // 計算縮放比例（同時考慮寬度和高度限制）
+                    const naturalWidth = newImg.naturalWidth;
+                    const naturalHeight = newImg.naturalHeight;
+                    let scale = 1;
+                    if (naturalWidth > maxSize) {
+                        scale = Math.min(scale, maxSize / naturalWidth);
+                    }
+                    if (naturalHeight > maxSize) {
+                        scale = Math.min(scale, maxSize / naturalHeight);
+                    }
+                    
+                    const targetWidth = naturalWidth * scale;
+                    const targetHeight = naturalHeight * scale;
+                    
+                    // 更新圖片（直接設定尺寸，不設動畫）
+                    imgElement.src = newSrc;
+                    imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
+                    imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
+                    
+                    // 更新容器尺寸
+                    if (this._activePreview) {
+                        const containerPadding = 5 * 2;
+                        const containerBorder = 2 * 2;
+                        const statusBarHeight = 25;
+                        const containerMaxWidth = maxSize + containerPadding + containerBorder;
+                        const containerMaxHeight = maxSize + statusBarHeight;
+                        this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
+                        this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
+                    }
+                    
+                    this.updatePreviewStatus(statusText);
+                    
+                    // 載入完成後，繼續預載入接下來的圖片
+                    setTimeout(() => {
+                        this.preloadNextImages();
+                    }, 100);
+                })
+                .catch((error) => {
+                    if (error.message !== 'Request aborted') {
+                        this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
+                        window.KemonoLogger.error('載入圖片失敗:', error);
+                    }
+                });
+        } else {
+            // 如果沒有請求排隊系統，使用傳統方式（向後相容）
+            const newImg = new Image();
+            
+            newImg.onload = () => {
+                // 重新讀取設定值並計算尺寸
+                let maxSize = 600;
+                if (window.KemonoSettings && window.KemonoSettings.settings) {
+                    maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
                 }
-            }
+                if (maxSize === 600) {
+                    try {
+                        const localSettings = localStorage.getItem('kemono_preview_settings');
+                        if (localSettings) {
+                            const previewSettings = JSON.parse(localSettings);
+                            if (previewSettings.maxPreviewSize) {
+                                maxSize = previewSettings.maxPreviewSize;
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略錯誤
+                    }
+                }
+                
+                // 計算縮放比例（同時考慮寬度和高度限制）
+                const naturalWidth = newImg.naturalWidth;
+                const naturalHeight = newImg.naturalHeight;
+                let scale = 1;
+                if (naturalWidth > maxSize) {
+                    scale = Math.min(scale, maxSize / naturalWidth);
+                }
+                if (naturalHeight > maxSize) {
+                    scale = Math.min(scale, maxSize / naturalHeight);
+                }
+                
+                const targetWidth = naturalWidth * scale;
+                const targetHeight = naturalHeight * scale;
+                
+                // 更新圖片（直接設定尺寸，不設動畫）
+                imgElement.src = newSrc;
+                imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
+                imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
+                
+                // 更新容器尺寸
+                if (this._activePreview) {
+                    const containerPadding = 5 * 2;
+                    const containerBorder = 2 * 2;
+                    const statusBarHeight = 25;
+                    const containerMaxWidth = maxSize + containerPadding + containerBorder;
+                    const containerMaxHeight = maxSize + statusBarHeight;
+                    this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
+                    this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
+                }
+                
+                this.updatePreviewStatus(statusText);
+                
+                // 載入完成後，繼續預載入接下來的圖片
+                setTimeout(() => {
+                    this.preloadNextImages();
+                }, 100);
+            };
             
-            // 計算縮放比例（同時考慮寬度和高度限制）
-            const naturalWidth = newImg.naturalWidth;
-            const naturalHeight = newImg.naturalHeight;
-            let scale = 1;
-            if (naturalWidth > maxSize) {
-                scale = Math.min(scale, maxSize / naturalWidth);
-            }
-            if (naturalHeight > maxSize) {
-                scale = Math.min(scale, maxSize / naturalHeight);
-            }
+            newImg.onerror = () => {
+                this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
+            };
             
-            const targetWidth = naturalWidth * scale;
-            const targetHeight = naturalHeight * scale;
-            
-            // 更新圖片（直接設定尺寸，不設動畫）
-            imgElement.src = newSrc;
-            imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
-            imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
-            
-            // 更新容器尺寸
-            if (this._activePreview) {
-                const containerPadding = 5 * 2;
-                const containerBorder = 2 * 2;
-                const statusBarHeight = 25;
-                const containerMaxWidth = maxSize + containerPadding + containerBorder;
-                const containerMaxHeight = maxSize + statusBarHeight;
-                this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
-                this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
-            }
-            
-            this.updatePreviewStatus(statusText);
-            
-            // 載入完成後，繼續預載入接下來的圖片
-            setTimeout(() => {
-                this.preloadNextImages();
-            }, 100);
-        };
-        
-        newImg.onerror = () => {
-            this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
-        };
-        
-        newImg.src = newSrc;
+            newImg.src = newSrc;
+        }
     },
     
     // 從預載入的圖片更新顯示
