@@ -357,31 +357,47 @@ window.KemonoUtil = window.KemonoUtil || {
         
         // 如果沒有當前圖片，預設顯示第一張內文圖的狀態
         if (!currentImgSrc) {
-            return window.KemonoI18n.t('preview_content_image', { 
-                current: 1, 
-                total: contentImages.length 
-            });
+            // 檢查封面圖與第一張內文圖是否相同
+            const isCoverSameAsFirst = coverImage && contentImages.length > 0 && 
+                this.compareImageUrls(coverImage, contentImages[0]);
+            if (isCoverSameAsFirst) {
+                // 封面圖與第一張相同，顯示第 1 張
+                return window.KemonoI18n.t('preview_content_image', { 
+                    current: 1, 
+                    total: contentImages.length 
+                });
+            } else {
+                // 封面圖與第一張不同，顯示第 2 張（因為封面圖不算在內文圖的編號中）
+                return window.KemonoI18n.t('preview_content_image', { 
+                    current: 2, 
+                    total: contentImages.length 
+                });
+            }
         }
+        
+        // 檢查封面圖與第一張內文圖是否相同
+        const isCoverSameAsFirst = coverImage && contentImages.length > 0 && 
+            this.compareImageUrls(coverImage, contentImages[0]);
+        
+        // 檢查當前圖片是否為封面圖
+        const isCurrentCover = coverImage && this.compareImageUrls(coverImage, currentImgSrc);
         
         // 找到當前圖片在內文圖片列表中的索引
         const currentIndex = contentImages.findIndex(img => 
             this.compareImageUrls(img, currentImgSrc)
         );
         
-        // 如果找不到當前圖片在內文圖片列表中，檢查是否為封面圖
+        // 如果找不到當前圖片在內文圖片列表中
         if (currentIndex < 0) {
             // 如果當前圖片是封面圖，且封面圖與第一張內文圖不同
-            if (coverImage && this.compareImageUrls(coverImage, currentImgSrc)) {
-                // 檢查封面圖與第一張內文圖是否相同
-                const isCoverSameAsFirst = contentImages.length > 0 && 
-                    this.compareImageUrls(coverImage, contentImages[0]);
-                if (!isCoverSameAsFirst) {
-                    return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
-                }
+            if (isCurrentCover && !isCoverSameAsFirst) {
+                return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
             }
             // 如果找不到且不是封面圖，預設顯示第一張的狀態
+            // 根據封面圖與第一張的關係決定編號
+            const displayNumber = isCoverSameAsFirst ? 1 : 2;
             return window.KemonoI18n.t('preview_content_image', { 
-                current: 1, 
+                current: displayNumber, 
                 total: contentImages.length 
             });
         }
@@ -389,40 +405,33 @@ window.KemonoUtil = window.KemonoUtil || {
         // 當前圖片在內文圖片列表中的索引
         const displayIndex = currentIndex;
         
-        // 檢查封面圖與第一張內文圖是否相同（嚴格比較）
-        const isCoverSameAsFirst = coverImage && contentImages.length > 0 && 
-            this.compareImageUrls(coverImage, contentImages[0]);
-        
-        // 檢查當前圖片是否為封面圖
-        const isCurrentCover = coverImage && this.compareImageUrls(coverImage, currentImgSrc);
-        
-        // 檢查當前圖片是否為第一張內文圖
-        const isCurrentFirst = displayIndex === 0;
-        
-        // 只有在以下條件都滿足時，才顯示「正在預覽封面圖與第 1 張」：
-        // 1. 封面圖與第一張內文圖確實相同
-        // 2. 當前正在預覽第一張內文圖（索引為 0）
-        // 3. 當前圖片確實是封面圖（雙重確認）
-        if (isCoverSameAsFirst && isCurrentFirst && isCurrentCover) {
-            window.KemonoLogger.log('顯示「正在預覽封面圖與第 1 張」', {
-                coverImage,
-                firstContentImage: contentImages[0],
-                currentImgSrc,
-                isCoverSameAsFirst,
-                isCurrentFirst,
-                isCurrentCover
-            });
-            return window.KemonoI18n.t('preview_cover_and_first', { total: contentImages.length });
+        // 如果正在預覽封面圖
+        if (isCurrentCover) {
+            // 如果封面圖與第一張內文圖相同，且當前正在預覽第一張內文圖（索引為 0）
+            if (isCoverSameAsFirst && displayIndex === 0) {
+                return window.KemonoI18n.t('preview_cover_and_first', { total: contentImages.length });
+            }
+            // 如果封面圖與第一張內文圖不同
+            if (!isCoverSameAsFirst) {
+                return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
+            }
         }
         
-        // 如果正在預覽封面圖，且封面圖與第一張內文圖不同
-        if (isCurrentCover && !isCoverSameAsFirst) {
-            return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
+        // 如果正在預覽內文圖
+        // 計算內文圖的編號：
+        // - 如果封面圖與第一張內文圖相同，內文圖編號從 1 開始（封面圖就是第 1 張）
+        // - 如果封面圖與第一張內文圖不同，內文圖編號從 2 開始（因為封面圖不算在內文圖的編號中）
+        let contentImageNumber;
+        if (isCoverSameAsFirst) {
+            // 封面圖與第一張相同，內文圖編號從 1 開始
+            contentImageNumber = displayIndex + 1;
+        } else {
+            // 封面圖與第一張不同，內文圖編號從 2 開始
+            contentImageNumber = displayIndex + 2;
         }
         
-        // 如果正在預覽內文圖（包括第一張，但封面圖與第一張不同）
         return window.KemonoI18n.t('preview_content_image', { 
-            current: displayIndex + 1, 
+            current: contentImageNumber, 
             total: contentImages.length 
         });
     },
