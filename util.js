@@ -103,11 +103,14 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.id = 'image-preview';
         preview.className = 'kemono-preview-container';
         // 使用 !important 確保設定值優先於 CSS，並設定明確的寬度限制
+        // 使用 border-box，所以 max-width 已經包含 padding 和 border
         preview.style.setProperty('max-width', `${maxSize}px`, 'important');
         preview.style.setProperty('max-height', '70vh', 'important');
         preview.style.setProperty('width', 'auto', 'important');
         preview.style.setProperty('height', 'auto', 'important');
         preview.style.setProperty('box-sizing', 'border-box', 'important');
+        // 確保沒有額外的 margin
+        preview.style.setProperty('margin', '0', 'important');
         
         const img = document.createElement('img');
         // 確保圖片受到容器尺寸限制，使用 width 而不是 max-width 來強制限制
