@@ -745,33 +745,39 @@ window.KemonoUtil = window.KemonoUtil || {
         // 邊距設定
         const margin = 5;
         const horizontalOffset = 20; // 游標右側偏移量
+        const verticalOffset = 10; // 游標下方偏移量，確保游標不在預覽圖範圍內
         
         // 游標位置（相對於視窗）
         const cursorX = event.clientX;
         const cursorY = event.clientY;
         
-        // 預設位置：游標右下角，游標位置往右偏移20px作為預覽圖外框左上角
-        // 為了避免游標hover在預覽圖上，預覽圖的Y座標應該稍微往下偏移，讓游標在預覽圖上方
-        const verticalOffset = 10; // 游標下方偏移量，確保游標不在預覽圖範圍內
+        // 先獲取預覽圖尺寸，然後根據尺寸計算相對位置
+        let left, top;
         
-        // 計算預設位置（游標右下角）
-        let left = cursorX + horizontalOffset;
-        let top = cursorY + verticalOffset;
+        // 檢查是否會超出右邊界和下邊界
+        const wouldExceedRight = cursorX + horizontalOffset + previewWidth > viewport.width - margin;
+        const wouldExceedBottom = cursorY + verticalOffset + previewHeight > viewport.height - margin;
         
-        // 檢查是否會超出右邊界
-        if (left + previewWidth > viewport.width - margin) {
-            // 超出右邊界，改為顯示在游標左側
-            left = cursorX - horizontalOffset - previewWidth;
-        }
-        
-        // 檢查是否會超出下邊界
-        if (top + previewHeight > viewport.height - margin) {
-            // 超出下邊界，改為顯示在游標上方（預覽圖底部對齊游標上方）
+        if (wouldExceedRight && wouldExceedBottom) {
+            // 同時太靠近右側和下方邊界：預覽圖顯示在游標左上
+            // 預覽圖右下角對齊游標左上，所以預覽圖左上角 = 游標位置 - 預覽圖尺寸 - 偏移
+            left = cursorX - previewWidth - horizontalOffset;
             top = cursorY - previewHeight - verticalOffset;
-            // 確保不會超出上邊界
-            if (top < margin) {
-                top = margin;
-            }
+        } else if (wouldExceedRight) {
+            // 太靠近右側邊界：預覽圖顯示在游標左下
+            // 預覽圖右上角對齊游標左側，所以預覽圖左上角 = 游標X - 預覽圖寬度 - 偏移，Y = 游標Y + 偏移
+            left = cursorX - previewWidth - horizontalOffset;
+            top = cursorY + verticalOffset;
+        } else if (wouldExceedBottom) {
+            // 太靠近下方邊界：預覽圖顯示在游標右上
+            // 預覽圖左下角對齊游標上方，所以預覽圖左上角 = 游標X + 偏移，Y = 游標Y - 預覽圖高度 - 偏移
+            left = cursorX + horizontalOffset;
+            top = cursorY - previewHeight - verticalOffset;
+        } else {
+            // 平常狀態：預覽圖顯示在游標右下角
+            // 預覽圖左上角 = 游標位置 + 偏移
+            left = cursorX + horizontalOffset;
+            top = cursorY + verticalOffset;
         }
         
         // 最終邊界檢查（確保不會超出任何邊界，但不改變預覽圖大小）
@@ -795,7 +801,7 @@ window.KemonoUtil = window.KemonoUtil || {
             top = viewport.height - previewHeight - margin;
         }
         
-        // 最後檢查預覽圖是否會覆蓋游標位置（避免游標 hover 在預覽圖上，導致無法點擊頁面內容）
+        // 檢查預覽圖是否會覆蓋游標位置（避免游標 hover 在預覽圖上，導致無法點擊頁面內容）
         // 如果游標在預覽圖範圍內，則微調位置避免覆蓋
         const cursorInPreviewX = cursorX >= left && cursorX <= left + previewWidth;
         const cursorInPreviewY = cursorY >= top && cursorY <= top + previewHeight;
