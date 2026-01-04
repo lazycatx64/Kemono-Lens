@@ -332,13 +332,6 @@ class DOMManager {
             userName = headerElement.textContent.trim();
         }
         
-        this.logger.debug('[DOMManager] 從文章卡片提取用戶信息:', {
-            userId,
-            platform,
-            userName,
-            卡片元素: postCard.className
-        });
-        
         return {
             id: userId,
             platform: platform,
