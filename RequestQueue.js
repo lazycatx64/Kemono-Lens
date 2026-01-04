@@ -121,6 +121,12 @@ class RequestQueue {
     async waitForSlot(requestId = null) {
         // 如果有 requestId，標記為等待中
         if (requestId !== null) {
+            // 在等待前再次檢查是否已被取消（可能因為重複而被取消）
+            const request = this.currentRequests.get(requestId);
+            if (!request || request.abortController.signal.aborted) {
+                return; // 請求已被取消，不需要等待
+            }
+            
             this.pendingRequests.add(requestId);
             this.updateNotifier();
         }
@@ -166,6 +172,44 @@ class RequestQueue {
         }
     }
 
+    // 檢查並移除重複的請求（相同 URL）
+    removeDuplicateRequests(url, currentRequestId) {
+        const duplicates = [];
+        
+        // 檢查正在處理的請求
+        for (const [id, request] of this.currentRequests.entries()) {
+            if (id !== currentRequestId && request.url === url) {
+                duplicates.push(id);
+            }
+        }
+        
+        // 檢查等待中的請求
+        for (const id of this.pendingRequests) {
+            if (id !== currentRequestId) {
+                const request = this.currentRequests.get(id);
+                if (request && request.url === url) {
+                    duplicates.push(id);
+                }
+            }
+        }
+        
+        // 取消重複的請求
+        duplicates.forEach(id => {
+            const request = this.currentRequests.get(id);
+            if (request && request.abortController) {
+                request.abortController.abort();
+            }
+            this.currentRequests.delete(id);
+            this.pendingRequests.delete(id);
+        });
+        
+        if (duplicates.length > 0) {
+            this.updateNotifier();
+        }
+        
+        return duplicates.length;
+    }
+
     // 發送 fetch 請求（帶排隊）
     async fetch(url, options = {}) {
         const requestId = ++this.requestIdCounter;
@@ -183,6 +227,10 @@ class RequestQueue {
             type: 'fetch',
             url
         });
+        
+        // 檢查並移除重複的請求
+        this.removeDuplicateRequests(url, requestId);
+        
         this.updateNotifier();
         
         try {
@@ -229,6 +277,10 @@ class RequestQueue {
             type: 'image',
             url
         });
+        
+        // 檢查並移除重複的請求
+        this.removeDuplicateRequests(url, requestId);
+        
         this.updateNotifier();
         
         return new Promise((resolve, reject) => {
