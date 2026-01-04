@@ -609,11 +609,21 @@ window.KemonoUtil = window.KemonoUtil || {
         const cursorX = event.clientX;
         const cursorY = event.clientY;
         
-        // 計算位置（考慮狀態欄在容器上方）
+        // 預設位置：游標右下方（考慮狀態欄在容器上方）
         let left = cursorX + horizontalOffset;
         let top = cursorY - statusBarHeight;
         
-        // 邊界檢查
+        // 檢查是否會超出右邊界，如果會則改為顯示在游標左邊
+        if (left + previewWidth > viewport.width - margin) {
+            left = cursorX - horizontalOffset - previewWidth;
+        }
+        
+        // 檢查是否會超出下邊界，如果會則改為顯示在游標上方
+        if (top + previewHeight > viewport.height - margin) {
+            top = cursorY - previewHeight;
+        }
+        
+        // 最終邊界檢查（確保不會超出任何邊界）
         if (left + previewWidth > viewport.width - margin) {
             left = viewport.width - previewWidth - margin;
         }
