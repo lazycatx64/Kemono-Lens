@@ -142,6 +142,7 @@ class KemonoFriends {
             
             if (!shouldHandle || !currentHoveredElement) return;
             
+            if (!util || !util.getActivePreview) return;
             const preview = util.getActivePreview();
             if (!preview) return;
             
@@ -215,7 +216,11 @@ class KemonoFriends {
                 
                 // 如果不在目標元素或預覽上，關閉預覽
                 if (!isOverTarget) {
-                    util.removeActivePreview();
+                    if (util && util.removeActivePreview) {
+                        if (util && util.removeActivePreview) {
+            util.removeActivePreview();
+        }
+                    }
                     currentHoveredElement = null;
                 }
             }
@@ -489,7 +494,9 @@ class KemonoFriends {
             delete document.body.dataset.profileProcessed;
         }
         // 清除懸停預覽
-        util.removeActivePreview();
+        if (util && util.removeActivePreview) {
+            util.removeActivePreview();
+        }
     }
 }
 
@@ -531,7 +538,9 @@ const checkUrlChange = () => {
         }
         
         // 清除懸停預覽
-        util.removeActivePreview();
+        if (util && util.removeActivePreview) {
+            util.removeActivePreview();
+        }
         currentHoveredElement = null;
         
         // 重新初始化 - 增加延遲以確保頁面完全載入
