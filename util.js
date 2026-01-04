@@ -725,6 +725,11 @@ window.KemonoUtil = window.KemonoUtil || {
         
         const preview = this._activePreview;
         
+        // 確保預覽圖使用 fixed 定位（相對於視窗）
+        if (preview.style.position !== 'fixed') {
+            preview.style.position = 'fixed';
+        }
+        
         // 確保預覽圖可見以獲取正確的尺寸
         if (preview.style.visibility === 'hidden') {
             preview.style.visibility = 'visible';
@@ -738,9 +743,20 @@ window.KemonoUtil = window.KemonoUtil || {
         };
         
         // 獲取預覽圖尺寸（包含狀態欄和 padding、border）
+        // getBoundingClientRect() 對於 position: fixed 的元素，返回的座標是相對於視窗的
+        // 為了確保能正確獲取尺寸，先強制重新計算佈局
         const previewRect = preview.getBoundingClientRect();
-        const previewWidth = previewRect.width || 300;
-        const previewHeight = previewRect.height || 200;
+        let previewWidth = previewRect.width || 300;
+        let previewHeight = previewRect.height || 200;
+        
+        // 如果尺寸為 0 或異常，使用備用值並強制重新計算
+        if (previewWidth <= 0 || previewHeight <= 0) {
+            // 強制重新計算佈局
+            preview.offsetHeight; // 觸發重新計算
+            const rect = preview.getBoundingClientRect();
+            previewWidth = rect.width || 300;
+            previewHeight = rect.height || 200;
+        }
         
         // 邊距設定
         const margin = 5;
