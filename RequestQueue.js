@@ -9,10 +9,13 @@ class RequestQueue {
         this.requestTimes = []; // 記錄最近請求的時間戳
         this.maxRequestsPerSecond = 10; // 預設每秒最多10次請求
         this.currentRequests = new Map(); // 追蹤正在進行的請求，key 為請求 ID，value 為 { abortController, type, url }
+        this.pendingRequests = new Set(); // 追蹤等待中的請求（在 waitForSlot 中等待的）
         this.requestIdCounter = 0;
+        this.notifier = null; // 通知器實例
         
         this.loadSettings();
         this.setupSettingsListener();
+        this.initNotifier();
     }
 
     loadSettings() {
@@ -115,36 +118,50 @@ class RequestQueue {
 
     // 等待直到可以發送請求
     // 使用滑動窗口確保在任何1秒時間窗口內都不超過限制
-    async waitForSlot() {
-        // 持續檢查直到可以發送請求
-        while (true) {
-            // 清理過期記錄（超過1秒的請求時間戳）
-            this.cleanRequestTimes();
-            
-            // 檢查當前1秒窗口內的請求數
-            if (this.requestTimes.length < this.maxRequestsPerSecond) {
-                // 可以發送請求，跳出循環
-                break;
+    async waitForSlot(requestId = null) {
+        // 如果有 requestId，標記為等待中
+        if (requestId !== null) {
+            this.pendingRequests.add(requestId);
+            this.updateNotifier();
+        }
+        
+        try {
+            // 持續檢查直到可以發送請求
+            while (true) {
+                // 清理過期記錄（超過1秒的請求時間戳）
+                this.cleanRequestTimes();
+                
+                // 檢查當前1秒窗口內的請求數
+                if (this.requestTimes.length < this.maxRequestsPerSecond) {
+                    // 可以發送請求，跳出循環
+                    break;
+                }
+                
+                // 如果超過限制，計算需要等待的時間
+                // 找到最舊的請求時間（在1秒窗口內最早的）
+                if (this.requestTimes.length > 0) {
+                    const oldestTime = this.requestTimes[0];
+                    const now = Date.now();
+                    const elapsed = now - oldestTime;
+                    
+                    // 計算需要等待的時間，直到最舊的請求超過1秒
+                    // 加10ms緩衝以避免邊界情況和時序問題
+                    const waitTime = Math.max(10, 1000 - elapsed + 10);
+                    
+                    // 限制最大等待時間為2秒，防止異常情況
+                    const actualWaitTime = Math.min(waitTime, 2000);
+                    
+                    await new Promise(resolve => setTimeout(resolve, actualWaitTime));
+                } else {
+                    // 如果沒有記錄（理論上不應該發生），短暫等待後重試
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
             }
-            
-            // 如果超過限制，計算需要等待的時間
-            // 找到最舊的請求時間（在1秒窗口內最早的）
-            if (this.requestTimes.length > 0) {
-                const oldestTime = this.requestTimes[0];
-                const now = Date.now();
-                const elapsed = now - oldestTime;
-                
-                // 計算需要等待的時間，直到最舊的請求超過1秒
-                // 加10ms緩衝以避免邊界情況和時序問題
-                const waitTime = Math.max(10, 1000 - elapsed + 10);
-                
-                // 限制最大等待時間為2秒，防止異常情況
-                const actualWaitTime = Math.min(waitTime, 2000);
-                
-                await new Promise(resolve => setTimeout(resolve, actualWaitTime));
-            } else {
-                // 如果沒有記錄（理論上不應該發生），短暫等待後重試
-                await new Promise(resolve => setTimeout(resolve, 10));
+        } finally {
+            // 移除等待標記
+            if (requestId !== null) {
+                this.pendingRequests.delete(requestId);
+                this.updateNotifier();
             }
         }
     }
@@ -166,10 +183,11 @@ class RequestQueue {
             type: 'fetch',
             url
         });
+        this.updateNotifier();
         
         try {
             // 等待可用的請求槽位（確保在1秒窗口內不超過限制）
-            await this.waitForSlot();
+            await this.waitForSlot(requestId);
             
             // 檢查是否已被取消
             if (abortController.signal.aborted) {
@@ -185,11 +203,13 @@ class RequestQueue {
             
             // 請求完成，移除追蹤
             this.currentRequests.delete(requestId);
+            this.updateNotifier();
             
             return response;
         } catch (error) {
             // 請求失敗或取消，移除追蹤
             this.currentRequests.delete(requestId);
+            this.updateNotifier();
             
             if (error.name === 'AbortError' || error.message === 'Request aborted') {
                 throw error;
@@ -209,13 +229,15 @@ class RequestQueue {
             type: 'image',
             url
         });
+        this.updateNotifier();
         
         return new Promise((resolve, reject) => {
             // 等待可用的請求槽位（確保在1秒窗口內不超過限制）
-            this.waitForSlot().then(() => {
+            this.waitForSlot(requestId).then(() => {
                 // 檢查是否已被取消
                 if (abortController.signal.aborted) {
                     this.currentRequests.delete(requestId);
+                    this.updateNotifier();
                     reject(new Error('Request aborted'));
                     return;
                 }
@@ -230,6 +252,7 @@ class RequestQueue {
                 const abortHandler = () => {
                     img.src = ''; // 取消圖片載入
                     this.currentRequests.delete(requestId);
+                    this.updateNotifier();
                     reject(new Error('Request aborted'));
                 };
                 
@@ -238,12 +261,14 @@ class RequestQueue {
                 img.onload = () => {
                     abortController.signal.removeEventListener('abort', abortHandler);
                     this.currentRequests.delete(requestId);
+                    this.updateNotifier();
                     resolve(img);
                 };
                 
                 img.onerror = (error) => {
                     abortController.signal.removeEventListener('abort', abortHandler);
                     this.currentRequests.delete(requestId);
+                    this.updateNotifier();
                     reject(error);
                 };
                 
@@ -267,8 +292,10 @@ class RequestQueue {
                 request.abortController.abort();
             }
             this.currentRequests.delete(id);
+            this.pendingRequests.delete(id); // 同時從等待列表中移除
         });
         
+        this.updateNotifier();
         return toAbort.length;
     }
 
@@ -278,6 +305,8 @@ class RequestQueue {
             if (request.url === url) {
                 request.abortController.abort();
                 this.currentRequests.delete(id);
+                this.pendingRequests.delete(id); // 同時從等待列表中移除
+                this.updateNotifier();
                 return true;
             }
         }
@@ -292,6 +321,8 @@ class RequestQueue {
             }
         }
         this.currentRequests.clear();
+        this.pendingRequests.clear();
+        this.updateNotifier();
     }
 
     // 獲取當前排隊中的請求數量
@@ -302,6 +333,122 @@ class RequestQueue {
     // 獲取當前正在進行的請求數量
     getActiveRequestCount() {
         return this.currentRequests.size;
+    }
+
+    // 獲取等待中的請求數量
+    getPendingRequestCount() {
+        return this.pendingRequests.size;
+    }
+
+    // 獲取總請求數量（等待中 + 正在處理）
+    getTotalRequestCount() {
+        return this.pendingRequests.size + this.currentRequests.size;
+    }
+
+    // 初始化通知器
+    initNotifier() {
+        if (typeof document === 'undefined') return; // 非瀏覽器環境
+        
+        // 確保 document.body 存在
+        if (document.body) {
+            this.createNotifier();
+        } else {
+            // 如果 body 還不存在，等待 DOM 載入
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.createNotifier();
+                });
+            } else {
+                // 如果已經載入完成但 body 不存在，稍後重試
+                setTimeout(() => {
+                    if (document.body) {
+                        this.createNotifier();
+                    }
+                }, 100);
+            }
+        }
+    }
+
+    // 創建通知器元素
+    createNotifier() {
+        if (this.notifier) return; // 已經創建過了
+        
+        // 檢查是否已經存在（避免重複創建）
+        let notifier = document.getElementById('kemono-request-queue-notifier');
+        if (!notifier) {
+            notifier = document.createElement('div');
+            notifier.id = 'kemono-request-queue-notifier';
+            notifier.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ffc107;
+                color: #333;
+                padding: 12px 16px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10001;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 14px;
+                line-height: 1.5;
+                display: none;
+                transition: background-color 0.3s ease;
+                font-weight: 500;
+            `;
+            document.body.appendChild(notifier);
+        }
+        this.notifier = notifier;
+    }
+
+    // 更新通知器顯示
+    updateNotifier() {
+        // 確保通知器已創建
+        if (!this.notifier && typeof document !== 'undefined' && document.body) {
+            this.createNotifier();
+        }
+        
+        if (!this.notifier) return;
+        
+        const pendingCount = this.pendingRequests.size;
+        const activeCount = this.currentRequests.size;
+        const totalCount = pendingCount + activeCount;
+        
+        if (totalCount === 0) {
+            // 所有請求完成，變綠色並在0.5秒後消失
+            if (this.notifier.style.display !== 'none') {
+                this.notifier.style.background = '#4CAF50';
+                this.notifier.style.color = '#fff';
+                this.notifier.textContent = '所有請求已完成';
+                
+                setTimeout(() => {
+                    if (this.notifier && this.notifier.parentNode) {
+                        this.notifier.style.display = 'none';
+                    }
+                }, 500);
+            }
+            return;
+        }
+        
+        // 有請求在處理或等待，顯示黃色通知器
+        this.notifier.style.display = 'block';
+        this.notifier.style.background = '#ffc107';
+        this.notifier.style.color = '#333';
+        
+        // 顯示內容：正在處理的項目、總數、剩餘數量
+        const activeText = activeCount > 0 ? `正在處理: ${activeCount}` : '';
+        const pendingText = pendingCount > 0 ? `等待中: ${pendingCount}` : '';
+        const totalText = `總數: ${totalCount}`;
+        
+        let content = totalText;
+        if (activeText && pendingText) {
+            content = `${activeText} | ${pendingText} | ${totalText}`;
+        } else if (activeText) {
+            content = `${activeText} | ${totalText}`;
+        } else if (pendingText) {
+            content = `${pendingText} | ${totalText}`;
+        }
+        
+        this.notifier.textContent = content;
     }
 }
 
