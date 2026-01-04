@@ -12,6 +12,7 @@ window.KemonoUtil = window.KemonoUtil || {
     _coverImage: null, // 封面圖像
     _resizeObserver: null, // ResizeObserver 用於監聽尺寸變化
     _preloadedImages: new Map(), // 預載入的圖片快取，key 為圖片 URL，value 為 Image 物件
+    _lastMouseEvent: null, // 最後一次游標位置，用於圖片切換時重新計算位置
     
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
@@ -676,6 +677,15 @@ window.KemonoUtil = window.KemonoUtil || {
                     
                     this.updatePreviewStatus(statusText);
                     
+                    // 圖片尺寸更新後，重新計算預覽圖位置
+                    // 使用保存的最後一次游標位置
+                    if (this._lastMouseEvent) {
+                        // 等待 DOM 更新後再重新計算位置
+                        setTimeout(() => {
+                            this.positionPreviewAtCursor(this._lastMouseEvent);
+                        }, 0);
+                    }
+                    
                     // 載入完成後，繼續預載入接下來的圖片
                     setTimeout(() => {
                         this.preloadNextImages();
@@ -743,6 +753,15 @@ window.KemonoUtil = window.KemonoUtil || {
                 
                 this.updatePreviewStatus(statusText);
                 
+                // 圖片尺寸更新後，重新計算預覽圖位置
+                // 使用保存的最後一次游標位置
+                if (this._lastMouseEvent) {
+                    // 等待 DOM 更新後再重新計算位置
+                    setTimeout(() => {
+                        this.positionPreviewAtCursor(this._lastMouseEvent);
+                    }, 0);
+                }
+                
                 // 載入完成後，繼續預載入接下來的圖片
                 setTimeout(() => {
                     this.preloadNextImages();
@@ -809,8 +828,27 @@ window.KemonoUtil = window.KemonoUtil || {
         }
         
         this.updatePreviewStatus(statusText);
+        
+        // 圖片尺寸更新後，重新計算預覽圖位置
+        // 使用保存的最後一次游標位置
+        if (this._lastMouseEvent) {
+            // 等待 DOM 更新後再重新計算位置
+            setTimeout(() => {
+                this.positionPreviewAtCursor(this._lastMouseEvent);
+            }, 0);
+        }
     },    positionPreviewAtCursor: function(event) {
-        if (!this._activePreview || !event) return;
+        if (!this._activePreview) return;
+        
+        // 如果沒有提供 event，使用保存的最後一次游標位置
+        if (!event && this._lastMouseEvent) {
+            event = this._lastMouseEvent;
+        }
+        
+        if (!event) return;
+        
+        // 保存游標位置，以便圖片切換時重新計算位置
+        this._lastMouseEvent = event;
         
         const preview = this._activePreview;
         
