@@ -76,12 +76,12 @@ class KemonoFriends {
                 (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
                 if (!util || !util.getActivePreview) return;
                 const preview = util.getActivePreview();
-                if (preview && !util.isLoadingImages()) {
+                if (preview && util.isLoadingImages && !util.isLoadingImages()) {
                     e.preventDefault();
                     const direction = e.key === 'ArrowRight' ? 1 : -1;
                     
                     // 如果有貼文圖片則導航，否則載入圖片
-                    if (util._relatedImages.length > 0) {
+                    if (util._relatedImages && util._relatedImages.length > 0 && util.navigateImages) {
                         util.navigateImages(direction);
                     } else if (currentHoveredElement) {
                         const siteHandler = siteManager.getHandler(currSite);
