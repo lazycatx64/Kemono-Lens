@@ -11,6 +11,7 @@ window.KemonoUtil = window.KemonoUtil || {
     _currentPostUrl: null, // 當前貼文 URL
     _coverImage: null, // 封面圖像
     _resizeObserver: null, // ResizeObserver 用於監聽尺寸變化
+    _preloadedImages: new Map(), // 預載入的圖片快取，key 為圖片 URL，value 為 Image 物件
     
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
@@ -356,6 +357,9 @@ window.KemonoUtil = window.KemonoUtil || {
                 window.KemonoLogger.log(`API 載入完成，封面圖: ${coverImage ? 1 : 0} 張，內文圖片: ${contentImages.length} 張`);
             }
             
+            // 預載入接下來的圖片
+            this.preloadNextImages();
+            
         } catch (error) {
             window.KemonoLogger.error('載入貼文圖片時出錯:', error);
             this.updatePreviewStatus(window.KemonoI18n.t('api_failed'));
@@ -577,13 +581,24 @@ window.KemonoUtil = window.KemonoUtil || {
         // 更新當前圖片索引
         this._currentImageIndex = nextIndex;
         
-        // 載入新圖片
+        // 載入新圖片（會自動檢查預載入快取）
         this.loadImageWithIndicator(currentImg, nextImage, statusText);
         
         window.KemonoLogger.log(`切換到圖片 ${nextIndex + 1}/${allImages.length}: ${nextImage}`);
     },
     
     loadImageWithIndicator: function(imgElement, newSrc, statusText) {
+        // 檢查是否有預載入的圖片
+        const preloadedImg = this.getPreloadedImage(newSrc);
+        if (preloadedImg && preloadedImg.complete) {
+            // 使用預載入的圖片，直接更新
+            window.KemonoLogger.log('使用預載入的圖片:', newSrc);
+            this.updateImageFromPreloaded(imgElement, preloadedImg, statusText);
+            // 繼續預載入接下來的圖片
+            this.preloadNextImages();
+            return;
+        }
+        
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
         const newImg = new Image();
@@ -639,6 +654,11 @@ window.KemonoUtil = window.KemonoUtil || {
             }
             
             this.updatePreviewStatus(statusText);
+            
+            // 載入完成後，繼續預載入接下來的圖片
+            setTimeout(() => {
+                this.preloadNextImages();
+            }, 100);
         };
         
         newImg.onerror = () => {
@@ -646,6 +666,60 @@ window.KemonoUtil = window.KemonoUtil || {
         };
         
         newImg.src = newSrc;
+    },
+    
+    // 從預載入的圖片更新顯示
+    updateImageFromPreloaded: function(imgElement, preloadedImg, statusText) {
+        // 重新讀取設定值並計算尺寸
+        let maxSize = 600;
+        if (window.KemonoSettings && window.KemonoSettings.settings) {
+            maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+        }
+        if (maxSize === 600) {
+            try {
+                const localSettings = localStorage.getItem('kemono_preview_settings');
+                if (localSettings) {
+                    const previewSettings = JSON.parse(localSettings);
+                    if (previewSettings.maxPreviewSize) {
+                        maxSize = previewSettings.maxPreviewSize;
+                    }
+                }
+            } catch (e) {
+                // 忽略錯誤
+            }
+        }
+        
+        // 計算縮放比例
+        const naturalWidth = preloadedImg.naturalWidth;
+        const naturalHeight = preloadedImg.naturalHeight;
+        let scale = 1;
+        if (naturalWidth > maxSize) {
+            scale = Math.min(scale, maxSize / naturalWidth);
+        }
+        if (naturalHeight > maxSize) {
+            scale = Math.min(scale, maxSize / naturalHeight);
+        }
+        
+        const targetWidth = naturalWidth * scale;
+        const targetHeight = naturalHeight * scale;
+        
+        // 更新圖片（直接設定尺寸，不設動畫）
+        imgElement.src = preloadedImg.src;
+        imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
+        imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
+        
+        // 更新容器尺寸
+        if (this._activePreview) {
+            const containerPadding = 5 * 2;
+            const containerBorder = 2 * 2;
+            const statusBarHeight = 25;
+            const containerMaxWidth = maxSize + containerPadding + containerBorder;
+            const containerMaxHeight = maxSize + statusBarHeight;
+            this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
+            this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
+        }
+        
+        this.updatePreviewStatus(statusText);
     },    positionPreviewAtCursor: function(event) {
         if (!this._activePreview || !event) return;
         
@@ -782,6 +856,114 @@ window.KemonoUtil = window.KemonoUtil || {
     clearAPICache: function() {
         this._apiCache.clear();
         window.KemonoLogger.log('API 快取已清除');
+    },
+    
+    // 獲取預載入數量設定
+    getPreloadCount: function() {
+        let preloadCount = 5; // 預設值
+        if (window.KemonoSettings && window.KemonoSettings.settings) {
+            preloadCount = window.KemonoSettings.settings.preloadImageCount || 5;
+        }
+        // 如果設定中沒有，嘗試從 localStorage 讀取
+        if (preloadCount === 5) {
+            try {
+                const localSettings = localStorage.getItem('kemono_preview_settings');
+                if (localSettings) {
+                    const previewSettings = JSON.parse(localSettings);
+                    if (previewSettings.preloadImageCount !== undefined) {
+                        preloadCount = previewSettings.preloadImageCount;
+                    }
+                }
+            } catch (e) {
+                // 忽略錯誤
+            }
+        }
+        return preloadCount;
+    },
+    
+    // 預載入接下來的圖片
+    preloadNextImages: function() {
+        const preloadCount = this.getPreloadCount();
+        if (preloadCount <= 0) {
+            return; // 如果設定為 0，不進行預載入
+        }
+        
+        // 建立完整的圖片列表
+        let allImages = [];
+        if (this._relatedImages.length > 0) {
+            // 去重處理
+            allImages = [this._relatedImages[0]];
+            for (let i = 1; i < this._relatedImages.length; i++) {
+                const img = this._relatedImages[i];
+                const isDuplicate = allImages.some(existingImg => 
+                    this.compareImageUrls(existingImg, img)
+                );
+                if (!isDuplicate) {
+                    allImages.push(img);
+                }
+            }
+        } else if (this._coverImage) {
+            allImages = [this._coverImage];
+        }
+        
+        if (allImages.length <= 1) {
+            return; // 只有一張圖片，不需要預載入
+        }
+        
+        // 找到當前圖片的索引
+        const currentImg = this._activePreview?.querySelector('img');
+        let currentIndex = 0;
+        if (currentImg) {
+            for (let i = 0; i < allImages.length; i++) {
+                if (this.compareImageUrls(allImages[i], currentImg.src)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        // 預載入接下來的圖片
+        let preloaded = 0;
+        for (let i = 1; i <= preloadCount && preloaded < preloadCount; i++) {
+            const nextIndex = (currentIndex + i) % allImages.length;
+            const imageUrl = allImages[nextIndex];
+            
+            // 如果已經預載入過，跳過
+            if (this._preloadedImages.has(imageUrl)) {
+                continue;
+            }
+            
+            // 如果與當前圖片相同，跳過
+            if (currentImg && this.compareImageUrls(imageUrl, currentImg.src)) {
+                continue;
+            }
+            
+            // 開始預載入
+            const img = new Image();
+            img.onload = () => {
+                this._preloadedImages.set(imageUrl, img);
+                window.KemonoLogger.log(`預載入圖片完成: ${imageUrl}`);
+            };
+            img.onerror = () => {
+                window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`);
+            };
+            img.src = imageUrl;
+            preloaded++;
+        }
+        
+        if (preloaded > 0) {
+            window.KemonoLogger.log(`開始預載入 ${preloaded} 張圖片`);
+        }
+    },
+    
+    // 使用預載入的圖片（如果有的話）
+    getPreloadedImage: function(imageUrl) {
+        return this._preloadedImages.get(imageUrl) || null;
+    },
+    
+    // 清除預載入快取
+    clearPreloadedImages: function() {
+        this._preloadedImages.clear();
     }
 };
 

@@ -68,7 +68,9 @@ const translations = {
     'hide_blacklisted_posts': '隱藏 /posts 頁面中被黑名單的項目',
     'preview_enabled': '啟用懸停預覽功能',
     'preview_switch_mode': '預覽圖切換方式',
-    'preview_max_size': '最大預覽尺寸 (px)'
+    'preview_max_size': '最大預覽尺寸 (px)',
+    'preload_image_count': '預載入圖片數量',
+    'preload_image_count_help': '預先載入接下來的圖片，以便滾輪切換時不用等待'
   },
   
   'en': {
@@ -136,7 +138,9 @@ const translations = {
     'hide_blacklisted_posts': 'Hide Blacklisted Items on /posts Page',
     'preview_enabled': 'Enable Hover Preview',
     'preview_switch_mode': 'Preview Image Switch Mode',
-    'preview_max_size': 'Max Preview Size (px)'
+    'preview_max_size': 'Max Preview Size (px)',
+    'preload_image_count': 'Preload Image Count',
+    'preload_image_count_help': 'Preload next images in advance for smooth scrolling'
   }
 };
 

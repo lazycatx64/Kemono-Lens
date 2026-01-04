@@ -487,6 +487,7 @@ class KemonoFriends {
             window.KemonoSettings.settings.enabled = newSettings.enabled;
             window.KemonoSettings.settings.switchMode = newSettings.switchMode;
             window.KemonoSettings.settings.maxPreviewSize = newSettings.maxPreviewSize;
+            window.KemonoSettings.settings.preloadImageCount = newSettings.preloadImageCount || 5;
             window.KemonoSettings.saveSettings();
         }
         

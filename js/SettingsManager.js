@@ -12,7 +12,8 @@ class SettingsManager {
             // 預覽設定
             previewEnabled: true,
             previewSwitchMode: 'alt_scroll',
-            previewMaxSize: 600
+            previewMaxSize: 600,
+            preloadImageCount: 5
         };
         
         this.init();
@@ -88,6 +89,19 @@ class SettingsManager {
                 }
             });
         }
+
+        // 預載入圖片數量
+        const preloadImageCountInput = document.getElementById('preview-preload-count');
+        if (preloadImageCountInput) {
+            preloadImageCountInput.addEventListener('change', (e) => {
+                const value = parseInt(e.target.value);
+                if (!isNaN(value) && value >= 0 && value <= 20) {
+                    this.settings.preloadImageCount = value;
+                    this.saveSettings();
+                    this.notifyPreviewSettingsChanged();
+                }
+            });
+        }
     }
 
     async loadSettings() {
@@ -98,13 +112,14 @@ class SettingsManager {
                 }
                 
                 // 載入預覽設定（從 localStorage 或 chrome.storage）
-                // 注意：從儲存讀取時使用 enabled, switchMode, maxPreviewSize，然後映射到內部使用的 previewEnabled, previewSwitchMode, previewMaxSize
+                // 注意：從儲存讀取時使用 enabled, switchMode, maxPreviewSize, preloadImageCount，然後映射到內部使用的 previewEnabled, previewSwitchMode, previewMaxSize, preloadImageCount
                 if (result.kemono_preview_settings) {
                     try {
                         const previewSettings = JSON.parse(result.kemono_preview_settings);
                         this.settings.previewEnabled = previewSettings.enabled !== undefined ? previewSettings.enabled : this.settings.previewEnabled;
                         this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                         this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
+                        this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                     } catch (e) {
                         // 如果解析失敗，嘗試從 localStorage 讀取
                         try {
@@ -114,6 +129,7 @@ class SettingsManager {
                                 this.settings.previewEnabled = previewSettings.enabled !== undefined ? previewSettings.enabled : this.settings.previewEnabled;
                                 this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                                 this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
+                                this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                             }
                         } catch (e2) {
                             console.error('載入預覽設定失敗:', e2);
@@ -128,6 +144,7 @@ class SettingsManager {
                             this.settings.previewEnabled = previewSettings.enabled !== undefined ? previewSettings.enabled : this.settings.previewEnabled;
                             this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                             this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
+                            this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                         }
                     } catch (e) {
                         console.error('載入預覽設定失敗:', e);
@@ -151,11 +168,12 @@ class SettingsManager {
         chrome.storage.local.set({ visualSettings });
 
         // 儲存預覽設定（同時儲存到 chrome.storage 和 localStorage 以保持相容性）
-        // 注意：儲存時使用 enabled, switchMode, maxPreviewSize 以與 content script 的 settings.js 保持一致
+        // 注意：儲存時使用 enabled, switchMode, maxPreviewSize, preloadImageCount 以與 content script 的 settings.js 保持一致
         const previewSettings = {
             enabled: this.settings.previewEnabled,
             switchMode: this.settings.previewSwitchMode,
-            maxPreviewSize: this.settings.previewMaxSize
+            maxPreviewSize: this.settings.previewMaxSize,
+            preloadImageCount: this.settings.preloadImageCount
         };
         chrome.storage.local.set({ kemono_preview_settings: JSON.stringify(previewSettings) });
         try {
@@ -199,6 +217,11 @@ class SettingsManager {
         if (previewMaxSizeInput) {
             previewMaxSizeInput.value = this.settings.previewMaxSize;
         }
+
+        const preloadImageCountInput = document.getElementById('preview-preload-count');
+        if (preloadImageCountInput) {
+            preloadImageCountInput.value = this.settings.preloadImageCount || 5;
+        }
     }
 
     notifySettingsChanged(type, enabled) {
@@ -230,7 +253,8 @@ class SettingsManager {
                 settings: {
                     enabled: this.settings.previewEnabled,
                     switchMode: this.settings.previewSwitchMode,
-                    maxPreviewSize: this.settings.previewMaxSize
+                    maxPreviewSize: this.settings.previewMaxSize,
+                    preloadImageCount: this.settings.preloadImageCount
                 }
             }
         }));

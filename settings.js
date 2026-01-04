@@ -15,6 +15,7 @@ class SettingsManager {
       enabled: true,
       switchMode: 'alt_scroll', // 'scroll', 'alt_scroll', 'keyboard'
       maxPreviewSize: 600,
+      preloadImageCount: 5, // 預載入接下來的圖片數量
       language: window.KemonoI18n.currentLanguage
     };
   }
@@ -165,6 +166,13 @@ class SettingsManager {
       </div>
       
       <div class="kemono-settings-section">
+        <label class="kemono-settings-label">${i18n.t('preload_image_count')}</label>
+        <input type="number" id="kemono-preload-count" class="kemono-input" value="${this.settings.preloadImageCount || 5}" 
+               min="0" max="20" step="1">
+        <div class="kemono-settings-help">${i18n.t('preload_image_count_help')}</div>
+      </div>
+      
+      <div class="kemono-settings-section">
         <label class="kemono-settings-label">${i18n.t('language')}</label>
         <select id="kemono-language" class="kemono-select">
           ${Object.entries(languages).map(([code, name]) => 
@@ -201,6 +209,15 @@ class SettingsManager {
       const value = parseInt(e.target.value);
       if (!isNaN(value) && value >= 200 && value <= 1200) {
         this.updateSetting('maxPreviewSize', value);
+      }
+    });
+    
+    // 預載入數量
+    const preloadCountInput = document.getElementById('kemono-preload-count');
+    preloadCountInput.addEventListener('change', (e) => {
+      const value = parseInt(e.target.value);
+      if (!isNaN(value) && value >= 0 && value <= 20) {
+        this.updateSetting('preloadImageCount', value);
       }
     });
     
