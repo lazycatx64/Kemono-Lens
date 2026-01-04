@@ -564,13 +564,14 @@ window.KemonoUtil = window.KemonoUtil || {
         const offset = 15;
         const margin = 5; // 視窗邊緣留白
         const statusBarHeight = 25; // 狀態欄高度
+        const horizontalOffset = 20; // 水平偏移量，讓預覽圖往右移動，避免游標停留在預覽圖上
         
         // 游標位置
         const cursorX = event.clientX;
         const cursorY = event.clientY;
         
-        // 預設位置：預覽圖左上角對齊游標位置（考慮狀態欄高度）
-        let left = cursorX;
+        // 預設位置：預覽圖左上角對齊游標位置（考慮狀態欄高度和水平偏移）
+        let left = cursorX + horizontalOffset;
         let top = cursorY - statusBarHeight;        // 右邊界檢查：如果預覽圖會超出右邊，向左調整
         if (left + previewWidth > viewport.width - margin) {
             left = viewport.width - previewWidth - margin;
