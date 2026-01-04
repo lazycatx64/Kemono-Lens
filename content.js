@@ -57,6 +57,14 @@ class KemonoFriends {
             logger.log('Setting changed:', key, value);
         });
 
+        // 監聽請求排隊設定變更
+        window.addEventListener('kemonoRequestQueueSettingsChanged', function(e) {
+            if (e.detail && e.detail.maxRequestsPerSecond !== undefined && window.KemonoRequestQueue) {
+                window.KemonoRequestQueue.updateSettings(e.detail.maxRequestsPerSecond);
+                logger.log('請求排隊設定已更新:', e.detail.maxRequestsPerSecond);
+            }
+        });
+
         // 監聽按鍵事件
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Alt') {
@@ -422,6 +430,9 @@ class KemonoFriends {
             } else if (message.action === 'updatePreviewSettings') {
                 this.handlePreviewSettingsUpdate(message.settings);
                 sendResponse({ success: true });
+            } else if (message.action === 'updateRequestQueueSettings') {
+                this.handleRequestQueueSettingsUpdate(message.settings);
+                sendResponse({ success: true });
             }
         });
     }
@@ -494,6 +505,14 @@ class KemonoFriends {
         // 如果預覽被停用，移除當前預覽
         if (!newSettings.enabled && util && util.removeActivePreview) {
             util.removeActivePreview();
+        }
+    }
+
+    handleRequestQueueSettingsUpdate(newSettings) {
+        // 更新請求排隊設定
+        if (window.KemonoRequestQueue && newSettings.maxRequestsPerSecond !== undefined) {
+            window.KemonoRequestQueue.updateSettings(newSettings.maxRequestsPerSecond);
+            logger.log('請求排隊設定已更新:', newSettings.maxRequestsPerSecond);
         }
     }
 

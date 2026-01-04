@@ -932,6 +932,17 @@
                         設定預先載入接下來的圖片數量，以便滾輪切換時不用等待。設為 0 則停用預載入功能（0-20）
                     </div>
                 </div>
+
+                <div class="settings-group">
+                    <h3>🚦 請求速率限制</h3>
+                    <label style="display: block; margin-bottom: 8px;">
+                        每秒最多請求次數:
+                        <input type="number" id="request-rate-limit" value="10" min="1" max="100" step="1" style="margin-left: 10px; padding: 5px; width: 100px;">
+                    </label>
+                    <div class="help-text">
+                        限制 API 查詢和預覽圖預載的請求速率，避免過快發送請求。如果超過此速率，請求會自動排隊等待（1-100）
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -940,6 +951,7 @@
     <script src="js/MessageManager.js"></script>
     <script src="js/StatisticsManager.js"></script>
     <script src="js/TabManager.js"></script>
+    <script src="RequestQueue.js"></script>
     <script src="js/SettingsManager.js"></script>
     <script src="js/BlacklistManager.js"></script>
     <script src="js/FavoritesManager.js"></script>

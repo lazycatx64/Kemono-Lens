@@ -152,15 +152,26 @@ const kemono = {
       }
       kemonoLogger.log('API URL:', apiUrl);
       
-      const response = await fetch(apiUrl, {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Accept': 'text/css',
-          'Referer': window.location.href,
-          'Origin': window.location.origin
-        }
-      });
+      // 使用請求排隊系統
+      const response = await (window.KemonoRequestQueue 
+        ? window.KemonoRequestQueue.fetch(apiUrl, {
+            credentials: 'include',
+            cache: 'no-store',
+            headers: {
+              'Accept': 'text/css',
+              'Referer': window.location.href,
+              'Origin': window.location.origin
+            }
+          })
+        : fetch(apiUrl, {
+            credentials: 'include',
+            cache: 'no-store',
+            headers: {
+              'Accept': 'text/css',
+              'Referer': window.location.href,
+              'Origin': window.location.origin
+            }
+          }));
       
       if (!response.ok) {
         throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);

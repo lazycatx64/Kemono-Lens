@@ -13,7 +13,9 @@ class SettingsManager {
             previewEnabled: true,
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
-            preloadImageCount: 5
+            preloadImageCount: 5,
+            // 請求速率限制
+            requestRateLimit: 10
         };
         
         this.init();
@@ -102,11 +104,24 @@ class SettingsManager {
                 }
             });
         }
+
+        // 請求速率限制
+        const requestRateLimitInput = document.getElementById('request-rate-limit');
+        if (requestRateLimitInput) {
+            requestRateLimitInput.addEventListener('change', (e) => {
+                const value = parseInt(e.target.value);
+                if (!isNaN(value) && value >= 1 && value <= 100) {
+                    this.settings.requestRateLimit = value;
+                    this.saveSettings();
+                    this.notifyRequestQueueSettingsChanged();
+                }
+            });
+        }
     }
 
     async loadSettings() {
         return new Promise((resolve) => {
-            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings'], (result) => {
+            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings'], (result) => {
                 if (result.visualSettings) {
                     this.settings = { ...this.settings, ...result.visualSettings };
                 }
@@ -148,6 +163,30 @@ class SettingsManager {
                         }
                     } catch (e) {
                         console.error('載入預覽設定失敗:', e);
+                    }
+                }
+
+                // 載入請求速率限制設定
+                if (result.kemono_request_queue_settings) {
+                    try {
+                        const queueSettings = JSON.parse(result.kemono_request_queue_settings);
+                        if (queueSettings.maxRequestsPerSecond !== undefined) {
+                            this.settings.requestRateLimit = queueSettings.maxRequestsPerSecond;
+                        }
+                    } catch (e) {
+                        console.error('載入請求排隊設定失敗:', e);
+                    }
+                } else {
+                    try {
+                        const localQueueSettings = localStorage.getItem('kemono_request_queue_settings');
+                        if (localQueueSettings) {
+                            const queueSettings = JSON.parse(localQueueSettings);
+                            if (queueSettings.maxRequestsPerSecond !== undefined) {
+                                this.settings.requestRateLimit = queueSettings.maxRequestsPerSecond;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('載入請求排隊設定失敗:', e);
                     }
                 }
                 
@@ -222,6 +261,11 @@ class SettingsManager {
         if (preloadImageCountInput) {
             preloadImageCountInput.value = this.settings.preloadImageCount || 5;
         }
+
+        const requestRateLimitInput = document.getElementById('request-rate-limit');
+        if (requestRateLimitInput) {
+            requestRateLimitInput.value = this.settings.requestRateLimit || 10;
+        }
     }
 
     notifySettingsChanged(type, enabled) {
@@ -268,6 +312,50 @@ class SettingsManager {
                         enabled: this.settings.previewEnabled,
                         switchMode: this.settings.previewSwitchMode,
                         maxPreviewSize: this.settings.previewMaxSize
+                    }
+                }).catch(() => {
+                    // 忽略無法發送訊息的標籤頁（例如未載入內容腳本）
+                });
+            });
+        });
+    }
+
+    notifyRequestQueueSettingsChanged() {
+        // 儲存請求排隊設定
+        const queueSettings = {
+            maxRequestsPerSecond: this.settings.requestRateLimit
+        };
+        const queueSettingsJson = JSON.stringify(queueSettings);
+        
+        try {
+            localStorage.setItem('kemono_request_queue_settings', queueSettingsJson);
+        } catch (e) {
+            console.warn('無法寫入 localStorage:', e);
+        }
+        
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({ kemono_request_queue_settings: queueSettingsJson });
+        }
+
+        // 更新 RequestQueue 實例（如果在 options 頁面）
+        if (window.KemonoRequestQueue) {
+            window.KemonoRequestQueue.updateSettings(this.settings.requestRateLimit);
+        }
+
+        // 觸發設定變更事件（供 content script 使用）
+        window.dispatchEvent(new CustomEvent('kemonoRequestQueueSettingsChanged', {
+            detail: {
+                maxRequestsPerSecond: this.settings.requestRateLimit
+            }
+        }));
+
+        // 通知所有相關的標籤頁更新請求排隊設定
+        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'updateRequestQueueSettings',
+                    settings: {
+                        maxRequestsPerSecond: this.settings.requestRateLimit
                     }
                 }).catch(() => {
                     // 忽略無法發送訊息的標籤頁（例如未載入內容腳本）

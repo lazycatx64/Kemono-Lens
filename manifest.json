@@ -32,6 +32,7 @@
       "js": [
         "logger.js",
         "i18n.js",
+        "RequestQueue.js",
         "settings.js",
         "util.js",
         "sites/kemono.js",

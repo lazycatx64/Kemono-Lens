@@ -802,6 +802,14 @@ window.KemonoUtil = window.KemonoUtil || {
             this._pendingPreview = null;
         }
         
+        // 取消正在進行的圖片預載入請求
+        if (window.KemonoRequestQueue) {
+            const abortedCount = window.KemonoRequestQueue.abortRequestsByType('image');
+            if (abortedCount > 0) {
+                window.KemonoLogger.log(`已取消 ${abortedCount} 個正在進行的圖片預載入請求`);
+            }
+        }
+        
         if (this._activePreview && this._activePreview.parentNode) {
             // 使用淡出效果移除預覽
             this._activePreview.style.transition = 'opacity 0.1s ease';
@@ -922,7 +930,7 @@ window.KemonoUtil = window.KemonoUtil || {
             }
         }
         
-        // 預載入接下來的圖片
+        // 預載入接下來的圖片（使用請求排隊系統）
         let preloaded = 0;
         for (let i = 1; i <= preloadCount && preloaded < preloadCount; i++) {
             const nextIndex = (currentIndex + i) % allImages.length;
@@ -938,16 +946,30 @@ window.KemonoUtil = window.KemonoUtil || {
                 continue;
             }
             
-            // 開始預載入
-            const img = new Image();
-            img.onload = () => {
-                this._preloadedImages.set(imageUrl, img);
-                window.KemonoLogger.log(`預載入圖片完成: ${imageUrl}`);
-            };
-            img.onerror = () => {
-                window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`);
-            };
-            img.src = imageUrl;
+            // 使用請求排隊系統預載入圖片
+            if (window.KemonoRequestQueue) {
+                window.KemonoRequestQueue.loadImage(imageUrl)
+                    .then((img) => {
+                        this._preloadedImages.set(imageUrl, img);
+                        window.KemonoLogger.log(`預載入圖片完成: ${imageUrl}`);
+                    })
+                    .catch((error) => {
+                        if (error.message !== 'Request aborted') {
+                            window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`, error);
+                        }
+                    });
+            } else {
+                // 如果沒有請求排隊系統，使用傳統方式（向後相容）
+                const img = new Image();
+                img.onload = () => {
+                    this._preloadedImages.set(imageUrl, img);
+                    window.KemonoLogger.log(`預載入圖片完成: ${imageUrl}`);
+                };
+                img.onerror = () => {
+                    window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`);
+                };
+                img.src = imageUrl;
+            }
             preloaded++;
         }
         
