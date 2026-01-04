@@ -127,7 +127,7 @@ const coomer = {
         credentials: 'include',
         cache: 'no-store',
         headers: {
-          'Accept': 'application/json',
+          'Accept': 'text/css',
           'Referer': window.location.href,
           'Origin': window.location.origin
         }
