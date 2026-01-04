@@ -197,22 +197,44 @@ class DebugLogViewer {
     }
     
     exportLogs() {
-        const logText = this.logs.map(log => {
-            const time = log.timestamp.toISOString();
-            let line = `[${time}] [${log.level.toUpperCase()}] ${log.message}`;
-            if (log.data) {
-                line += '\n' + JSON.stringify(log.data, null, 2);
-            }
-            return line;
-        }).join('\n\n');
+        if (this.logs.length === 0) {
+            alert('沒有日誌可以匯出');
+            return;
+        }
         
-        const blob = new Blob([logText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `kemono-friends-debug-${new Date().toISOString().replace(/:/g, '-')}.log`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            const logText = this.logs.map(log => {
+                const time = log.timestamp instanceof Date 
+                    ? log.timestamp.toISOString() 
+                    : new Date(log.timestamp).toISOString();
+                let line = `[${time}] [${log.level.toUpperCase()}] ${log.message}`;
+                if (log.data) {
+                    try {
+                        line += '\n' + JSON.stringify(log.data, null, 2);
+                    } catch (e) {
+                        line += '\n[無法序列化資料]';
+                    }
+                }
+                return line;
+            }).join('\n\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kemono-friends-debug-${new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '')}.log`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // 延遲釋放 URL，確保下載開始
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 100);
+        } catch (error) {
+            console.error('匯出日誌時發生錯誤:', error);
+            alert('匯出日誌時發生錯誤: ' + error.message);
+        }
     }
     
     togglePause() {
