@@ -229,48 +229,30 @@ window.KemonoUtil = window.KemonoUtil || {
                 this._relatedImages = cachedData.contentImages || [];
                 this._coverImage = cachedData.coverImage;
                 this._hasOriginalImages = cachedData.hasOriginalImages;
-                  // 檢查當前預覽的圖片並更新狀態
+                // 檢查當前預覽的圖片並更新狀態
                 const currentImg = this._activePreview?.querySelector('img');
-                if (currentImg && this._coverImage && this.compareImageUrls(this._coverImage, currentImg.src)) {
-                    // 當前顯示的是封面圖
-                    const statusText = this._hasOriginalImages 
-                        ? (this._relatedImages.length > 1 
-                            ? window.KemonoI18n.t('image_count_original', { current: 1, total: this._relatedImages.length })
-                            : window.KemonoI18n.t('cover_preview_original'))
-                        : (this._relatedImages.length > 1 
-                            ? window.KemonoI18n.t('image_count', { current: 1, total: this._relatedImages.length })
-                            : window.KemonoI18n.t('cover_preview'));
+                if (currentImg) {
+                    const statusText = this.generatePreviewStatusText(
+                        currentImg.src,
+                        this._coverImage,
+                        this._relatedImages
+                    );
                     this.updatePreviewStatus(statusText);
-                } else if (this._relatedImages.length > 0) {
-                    // 找到當前圖片在列表中的索引（使用智能比較）
+                    // 更新當前圖片索引
                     const currentIndex = this._relatedImages.findIndex(img => 
-                        currentImg ? this.compareImageUrls(img, currentImg.src) : false
+                        this.compareImageUrls(img, currentImg.src)
                     );
                     if (currentIndex >= 0) {
                         this._currentImageIndex = currentIndex;
-                        const statusText = this._hasOriginalImages 
-                            ? window.KemonoI18n.t('image_count_original', {
-                                current: currentIndex + 1,
-                                total: this._relatedImages.length
-                            })
-                            : window.KemonoI18n.t('image_count', {
-                                current: currentIndex + 1,
-                                total: this._relatedImages.length
-                            });
-                        this.updatePreviewStatus(statusText);
-                    } else {
-                        // 找不到當前圖片，顯示預設狀態
-                        const statusText = this._relatedImages.length > 1
-                            ? (this._hasOriginalImages 
-                                ? window.KemonoI18n.t('image_count_original', { current: 1, total: this._relatedImages.length })
-                                : window.KemonoI18n.t('image_count', { current: 1, total: this._relatedImages.length }))
-                            : (this._hasOriginalImages 
-                                ? window.KemonoI18n.t('cover_preview_original') 
-                                : window.KemonoI18n.t('cover_preview'));
-                        this.updatePreviewStatus(statusText);
                     }
                 } else {
-                    this.updatePreviewStatus(window.KemonoI18n.t('only_cover_available'));
+                    // 如果沒有當前圖片，顯示預設狀態
+                    const statusText = this.generatePreviewStatusText(
+                        null,
+                        this._coverImage,
+                        this._relatedImages
+                    );
+                    this.updatePreviewStatus(statusText);
                 }
                 
                 window.KemonoLogger.log('使用快取的圖片數據 - 內文圖片:', this._relatedImages.length);
@@ -307,48 +289,30 @@ window.KemonoUtil = window.KemonoUtil || {
             this._relatedImages = contentImages;
             this._coverImage = coverImage;
             this._hasOriginalImages = hasOriginalImages;
-              // 更新狀態顯示
+            // 更新狀態顯示
             const currentImg = this._activePreview?.querySelector('img');
-            if (currentImg && coverImage && this.compareImageUrls(coverImage, currentImg.src)) {
-                // 當前顯示的是封面圖
-                const statusText = hasOriginalImages 
-                    ? (contentImages.length > 1 
-                        ? window.KemonoI18n.t('image_count_original', { current: 1, total: contentImages.length })
-                        : window.KemonoI18n.t('cover_preview_original'))
-                    : (contentImages.length > 1 
-                        ? window.KemonoI18n.t('image_count', { current: 1, total: contentImages.length })
-                        : window.KemonoI18n.t('cover_preview'));
+            if (currentImg) {
+                const statusText = this.generatePreviewStatusText(
+                    currentImg.src,
+                    coverImage,
+                    contentImages
+                );
                 this.updatePreviewStatus(statusText);
-            } else if (contentImages.length > 0) {
-                // 檢查當前是否顯示其他圖片（使用智能比較）
+                // 更新當前圖片索引
                 const currentIndex = contentImages.findIndex(img => 
-                    currentImg ? this.compareImageUrls(img, currentImg.src) : false
+                    this.compareImageUrls(img, currentImg.src)
                 );
                 if (currentIndex >= 0) {
                     this._currentImageIndex = currentIndex;
-                    const statusText = hasOriginalImages 
-                        ? window.KemonoI18n.t('image_count_original', {
-                            current: currentIndex + 1,
-                            total: contentImages.length
-                        })
-                        : window.KemonoI18n.t('image_count', {
-                            current: currentIndex + 1,
-                            total: contentImages.length
-                        });
-                    this.updatePreviewStatus(statusText);
-                } else {
-                    // 找不到當前圖片，顯示預設狀態
-                    const statusText = contentImages.length > 1
-                        ? (hasOriginalImages 
-                            ? window.KemonoI18n.t('image_count_original', { current: 1, total: contentImages.length })
-                            : window.KemonoI18n.t('image_count', { current: 1, total: contentImages.length }))
-                        : (hasOriginalImages 
-                            ? window.KemonoI18n.t('cover_preview_original') 
-                            : window.KemonoI18n.t('cover_preview'));
-                    this.updatePreviewStatus(statusText);
                 }
             } else {
-                this.updatePreviewStatus(window.KemonoI18n.t('only_cover_available'));
+                // 如果沒有當前圖片，顯示預設狀態
+                const statusText = this.generatePreviewStatusText(
+                    null,
+                    coverImage,
+                    contentImages
+                );
+                this.updatePreviewStatus(statusText);
             }
             
             if (hasOriginalImages) {
@@ -375,6 +339,55 @@ window.KemonoUtil = window.KemonoUtil || {
         if (statusDiv) {
             statusDiv.textContent = statusText;
         }
+    },
+    
+    // 生成預覽狀態文字
+    generatePreviewStatusText: function(currentImgSrc, coverImage, contentImages) {
+        // 如果只有封面圖（沒有內文圖片或內文圖片只有封面圖本身）
+        if (!contentImages || contentImages.length === 0) {
+            return window.KemonoI18n.t('only_cover_available');
+        }
+        
+        // 如果內文圖片只有一張且與封面圖相同
+        if (contentImages.length === 1 && coverImage && this.compareImageUrls(coverImage, contentImages[0])) {
+            return window.KemonoI18n.t('only_cover_available');
+        }
+        
+        // 找到當前圖片在內文圖片列表中的索引
+        const currentIndex = contentImages.findIndex(img => 
+            currentImgSrc ? this.compareImageUrls(img, currentImgSrc) : false
+        );
+        
+        // 如果找不到當前圖片，預設為第一張
+        const displayIndex = currentIndex >= 0 ? currentIndex : 0;
+        const currentImageUrl = contentImages[displayIndex];
+        
+        // 檢查封面圖與第一張內文圖是否相同
+        const isCoverSameAsFirst = coverImage && contentImages.length > 0 && 
+            this.compareImageUrls(coverImage, contentImages[0]);
+        
+        // 檢查當前圖片是否為封面圖
+        const isCurrentCover = coverImage && this.compareImageUrls(coverImage, currentImgSrc);
+        
+        // 檢查當前圖片是否為第一張內文圖
+        const isCurrentFirst = contentImages.length > 0 && 
+            this.compareImageUrls(contentImages[0], currentImgSrc);
+        
+        // 如果封面圖與第一張內文圖相同，且正在預覽這張圖
+        if (isCoverSameAsFirst && (isCurrentCover || isCurrentFirst)) {
+            return window.KemonoI18n.t('preview_cover_and_first', { total: contentImages.length });
+        }
+        
+        // 如果正在預覽封面圖，且封面圖與第一張內文圖不同
+        if (isCurrentCover && !isCoverSameAsFirst) {
+            return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
+        }
+        
+        // 如果正在預覽內文圖
+        return window.KemonoI18n.t('preview_content_image', { 
+            current: displayIndex + 1, 
+            total: contentImages.length 
+        });
     },
     
     // 比較兩個圖片 URL，即使格式不同也能匹配（例如縮圖 URL 和完整 URL）
@@ -485,9 +498,11 @@ window.KemonoUtil = window.KemonoUtil || {
         if (allImages.length === 1) {
             window.KemonoLogger.log('只有一張圖片，無需切換');
             // 更新狀態顯示，確保顯示正確
-            const statusText = this._hasOriginalImages 
-                ? window.KemonoI18n.t('cover_preview_original')
-                : window.KemonoI18n.t('cover_preview');
+            const statusText = this.generatePreviewStatusText(
+                currentImg.src,
+                this._coverImage,
+                this._relatedImages
+            );
             this.updatePreviewStatus(statusText);
             return;
         }
@@ -567,19 +582,24 @@ window.KemonoUtil = window.KemonoUtil || {
         
         const nextImage = allImages[nextIndex];
         
-        // 決定狀態文字
-        const statusText = this._hasOriginalImages 
-            ? window.KemonoI18n.t('image_count_original', { 
-                current: nextIndex + 1, 
-                total: allImages.length 
-            })
-            : window.KemonoI18n.t('image_count', { 
-                current: nextIndex + 1, 
-                total: allImages.length 
-            });
+        // 決定狀態文字（使用新的狀態文字生成函數）
+        // 注意：這裡使用 this._relatedImages 作為 contentImages，因為狀態文字應該基於原始內文圖片列表
+        const statusText = this.generatePreviewStatusText(
+            nextImage,
+            this._coverImage,
+            this._relatedImages
+        );
         
-        // 更新當前圖片索引
-        this._currentImageIndex = nextIndex;
+        // 更新當前圖片索引（在 this._relatedImages 中找到對應的索引）
+        const relatedIndex = this._relatedImages.findIndex(img => 
+            this.compareImageUrls(img, nextImage)
+        );
+        if (relatedIndex >= 0) {
+            this._currentImageIndex = relatedIndex;
+        } else {
+            // 如果找不到，使用 nextIndex 作為備用
+            this._currentImageIndex = nextIndex;
+        }
         
         // 載入新圖片（會自動檢查預載入快取）
         this.loadImageWithIndicator(currentImg, nextImage, statusText);
