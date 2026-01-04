@@ -111,40 +111,35 @@ window.KemonoUtil = window.KemonoUtil || {
             const naturalHeight = img.naturalHeight;
             
             // 計算縮放比例，確保不超過最大尺寸
-            let targetWidth = naturalWidth;
-            let targetHeight = naturalHeight;
-            
-            if (targetWidth > currentMaxSize) {
-                const scale = currentMaxSize / targetWidth;
-                targetWidth = currentMaxSize;
-                targetHeight = targetHeight * scale;
+            let scale = 1;
+            if (naturalWidth > currentMaxSize) {
+                scale = Math.min(scale, currentMaxSize / naturalWidth);
+            }
+            if (naturalHeight > maxHeightVh) {
+                scale = Math.min(scale, maxHeightVh / naturalHeight);
             }
             
-            if (targetHeight > maxHeightVh) {
-                const scale = maxHeightVh / targetHeight;
-                targetHeight = maxHeightVh;
-                targetWidth = targetWidth * scale;
-            }
+            // 計算目標尺寸
+            const targetWidth = Math.min(naturalWidth * scale, currentMaxSize);
+            const targetHeight = Math.min(naturalHeight * scale, maxHeightVh);
             
-            // 設定容器的最大尺寸
+            // 設定容器的尺寸限制
             preview.style.setProperty('max-width', `${currentMaxSize}px`, 'important');
             preview.style.setProperty('max-height', `${maxHeightVh}px`, 'important');
-            preview.style.setProperty('width', 'auto', 'important');
-            preview.style.setProperty('height', 'auto', 'important');
             
-            // 設定圖片的尺寸，確保不超過容器
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('max-height', '100%', 'important');
-            img.style.setProperty('width', 'auto', 'important');
-            img.style.setProperty('height', 'auto', 'important');
-            
-            // 移除圖片元素上可能存在的 width 和 height 屬性（如果有的話）
+            // 移除圖片元素上可能存在的 width 和 height 屬性
             if (img.hasAttribute('width')) {
                 img.removeAttribute('width');
             }
             if (img.hasAttribute('height')) {
                 img.removeAttribute('height');
             }
+            
+            // 設定圖片的尺寸，確保不超過容器
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('max-height', '100%', 'important');
+            img.style.setProperty('width', 'auto', 'important');
+            img.style.setProperty('height', 'auto', 'important');
             
             // 強制瀏覽器重新計算尺寸
             void preview.offsetWidth; // 觸發重排
@@ -153,27 +148,45 @@ window.KemonoUtil = window.KemonoUtil || {
             preview.style.visibility = 'visible';
             this._previewReady = true;
             
-            // 再次檢查實際尺寸
-            setTimeout(() => {
+            // 使用 requestAnimationFrame 確保在渲染後檢查尺寸
+            requestAnimationFrame(() => {
                 const actualWidth = preview.offsetWidth;
                 const actualHeight = preview.offsetHeight;
+                const imgWidth = img.offsetWidth;
+                const imgHeight = img.offsetHeight;
+                
                 window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', {
                     maxWidth: currentMaxSize,
                     maxHeight: maxHeightVh,
                     naturalWidth: naturalWidth,
                     naturalHeight: naturalHeight,
+                    targetWidth: targetWidth,
+                    targetHeight: targetHeight,
                     actualWidth: actualWidth,
                     actualHeight: actualHeight,
-                    imgWidth: img.offsetWidth,
-                    imgHeight: img.offsetHeight
+                    imgWidth: imgWidth,
+                    imgHeight: imgHeight
                 });
                 
-                // 如果仍然超出限制，強制設定寬度
+                // 如果實際寬度超過限制，強制設定寬度
                 if (actualWidth > currentMaxSize) {
                     preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
-                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize);
+                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize, '實際寬度:', actualWidth);
                 }
-            }, 0);
+                
+                // 如果實際高度超過限制，強制設定高度
+                if (actualHeight > maxHeightVh) {
+                    preview.style.setProperty('height', `${maxHeightVh}px`, 'important');
+                    window.KemonoLogger.warn('強制修正預覽高度:', maxHeightVh, '實際高度:', actualHeight);
+                }
+                
+                // 如果圖片寬度超過容器，再次強制限制
+                if (imgWidth > currentMaxSize) {
+                    const newScale = currentMaxSize / imgWidth;
+                    img.style.setProperty('width', `${currentMaxSize}px`, 'important');
+                    window.KemonoLogger.warn('強制修正圖片寬度:', currentMaxSize, '實際圖片寬度:', imgWidth);
+                }
+            });
         };
         
         img.onerror = () => {
@@ -497,22 +510,48 @@ window.KemonoUtil = window.KemonoUtil || {
             // 確保容器尺寸限制仍然有效
             if (this._activePreview) {
                 const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
-                this._activePreview.style.setProperty('max-width', `${maxSize}px`, 'important');
-                this._activePreview.style.setProperty('max-height', '70vh', 'important');
-                this._activePreview.style.setProperty('width', 'auto', 'important');
-                this._activePreview.style.setProperty('height', 'auto', 'important');
+                const maxHeightVh = window.innerHeight * 0.7;
                 
-                // 確保圖片尺寸限制仍然有效
+                // 移除圖片元素上可能存在的 width 和 height 屬性
+                if (imgElement.hasAttribute('width')) {
+                    imgElement.removeAttribute('width');
+                }
+                if (imgElement.hasAttribute('height')) {
+                    imgElement.removeAttribute('height');
+                }
+                
+                // 設定容器尺寸限制
+                this._activePreview.style.setProperty('max-width', `${maxSize}px`, 'important');
+                this._activePreview.style.setProperty('max-height', `${maxHeightVh}px`, 'important');
+                
+                // 設定圖片尺寸限制
                 imgElement.style.setProperty('max-width', '100%', 'important');
                 imgElement.style.setProperty('max-height', '100%', 'important');
                 imgElement.style.setProperty('width', 'auto', 'important');
                 imgElement.style.setProperty('height', 'auto', 'important');
                 
-                // 強制檢查並修正尺寸
-                const actualWidth = this._activePreview.offsetWidth;
-                if (actualWidth > maxSize) {
-                    this._activePreview.style.setProperty('width', `${maxSize}px`, 'important');
-                }
+                // 使用 requestAnimationFrame 確保在渲染後檢查尺寸
+                requestAnimationFrame(() => {
+                    const actualWidth = this._activePreview.offsetWidth;
+                    const actualHeight = this._activePreview.offsetHeight;
+                    const imgWidth = imgElement.offsetWidth;
+                    
+                    // 強制檢查並修正尺寸
+                    if (actualWidth > maxSize) {
+                        this._activePreview.style.setProperty('width', `${maxSize}px`, 'important');
+                        window.KemonoLogger.warn('切換圖片後強制修正預覽寬度:', maxSize, '實際寬度:', actualWidth);
+                    }
+                    
+                    if (actualHeight > maxHeightVh) {
+                        this._activePreview.style.setProperty('height', `${maxHeightVh}px`, 'important');
+                        window.KemonoLogger.warn('切換圖片後強制修正預覽高度:', maxHeightVh, '實際高度:', actualHeight);
+                    }
+                    
+                    if (imgWidth > maxSize) {
+                        imgElement.style.setProperty('width', `${maxSize}px`, 'important');
+                        window.KemonoLogger.warn('切換圖片後強制修正圖片寬度:', maxSize, '實際圖片寬度:', imgWidth);
+                    }
+                });
             }
             
             this.updatePreviewStatus(statusText);
