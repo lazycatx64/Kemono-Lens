@@ -39,12 +39,6 @@ class FavoritesContentManager {
     // 檢查用戶是否在收藏列表中
     isFavorited(userInfo) {
         const favoriteKey = `${userInfo.platform}-${userInfo.id}`;
-        console.log('[Favorites] 檢查收藏狀態:', {
-            userInfo,
-            favoriteKey,
-            存在於收藏: this.favorites.has(favoriteKey),
-            收藏清單: Array.from(this.favorites).slice(0, 5) // 顯示前5個
-        });
         return this.favorites.has(favoriteKey);
     }
 
