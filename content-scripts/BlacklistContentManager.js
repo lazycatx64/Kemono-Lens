@@ -1,12 +1,7 @@
 // 黑名單內容管理器 - 處理黑名單相關功能
 
-console.log('[BlacklistManager] ========== BlacklistContentManager.js 開始載入 ==========');
-
 class BlacklistContentManager {
     constructor(domManager) {
-        console.log('[BlacklistManager] ========== Constructor 開始 ==========');
-        console.log('[BlacklistManager] domManager 是否可用:', !!domManager);
-        
         this.blacklist = new Set();
         this.blacklistData = {};
         this.domManager = domManager;
@@ -17,9 +12,6 @@ class BlacklistContentManager {
             hideBlacklistedPosts: false
         };
         this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
-        
-        console.log('[BlacklistManager] logger 是否可用:', !!this.logger);
-        console.log('[BlacklistManager] ========== Constructor 完成 ==========');
     }
 
     setFavoritesManager(favoritesManager) {
@@ -94,16 +86,12 @@ class BlacklistContentManager {
     }
 
     createBlacklistButton(container, userInfo, cardLink) {
-        this.logger.debug('[BlacklistManager] createBlacklistButton 開始', { userInfo, container: container?.className || container?.tagName });
-        
         // 檢查是否已被收藏，如果是收藏用戶則不顯示黑名單按鈕
         if (this.favoritesManager && this.favoritesManager.isFavorited(userInfo)) {
-            this.logger.debug('[BlacklistManager] 跳過創建黑名單按鈕，因為用戶已被收藏:', userInfo);
             return null;
         }
 
         const isAlreadyBlacklisted = this.blacklist.has(userInfo.id);
-        this.logger.debug('[BlacklistManager] 用戶黑名單狀態:', { userInfo, isAlreadyBlacklisted });
         
         // 檢查容器是否存在
         if (!container) {
@@ -114,7 +102,6 @@ class BlacklistContentManager {
         // 檢查是否已經有按鈕
         const existingButton = container.querySelector('.kemono-blacklist-btn');
         if (existingButton) {
-            this.logger.debug('[BlacklistManager] 容器已有黑名單按鈕，跳過創建');
             return existingButton;
         }
         
@@ -158,7 +145,6 @@ class BlacklistContentManager {
             }
             
             container.appendChild(blacklistBtn);
-            this.logger.log('[BlacklistManager] 成功創建黑名單按鈕:', { userInfo, buttonCreated: !!blacklistBtn });
             return blacklistBtn;
         } catch (error) {
             this.logger.error('[BlacklistManager] 創建黑名單按鈕時發生錯誤:', error);
@@ -348,11 +334,9 @@ class BlacklistContentManager {
 
     // 更新頁面上相同用戶的所有文章/卡片
     updateAllUserCardsOnPage(userInfo, wasBlacklisted) {
-        console.log('[KemonoFriends] 更新頁面上相同用戶的所有卡片:', userInfo);
         
         // 找到頁面上所有的卡片
         const allCards = this.domManager.findUserCards();
-        console.log('[BlacklistManager] 檢查', allCards.length, '個卡片是否屬於相同用戶');
         
         allCards.forEach((card) => {
             // 跳過已經處理的當前卡片（避免重複處理）
@@ -377,7 +361,6 @@ class BlacklistContentManager {
                 cardUserInfo.id === userInfo.id && 
                 cardUserInfo.platform === userInfo.platform) {
                 
-                console.log('[BlacklistManager] 找到相同用戶的卡片，更新狀態');
                 
                 // 更新黑名單按鈕狀態
                 const blacklistBtn = card.querySelector('.kemono-blacklist-btn');
@@ -437,7 +420,6 @@ class BlacklistContentManager {
             }
         });
 
-        console.log('[BlacklistContentManager] 隱藏了', hiddenCount, '個黑名單項目，顯示了', shownCount, '個項目');
     }
 
     // 更新文章數量統計資訊

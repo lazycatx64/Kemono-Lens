@@ -73,3 +73,4 @@ class DebugLogger {
 
 // 建立全域實例
 window.DebugLogger = window.DebugLogger || new DebugLogger();
+console.log('[DEBUG-LOGGER] debug-logger.js 載入完成，DebugLogger 已初始化');

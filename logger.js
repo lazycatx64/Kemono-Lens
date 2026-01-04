@@ -2,8 +2,6 @@
  * Debug logger system - 統一所有日誌輸出到 popup
  */
 
-console.log('[LOGGER] logger.js 開始載入');
-
 // 格式化訊息為易讀格式
 function formatMessage(level, ...args) {
     const parts = [];
@@ -85,5 +83,3 @@ window.KemonoLogger = {
     warn,
     error
 };
-
-console.log('[LOGGER] logger.js 載入完成，KemonoLogger 已初始化');

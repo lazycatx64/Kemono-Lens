@@ -1,29 +1,18 @@
 // DOM 管理器 - 處理 DOM 操作和用戶信息提取
 
-console.log('[DOMManager] ========== DOMManager.js 開始載入 ==========');
-
 class DOMManager {
     constructor() {
-        console.log('[DOMManager] ========== Constructor 開始 ==========');
-        console.log('[DOMManager] 當前 URL:', window.location.href);
-        console.log('[DOMManager] document.body 是否存在:', !!document.body);
-        
         this.observer = null;
         this.isActive = true;
         this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
-        
-        console.log('[DOMManager] logger 是否可用:', !!this.logger);
-        console.log('[DOMManager] ========== Constructor 完成 ==========');
     }
 
     shouldRunOnCurrentPage() {
         const url = window.location.href;
-        console.log('[DOM] 檢查是否應該運行，當前 URL:', url);
         
         // 檢查是否為支援的域名
         const isSupportedDomain = /https?:\/\/(?:www\.)?(kemono\.cr|coomer\.st)/.test(url);
         if (!isSupportedDomain) {
-            console.log('[DOM] 不支援的域名');
             return false;
         }
         
@@ -36,20 +25,14 @@ class DOMManager {
         
         // 檢查是否是推薦頁面
         const isRecommendedPage = /\/\w+\/user\/\d+\/recommended/.test(url);
-        console.log('[DOM] 推薦頁面檢查:', isRecommendedPage);
         
         // 檢查是否是創作者個人頁面 - 修改為支援URL參數
         const isUserProfilePage = /\/\w+\/user\/\d+(?:\?.*)?$/.test(url);
-        console.log('[DOM] 個人頁面檢查:', isUserProfilePage);
         
         // 檢查是否是有效路徑
         const isValidPath = validPaths.some(path => url.includes(path));
-        console.log('[DOM] 有效路徑檢查:', isValidPath, '匹配的路徑:', validPaths.filter(path => url.includes(path)));
         
-        const shouldRun = isRecommendedPage || isUserProfilePage || isValidPath;
-        console.log('[DOM] 最終決定是否運行:', shouldRun);
-        
-        return shouldRun;
+        return isRecommendedPage || isUserProfilePage || isValidPath;
     }
 
     waitForContent(processCallback) {
@@ -57,15 +40,10 @@ class DOMManager {
         let checkCount = 0;
         const maxChecks = 10; // 最多檢查10次（20秒）
         
-        this.logger.log('[DOMManager] waitForContent 開始，當前 URL:', window.location.href);
-        
         // 檢查是否有卡片但沒有按鈕的輔助函數
         const hasCardsWithoutButtons = () => {
             const cards = this.findUserCards();
-            this.logger.debug('[DOMManager] hasCardsWithoutButtons 檢查，找到', cards.length, '個卡片');
-            
             if (cards.length === 0) {
-                this.logger.debug('[DOMManager] 沒有找到卡片');
                 return false;
             }
             
@@ -73,18 +51,12 @@ class DOMManager {
             const cardsWithoutButtons = Array.from(cards).filter(card => {
                 // 檢查是否已經處理過
                 if (card.dataset.blacklistProcessed) {
-                    this.logger.debug('[DOMManager] 卡片已處理過:', card.href || card.className);
                     return false;
                 }
                 // 檢查是否已經有按鈕
-                const hasButton = !!card.querySelector('.kemono-blacklist-btn');
-                if (!hasButton) {
-                    this.logger.debug('[DOMManager] 卡片缺少按鈕:', card.href || card.className);
-                }
-                return !hasButton;
+                return !card.querySelector('.kemono-blacklist-btn');
             });
             
-            this.logger.debug('[DOMManager] 找到', cardsWithoutButtons.length, '個缺少按鈕的卡片');
             return cardsWithoutButtons.length > 0;
         };
         
@@ -111,11 +83,9 @@ class DOMManager {
             });
             
             if (hasSignificantChanges) {
-                this.logger.debug('[DOMManager] MutationObserver 偵測到重要變化');
                 isProcessing = true;
                 setTimeout(() => {
                     if (this.isActive) {
-                        this.logger.debug('[DOMManager] MutationObserver 觸發處理回調');
                         processCallback();
                     }
                     isProcessing = false;
@@ -132,17 +102,11 @@ class DOMManager {
         // 初始處理 - 增加多次嘗試以應對直接訪問URL的情況
         const initialProcess = () => {
             if (!this.isActive) return;
-            
-            this.logger.log('[DOMManager] 立即處理（針對已存在的卡片）');
             // 立即處理一次（針對已存在的卡片）
             processCallback();
-            
             // 然後在延遲後再處理
             setTimeout(() => {
-                if (this.isActive) {
-                    this.logger.debug('[DOMManager] 500ms 延遲處理');
-                    processCallback();
-                }
+                if (this.isActive) processCallback();
             }, 500);
         };
         
@@ -151,34 +115,22 @@ class DOMManager {
         
         // 1秒後處理
         setTimeout(() => {
-            if (this.isActive) {
-                this.logger.debug('[DOMManager] 1秒延遲處理');
-                processCallback();
-            }
+            if (this.isActive) processCallback();
         }, 1000);
         
         // 2秒後處理
         setTimeout(() => {
-            if (this.isActive) {
-                this.logger.debug('[DOMManager] 2秒延遲處理');
-                processCallback();
-            }
+            if (this.isActive) processCallback();
         }, 2000);
         
         // 3秒後處理
         setTimeout(() => {
-            if (this.isActive) {
-                this.logger.debug('[DOMManager] 3秒延遲處理');
-                processCallback();
-            }
+            if (this.isActive) processCallback();
         }, 3000);
         
         // 5秒後處理（針對較慢的渲染）
         setTimeout(() => {
-            if (this.isActive) {
-                this.logger.debug('[DOMManager] 5秒延遲處理');
-                processCallback();
-            }
+            if (this.isActive) processCallback();
         }, 5000);
         
         // 對於個人頁面，設置定期檢查機制
@@ -191,7 +143,6 @@ class DOMManager {
                 
                 // 如果個人頁面沒有黑名單按鈕，重新處理
                 if (!document.querySelector('.kemono-profile-blacklist-btn')) {
-                    this.logger.warn('[DOMManager] 個人頁面按鈕遺失，重新處理');
                     processCallback();
                 }
             }, 2000); // 每2秒檢查一次
@@ -212,13 +163,11 @@ class DOMManager {
                 
                 // 檢查是否有卡片但沒有按鈕
                 if (hasCardsWithoutButtons()) {
-                    this.logger.warn('[DOMManager] 發現卡片缺少按鈕，重新處理 (檢查次數:', checkCount, ')');
                     processCallback();
                 }
                 
                 // 達到最大檢查次數後停止
                 if (checkCount >= maxChecks) {
-                    this.logger.log('[DOMManager] 達到最大檢查次數，停止定期檢查');
                     clearInterval(cardListCheckInterval);
                 }
             }, 2000); // 每2秒檢查一次
@@ -236,25 +185,10 @@ class DOMManager {
     findUserCards() {
         // 檢查當前頁面類型
         const url = window.location.href;
-        this.logger.debug('[DOMManager] findUserCards 被調用，當前 URL:', url);
         
         if (url.includes('/posts')) {
-            this.logger.debug('[DOMManager] 偵測到文章搜尋頁面，尋找文章卡片');
-            const cards = document.querySelectorAll('.card-list__items > article.post-card');
-            this.logger.log('[DOMManager] 找到', cards.length, '個文章卡片');
-            
-            // 詳細記錄每個卡片
-            if (cards.length > 0) {
-                Array.from(cards).forEach((card, index) => {
-                    const userId = card.getAttribute('data-user');
-                    const service = card.getAttribute('data-service');
-                    this.logger.debug(`[DOMManager] 文章卡片 ${index + 1}:`, { userId, service, className: card.className });
-                });
-            }
-            
-            return cards;
+            return document.querySelectorAll('.card-list__items > article.post-card');
         } else {
-            this.logger.debug('[DOMManager] 偵測到創作者頁面，尋找創作者卡片');
             // 嘗試多種選擇器
             let cards = document.querySelectorAll('.card-list__items > a.user-card');
             if (cards.length === 0) {
@@ -266,18 +200,6 @@ class DOMManager {
             if (cards.length === 0) {
                 cards = document.querySelectorAll('a.user-card');
             }
-            
-            this.logger.log('[DOMManager] 找到', cards.length, '個創作者卡片');
-            
-            // 詳細記錄每個卡片
-            if (cards.length > 0) {
-                Array.from(cards).forEach((card, index) => {
-                    const href = card.href || card.getAttribute('href');
-                    const name = card.querySelector('.user-card__name')?.textContent?.trim() || '未知';
-                    this.logger.debug(`[DOMManager] 創作者卡片 ${index + 1}:`, { href, name, className: card.className });
-                });
-            }
-            
             return cards;
         }
     }
@@ -320,7 +242,7 @@ class DOMManager {
                 }
             }
             
-            console.log('[DOM] 從個人頁面提取用戶信息:', {
+            this.logger.debug('[DOMManager] 從個人頁面提取用戶信息:', {
                 url,
                 platform,
                 userId,
@@ -354,7 +276,6 @@ class DOMManager {
         for (const selector of containerSelectors) {
             const container = document.querySelector(selector);
             if (container) {
-                console.log('[DOM] 找到個人頁面按鈕容器:', selector);
                 return container;
             }
         }
@@ -364,7 +285,6 @@ class DOMManager {
         for (const el of elementsWithBg) {
             const style = window.getComputedStyle(el);
             if (style.backgroundImage && style.backgroundImage !== 'none' && el.offsetWidth > 100) {
-                console.log('[DOM] 找到有背景圖片的容器作為按鈕位置');
                 return el;
             }
         }
@@ -386,21 +306,13 @@ class DOMManager {
             const userId = match[2];
             const userName = nameElement ? nameElement.textContent.trim() : `User ${userId}`;
             
-            const userInfo = {
+            return {
                 id: userId,
                 platform: platform,
                 name: userName
             };
-            
-            this.logger.debug('[DOMManager] 提取用戶信息成功:', {
-                原始href: href,
-                ...userInfo
-            });
-            
-            return userInfo;
         }
         
-        this.logger.warn('[DOMManager] 無法提取用戶信息從 href:', href);
         return null;
     }
 
@@ -410,7 +322,6 @@ class DOMManager {
         const platform = postCard.getAttribute('data-service');
         
         if (!userId || !platform) {
-            console.log('[DOM] 文章卡片缺少 data-user 或 data-service 屬性');
             return null;
         }
         
@@ -421,7 +332,7 @@ class DOMManager {
             userName = headerElement.textContent.trim();
         }
         
-        console.log('[DOM] 從文章卡片提取用戶信息:', {
+        this.logger.debug('[DOMManager] 從文章卡片提取用戶信息:', {
             userId,
             platform,
             userName,
