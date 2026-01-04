@@ -42,6 +42,31 @@ const kemono = {
     return false;
   },
   
+  // 將原圖 URL 轉換為 thumbnail URL
+  convertToThumbnailUrl: (url) => {
+    if (!url) return url;
+    
+    try {
+      // 檢查是否為 kemono.cr 的圖片 URL
+      // 匹配格式：kemono.cr/xx/xx/xxxxx... 或 https://kemono.cr/xx/xx/xxxxx...
+      const kemonoPattern = /(https?:\/\/)?(www\.)?kemono\.cr\/([a-f0-9]{2})\/([a-f0-9]{2})\/([a-f0-9]+[^\/\s?#]*)/i;
+      const match = url.match(kemonoPattern);
+      
+      if (match) {
+        // 提取路徑部分（xx/xx/xxxxx...）
+        const path = `${match[3]}/${match[4]}/${match[5]}`;
+        // 轉換為 thumbnail URL
+        const thumbnailUrl = `https://img.kemono.cr/thumbnail/data/${path}`;
+        kemonoLogger.log('轉換為 thumbnail URL:', url, '->', thumbnailUrl);
+        return thumbnailUrl;
+      }
+    } catch (error) {
+      kemonoLogger.warn('轉換 thumbnail URL 時出錯:', error, url);
+    }
+    
+    return url;
+  },
+  
   // 獲取實際圖片 URL
   getImageUrl: (element) => {
     let imageSrc = element.src;
@@ -77,6 +102,9 @@ const kemono = {
         kemonoLogger.log('Using parent anchor href:', imageSrc);
       }
     }
+    
+    // 轉換為 thumbnail URL
+    imageSrc = kemono.convertToThumbnailUrl(imageSrc);
     
     return imageSrc;
   },
@@ -151,13 +179,17 @@ const kemono = {
         // 第一張圖片是封面圖
         if (postData.previews[0] && postData.previews[0].path) {
           coverImageUrl = baseUrl + postData.previews[0].path;
+          // 轉換為 thumbnail URL
+          coverImageUrl = kemono.convertToThumbnailUrl(coverImageUrl);
           kemonoLogger.log('API 封面圖片:', coverImageUrl);
         }
         
         // 所有預覽圖片都加入內文圖片列表，包括封面圖，這樣可以支持完整的圖片切換
         for (let i = 0; i < postData.previews.length; i++) {
           if (postData.previews[i] && postData.previews[i].path) {
-            const fullImageUrl = baseUrl + postData.previews[i].path;
+            let fullImageUrl = baseUrl + postData.previews[i].path;
+            // 轉換為 thumbnail URL
+            fullImageUrl = kemono.convertToThumbnailUrl(fullImageUrl);
             contentImages.push(fullImageUrl);
             kemonoLogger.log('找到圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
           }
@@ -172,13 +204,17 @@ const kemono = {
         // 第一張附件作為封面圖
         if (postData.attachments[0] && postData.attachments[0].path) {
           coverImageUrl = baseUrl + postData.attachments[0].path;
+          // 轉換為 thumbnail URL
+          coverImageUrl = kemono.convertToThumbnailUrl(coverImageUrl);
           kemonoLogger.log('找到附件封面原圖:', coverImageUrl);
         }
         
         // 所有附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
         for (let i = 0; i < postData.attachments.length; i++) {
           if (postData.attachments[i] && postData.attachments[i].path) {
-            const fullImageUrl = baseUrl + postData.attachments[i].path;
+            let fullImageUrl = baseUrl + postData.attachments[i].path;
+            // 轉換為 thumbnail URL
+            fullImageUrl = kemono.convertToThumbnailUrl(fullImageUrl);
             contentImages.push(fullImageUrl);
             kemonoLogger.log('找到附件圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
           }
@@ -191,6 +227,8 @@ const kemono = {
         kemonoLogger.warn('沒有找到預覽圖片和附件，改用主要文件');
         
         coverImageUrl = baseUrl + postData.file.path;
+        // 轉換為 thumbnail URL
+        coverImageUrl = kemono.convertToThumbnailUrl(coverImageUrl);
         // 主要文件也加入內文圖片列表，這樣即使只有一張圖片也可以切換
         contentImages.push(coverImageUrl);
         kemonoLogger.log('找到主要文件圖片:', coverImageUrl, '(封面圖)');
@@ -241,6 +279,9 @@ const kemono = {
         } else if (thumb.dataset.src) {
           imageSrc = thumb.dataset.src;
         }
+        
+        // 轉換為 thumbnail URL
+        imageSrc = kemono.convertToThumbnailUrl(imageSrc);
         
         images.push(imageSrc);
       });
