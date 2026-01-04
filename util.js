@@ -87,15 +87,51 @@ window.KemonoUtil = window.KemonoUtil || {
             this.removeActivePreview();
         }
         
-        const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+        // 讀取設定值，優先從 settings 物件讀取
+        let maxSize = 600; // 預設值
+        if (window.KemonoSettings && window.KemonoSettings.settings) {
+            maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+        }
+        
+        // 如果還是預設值，嘗試從 localStorage 直接讀取
+        if (maxSize === 600) {
+            try {
+                const localSettings = localStorage.getItem('kemono_preview_settings');
+                if (localSettings) {
+                    const previewSettings = JSON.parse(localSettings);
+                    if (previewSettings.maxPreviewSize) {
+                        maxSize = previewSettings.maxPreviewSize;
+                    }
+                }
+            } catch (e) {
+                window.KemonoLogger.warn('無法從 localStorage 讀取設定:', e);
+            }
+        }
+        
         window.KemonoLogger.log('建立預覽圖，最大尺寸設定:', maxSize, 'px');
+        window.KemonoLogger.log('設定來源:', {
+            fromSettings: window.KemonoSettings?.settings?.maxPreviewSize,
+            fromLocalStorage: (() => {
+                try {
+                    const local = localStorage.getItem('kemono_preview_settings');
+                    return local ? JSON.parse(local).maxPreviewSize : null;
+                } catch { return null; }
+            })(),
+            finalMaxSize: maxSize
+        });
         
         // Debug logger
         if (window.DebugLogger) {
             window.DebugLogger.debug('建立預覽圖', {
                 imageSrc: imageSrc,
                 maxSize: maxSize,
-                settings: window.KemonoSettings?.settings
+                settings: window.KemonoSettings?.settings,
+                fromLocalStorage: (() => {
+                    try {
+                        const local = localStorage.getItem('kemono_preview_settings');
+                        return local ? JSON.parse(local) : null;
+                    } catch { return null; }
+                })()
             });
         }
         
@@ -127,8 +163,27 @@ window.KemonoUtil = window.KemonoUtil || {
         statusDiv.textContent = window.KemonoI18n.t('loading_post_images');
         
         img.onload = () => {
-            // 確保載入後尺寸限制仍然有效
-            const currentMaxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+            // 重新讀取設定值，確保使用最新值
+            let currentMaxSize = 600; // 預設值
+            if (window.KemonoSettings && window.KemonoSettings.settings) {
+                currentMaxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+            }
+            
+            // 如果還是預設值，嘗試從 localStorage 直接讀取
+            if (currentMaxSize === 600) {
+                try {
+                    const localSettings = localStorage.getItem('kemono_preview_settings');
+                    if (localSettings) {
+                        const previewSettings = JSON.parse(localSettings);
+                        if (previewSettings.maxPreviewSize) {
+                            currentMaxSize = previewSettings.maxPreviewSize;
+                        }
+                    }
+                } catch (e) {
+                    window.KemonoLogger.warn('無法從 localStorage 讀取設定:', e);
+                }
+            }
+            
             const maxHeightVh = window.innerHeight * 0.7; // 70vh 的實際像素值
             
             // 計算圖片的自然尺寸
@@ -146,17 +201,23 @@ window.KemonoUtil = window.KemonoUtil || {
             }
             
             // 計算縮放比例，確保圖片本身不超過最大尺寸
-            let scale = 1;
+            // 需要同時考慮寬度和高度，取較小的縮放比例以保持比例
+            let scaleWidth = 1;
+            let scaleHeight = 1;
+            
             if (naturalWidth > currentMaxSize) {
-                scale = Math.min(scale, currentMaxSize / naturalWidth);
+                scaleWidth = currentMaxSize / naturalWidth;
             }
             if (naturalHeight > maxHeightVh) {
-                scale = Math.min(scale, maxHeightVh / naturalHeight);
+                scaleHeight = maxHeightVh / naturalHeight;
             }
             
+            // 取較小的縮放比例，確保兩個方向都不超過限制
+            const scale = Math.min(scaleWidth, scaleHeight);
+            
             // 計算目標尺寸（圖片內容區域的尺寸）
-            const targetWidth = Math.min(naturalWidth * scale, currentMaxSize);
-            const targetHeight = Math.min(naturalHeight * scale, maxHeightVh);
+            const targetWidth = naturalWidth * scale;
+            const targetHeight = naturalHeight * scale;
             
             // 計算容器的實際最大寬度（考慮 padding 和 border）
             const containerPadding = 5 * 2; // 左右各 5px
