@@ -216,12 +216,10 @@ class DebugLogViewer {
     }
     
     clearLogs() {
-        if (confirm('確定要清除所有日誌嗎？')) {
-            this.logs = [];
-            this.updateStats();
-            this.saveLogs();
-            this.renderLogs();
-        }
+        this.logs = [];
+        this.updateStats();
+        this.saveLogs();
+        this.renderLogs();
     }
     
     exportLogs() {

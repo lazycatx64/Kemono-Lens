@@ -21,7 +21,6 @@ const coomer = {
     // 如果是 coomer.st 但不是貼文頁面，則為目錄頁面
     const isDirectory = url.match(/https?:\/\/(?:www\.)?coomer\.st/) && !isPostPage;
     
-    coomerLogger.verbose('URL 檢查 - 目錄頁面:', isDirectory, '貼文頁面:', isPostPage);
     return isDirectory;
   },
   

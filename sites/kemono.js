@@ -20,7 +20,6 @@ const kemono = {
     // 如果是 kemono.cr 但不是貼文頁面，則為目錄頁面
     const isDirectory = url.match(/https?:\/\/(?:www\.)?kemono\.cr/) && !isPostPage;
     
-    kemonoLogger.verbose('URL 檢查 - 目錄頁面:', isDirectory, '貼文頁面:', isPostPage);
     return isDirectory;
   },
   
