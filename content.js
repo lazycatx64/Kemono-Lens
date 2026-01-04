@@ -519,7 +519,9 @@ function createPreview(target, siteHandler, event) {
     const postUrl = siteHandler.getPostUrl ? siteHandler.getPostUrl(target) : null;
     
     // 立即創建預覽並開始載入 API 數據
-    util.createImagePreviewWithAPI(imageSrc, event, postUrl, siteHandler);
+    if (util && util.createImagePreviewWithAPI) {
+        util.createImagePreviewWithAPI(imageSrc, event, postUrl, siteHandler);
+    }
 }
 
 // 全域實例管理
