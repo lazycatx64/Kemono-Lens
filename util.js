@@ -114,7 +114,7 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.id = 'image-preview';
         preview.className = 'kemono-preview-container';
         preview.style.setProperty('max-width', `${maxSize}px`, 'important');
-        preview.style.setProperty('max-height', '70vh', 'important');
+        preview.style.setProperty('max-height', `${maxSize}px`, 'important');
         preview.style.setProperty('box-sizing', 'border-box', 'important');
         preview.style.setProperty('margin', '0', 'important');
         
@@ -149,17 +149,16 @@ window.KemonoUtil = window.KemonoUtil || {
                 }
             }
             
-            const maxHeightVh = window.innerHeight * 0.7;
             const naturalWidth = img.naturalWidth;
             const naturalHeight = img.naturalHeight;
             
-            // 計算縮放比例
+            // 計算縮放比例（同時考慮寬度和高度限制）
             let scale = 1;
             if (naturalWidth > currentMaxSize) {
                 scale = Math.min(scale, currentMaxSize / naturalWidth);
             }
-            if (naturalHeight > maxHeightVh) {
-                scale = Math.min(scale, maxHeightVh / naturalHeight);
+            if (naturalHeight > currentMaxSize) {
+                scale = Math.min(scale, currentMaxSize / naturalHeight);
             }
             
             // 計算目標尺寸
@@ -173,7 +172,7 @@ window.KemonoUtil = window.KemonoUtil || {
             
             // 計算容器最大高度（考慮狀態欄在容器上方）
             const statusBarHeight = 25;
-            const containerMaxHeight = maxHeightVh + statusBarHeight;
+            const containerMaxHeight = currentMaxSize + statusBarHeight;
             
             // 設定容器尺寸
             preview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
@@ -538,17 +537,15 @@ window.KemonoUtil = window.KemonoUtil || {
                 }
             }
             
-            const maxHeightVh = window.innerHeight * 0.7;
-            
-            // 計算縮放比例
+            // 計算縮放比例（同時考慮寬度和高度限制）
             const naturalWidth = newImg.naturalWidth;
             const naturalHeight = newImg.naturalHeight;
             let scale = 1;
             if (naturalWidth > maxSize) {
                 scale = Math.min(scale, maxSize / naturalWidth);
             }
-            if (naturalHeight > maxHeightVh) {
-                scale = Math.min(scale, maxHeightVh / naturalHeight);
+            if (naturalHeight > maxSize) {
+                scale = Math.min(scale, maxSize / naturalHeight);
             }
             
             const targetWidth = naturalWidth * scale;
@@ -565,7 +562,7 @@ window.KemonoUtil = window.KemonoUtil || {
                 const containerBorder = 2 * 2;
                 const statusBarHeight = 25;
                 const containerMaxWidth = maxSize + containerPadding + containerBorder;
-                const containerMaxHeight = maxHeightVh + statusBarHeight;
+                const containerMaxHeight = maxSize + statusBarHeight;
                 this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
                 this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
             }
