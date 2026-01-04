@@ -6,7 +6,6 @@ class SettingsManager {
   constructor() {
     this.settings = this.loadSettings();
     this.settingsWindow = null;
-    this.createSettingsButton();
   }
   
   getDefaultSettings() {
@@ -48,46 +47,6 @@ class SettingsManager {
     window.dispatchEvent(new CustomEvent('kemonoSettingsChanged', {
       detail: { key, value, settings: this.settings }
     }));
-  }
-  
-  createSettingsButton() {
-    const button = document.createElement('div');
-    button.id = 'kemono-settings-button';
-    button.innerHTML = '⚙️';
-    button.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 40px;
-      height: 40px;
-      background: #fff;
-      border: 2px solid #333;
-      border-radius: 50%;
-      cursor: pointer;
-      z-index: 9998;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      transition: all 0.3s ease;
-    `;
-    
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'scale(1.1)';
-      button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-    });
-    
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'scale(1)';
-      button.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-    });
-    
-    button.addEventListener('click', () => {
-      this.toggleSettingsWindow();
-    });
-    
-    document.body.appendChild(button);
   }
   
   toggleSettingsWindow() {
