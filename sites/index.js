@@ -16,14 +16,11 @@ indexLogger.log('Site modules loaded:', siteModules.length);
  * @returns {Object|null} - Returns matching site handler module, or null if none found
  */
 function getHandler(url) {
-    indexLogger.log('Finding handler for URL:', url);
     for (const module of siteModules) {
         if (module && module.isMatch(url)) {
-            indexLogger.log('Handler matched:', module);
             return module;
         }
     }
-    indexLogger.log('No handler found for URL');
     return null;
 }
 
