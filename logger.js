@@ -46,6 +46,14 @@ function verbose(...args) {
 }
 
 /**
+ * Debug 模式的日誌（與 verbose 相同）
+ * @param {...any} args - 要記錄的參數
+ */
+function debug(...args) {
+    verbose(...args);
+}
+
+/**
  * 記錄警告
  * @param {...any} args - 要記錄的參數
  */
@@ -73,6 +81,7 @@ function error(...args) {
 window.KemonoLogger = {
     log,
     verbose,
+    debug,
     warn,
     error
 };
