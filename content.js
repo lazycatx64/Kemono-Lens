@@ -106,6 +106,41 @@ class KemonoFriends {
             altKeyPressed = false;
         });
 
+        // 監聽點擊事件，當點擊貼文連結時立即清除預覽圖
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            // 檢查是否點擊了貼文連結或貼文卡片
+            const postLink = target.closest('a[href*="/post/"]') || 
+                            (target.closest('.post-card') && target.closest('.post-card').querySelector('a[href*="/post/"]'));
+            
+            if (postLink) {
+                // 立即清除預覽圖
+                if (util && util.removeActivePreview) {
+                    util.removeActivePreview();
+                }
+                currentHoveredElement = null;
+                logger.log('點擊貼文連結，已清除預覽圖');
+            }
+        }, true); // 使用捕獲階段以確保在連結導航前執行
+
+        // 監聽頁面卸載事件，確保在頁面切換時清除預覽圖
+        window.addEventListener('beforeunload', function() {
+            if (util && util.removeActivePreview) {
+                util.removeActivePreview();
+            }
+            currentHoveredElement = null;
+        });
+
+        // 監聽頁面可見性變化，當頁面隱藏時清除預覽圖
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (util && util.removeActivePreview) {
+                    util.removeActivePreview();
+                }
+                currentHoveredElement = null;
+            }
+        });
+
         // 使用事件委派處理所有 mouseover 事件
         document.addEventListener('mouseover', function(e) {
             const target = e.target;
