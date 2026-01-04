@@ -13,6 +13,7 @@ class BlacklistContentManager {
             favoritesVisualEffects: true,
             hideBlacklistedPosts: false
         };
+        this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
     }
 
     setFavoritesManager(favoritesManager) {
@@ -87,13 +88,29 @@ class BlacklistContentManager {
     }
 
     createBlacklistButton(container, userInfo, cardLink) {
+        this.logger.debug('[BlacklistManager] createBlacklistButton 開始', { userInfo, container: container?.className || container?.tagName });
+        
         // 檢查是否已被收藏，如果是收藏用戶則不顯示黑名單按鈕
         if (this.favoritesManager && this.favoritesManager.isFavorited(userInfo)) {
-            console.log('[KemonoFriends] 跳過創建黑名單按鈕，因為用戶已被收藏:', userInfo);
+            this.logger.debug('[BlacklistManager] 跳過創建黑名單按鈕，因為用戶已被收藏:', userInfo);
             return null;
         }
 
         const isAlreadyBlacklisted = this.blacklist.has(userInfo.id);
+        this.logger.debug('[BlacklistManager] 用戶黑名單狀態:', { userInfo, isAlreadyBlacklisted });
+        
+        // 檢查容器是否存在
+        if (!container) {
+            this.logger.error('[BlacklistManager] 容器不存在，無法創建按鈕');
+            return null;
+        }
+        
+        // 檢查是否已經有按鈕
+        const existingButton = container.querySelector('.kemono-blacklist-btn');
+        if (existingButton) {
+            this.logger.debug('[BlacklistManager] 容器已有黑名單按鈕，跳過創建');
+            return existingButton;
+        }
         
         const buttonOptions = {
             className: 'kemono-blacklist-btn',
@@ -127,9 +144,20 @@ class BlacklistContentManager {
             }
         };
 
-        const blacklistBtn = this.domManager.createButton(buttonOptions);
-        container.appendChild(blacklistBtn);
-        return blacklistBtn;
+        try {
+            const blacklistBtn = this.domManager.createButton(buttonOptions);
+            if (!blacklistBtn) {
+                this.logger.error('[BlacklistManager] createButton 返回 null');
+                return null;
+            }
+            
+            container.appendChild(blacklistBtn);
+            this.logger.log('[BlacklistManager] 成功創建黑名單按鈕:', { userInfo, buttonCreated: !!blacklistBtn });
+            return blacklistBtn;
+        } catch (error) {
+            this.logger.error('[BlacklistManager] 創建黑名單按鈕時發生錯誤:', error);
+            return null;
+        }
     }
 
     async toggleBlacklist(userInfo, card, button) {

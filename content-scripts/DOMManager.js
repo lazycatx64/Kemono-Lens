@@ -6,6 +6,7 @@ class DOMManager {
     constructor() {
         this.observer = null;
         this.isActive = true;
+        this.logger = window.KemonoLogger || { log: console.log, debug: console.log, warn: console.warn, error: console.error };
     }
 
     shouldRunOnCurrentPage() {
@@ -49,19 +50,34 @@ class DOMManager {
         let checkCount = 0;
         const maxChecks = 10; // 最多檢查10次（20秒）
         
+        this.logger.log('[DOMManager] waitForContent 開始，當前 URL:', window.location.href);
+        
         // 檢查是否有卡片但沒有按鈕的輔助函數
         const hasCardsWithoutButtons = () => {
             const cards = this.findUserCards();
-            if (cards.length === 0) return false;
+            this.logger.debug('[DOMManager] hasCardsWithoutButtons 檢查，找到', cards.length, '個卡片');
+            
+            if (cards.length === 0) {
+                this.logger.debug('[DOMManager] 沒有找到卡片');
+                return false;
+            }
             
             // 檢查是否有卡片缺少按鈕
             const cardsWithoutButtons = Array.from(cards).filter(card => {
                 // 檢查是否已經處理過
-                if (card.dataset.blacklistProcessed) return false;
+                if (card.dataset.blacklistProcessed) {
+                    this.logger.debug('[DOMManager] 卡片已處理過:', card.href || card.className);
+                    return false;
+                }
                 // 檢查是否已經有按鈕
-                return !card.querySelector('.kemono-blacklist-btn');
+                const hasButton = !!card.querySelector('.kemono-blacklist-btn');
+                if (!hasButton) {
+                    this.logger.debug('[DOMManager] 卡片缺少按鈕:', card.href || card.className);
+                }
+                return !hasButton;
             });
             
+            this.logger.debug('[DOMManager] 找到', cardsWithoutButtons.length, '個缺少按鈕的卡片');
             return cardsWithoutButtons.length > 0;
         };
         
@@ -88,9 +104,11 @@ class DOMManager {
             });
             
             if (hasSignificantChanges) {
+                this.logger.debug('[DOMManager] MutationObserver 偵測到重要變化');
                 isProcessing = true;
                 setTimeout(() => {
                     if (this.isActive) {
+                        this.logger.debug('[DOMManager] MutationObserver 觸發處理回調');
                         processCallback();
                     }
                     isProcessing = false;
@@ -108,12 +126,16 @@ class DOMManager {
         const initialProcess = () => {
             if (!this.isActive) return;
             
+            this.logger.log('[DOMManager] 立即處理（針對已存在的卡片）');
             // 立即處理一次（針對已存在的卡片）
             processCallback();
             
             // 然後在延遲後再處理
             setTimeout(() => {
-                if (this.isActive) processCallback();
+                if (this.isActive) {
+                    this.logger.debug('[DOMManager] 500ms 延遲處理');
+                    processCallback();
+                }
             }, 500);
         };
         
@@ -122,22 +144,34 @@ class DOMManager {
         
         // 1秒後處理
         setTimeout(() => {
-            if (this.isActive) processCallback();
+            if (this.isActive) {
+                this.logger.debug('[DOMManager] 1秒延遲處理');
+                processCallback();
+            }
         }, 1000);
         
         // 2秒後處理
         setTimeout(() => {
-            if (this.isActive) processCallback();
+            if (this.isActive) {
+                this.logger.debug('[DOMManager] 2秒延遲處理');
+                processCallback();
+            }
         }, 2000);
         
         // 3秒後處理
         setTimeout(() => {
-            if (this.isActive) processCallback();
+            if (this.isActive) {
+                this.logger.debug('[DOMManager] 3秒延遲處理');
+                processCallback();
+            }
         }, 3000);
         
         // 5秒後處理（針對較慢的渲染）
         setTimeout(() => {
-            if (this.isActive) processCallback();
+            if (this.isActive) {
+                this.logger.debug('[DOMManager] 5秒延遲處理');
+                processCallback();
+            }
         }, 5000);
         
         // 對於個人頁面，設置定期檢查機制
@@ -150,7 +184,7 @@ class DOMManager {
                 
                 // 如果個人頁面沒有黑名單按鈕，重新處理
                 if (!document.querySelector('.kemono-profile-blacklist-btn')) {
-                    console.log('[KemonoFriends] 個人頁面按鈕遺失，重新處理');
+                    this.logger.warn('[DOMManager] 個人頁面按鈕遺失，重新處理');
                     processCallback();
                 }
             }, 2000); // 每2秒檢查一次
@@ -171,13 +205,13 @@ class DOMManager {
                 
                 // 檢查是否有卡片但沒有按鈕
                 if (hasCardsWithoutButtons()) {
-                    console.log('[KemonoFriends] 發現卡片缺少按鈕，重新處理 (檢查次數:', checkCount, ')');
+                    this.logger.warn('[DOMManager] 發現卡片缺少按鈕，重新處理 (檢查次數:', checkCount, ')');
                     processCallback();
                 }
                 
                 // 達到最大檢查次數後停止
                 if (checkCount >= maxChecks) {
-                    console.log('[KemonoFriends] 達到最大檢查次數，停止定期檢查');
+                    this.logger.log('[DOMManager] 達到最大檢查次數，停止定期檢查');
                     clearInterval(cardListCheckInterval);
                 }
             }, 2000); // 每2秒檢查一次
@@ -195,18 +229,48 @@ class DOMManager {
     findUserCards() {
         // 檢查當前頁面類型
         const url = window.location.href;
-        console.log('[DOM] findUserCards 被調用，當前 URL:', url);
+        this.logger.debug('[DOMManager] findUserCards 被調用，當前 URL:', url);
         
         if (url.includes('/posts')) {
-            console.log('[DOM] 偵測到文章搜尋頁面，尋找文章卡片');
+            this.logger.debug('[DOMManager] 偵測到文章搜尋頁面，尋找文章卡片');
             const cards = document.querySelectorAll('.card-list__items > article.post-card');
-            console.log('[DOM] 找到', cards.length, '個文章卡片');
-            console.log('[DOM] 卡片選擇器結果:', cards);
+            this.logger.log('[DOMManager] 找到', cards.length, '個文章卡片');
+            
+            // 詳細記錄每個卡片
+            if (cards.length > 0) {
+                Array.from(cards).forEach((card, index) => {
+                    const userId = card.getAttribute('data-user');
+                    const service = card.getAttribute('data-service');
+                    this.logger.debug(`[DOMManager] 文章卡片 ${index + 1}:`, { userId, service, className: card.className });
+                });
+            }
+            
             return cards;
         } else {
-            console.log('[DOM] 偵測到創作者頁面，尋找創作者卡片');
-            const cards = document.querySelectorAll('.card-list__items > a, [class*="card-list"] a');
-            console.log('[DOM] 找到', cards.length, '個創作者卡片');
+            this.logger.debug('[DOMManager] 偵測到創作者頁面，尋找創作者卡片');
+            // 嘗試多種選擇器
+            let cards = document.querySelectorAll('.card-list__items > a.user-card');
+            if (cards.length === 0) {
+                cards = document.querySelectorAll('.card-list__items > a');
+            }
+            if (cards.length === 0) {
+                cards = document.querySelectorAll('[class*="card-list"] a.user-card');
+            }
+            if (cards.length === 0) {
+                cards = document.querySelectorAll('a.user-card');
+            }
+            
+            this.logger.log('[DOMManager] 找到', cards.length, '個創作者卡片');
+            
+            // 詳細記錄每個卡片
+            if (cards.length > 0) {
+                Array.from(cards).forEach((card, index) => {
+                    const href = card.href || card.getAttribute('href');
+                    const name = card.querySelector('.user-card__name')?.textContent?.trim() || '未知';
+                    this.logger.debug(`[DOMManager] 創作者卡片 ${index + 1}:`, { href, name, className: card.className });
+                });
+            }
+            
             return cards;
         }
     }
@@ -315,21 +379,21 @@ class DOMManager {
             const userId = match[2];
             const userName = nameElement ? nameElement.textContent.trim() : `User ${userId}`;
             
-            console.log('[DOM] 提取用戶信息:', {
-                原始href: href,
-                platform,
-                userId,
-                userName
-            });
-            
-            return {
+            const userInfo = {
                 id: userId,
                 platform: platform,
                 name: userName
             };
+            
+            this.logger.debug('[DOMManager] 提取用戶信息成功:', {
+                原始href: href,
+                ...userInfo
+            });
+            
+            return userInfo;
         }
         
-        console.log('[DOM] 無法提取用戶信息從 href:', href);
+        this.logger.warn('[DOMManager] 無法提取用戶信息從 href:', href);
         return null;
     }
 

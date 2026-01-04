@@ -228,32 +228,46 @@ class KemonoFriends {
     }
 
     processUserCards() {
-        console.log('[KemonoFriends] 開始處理用戶卡片');
+        logger.log('[KemonoFriends] 開始處理用戶卡片，URL:', window.location.href);
         
         // 檢查是否是個人頁面
         if (this.domManager.isUserProfilePage()) {
-            console.log('[KemonoFriends] 偵測到個人頁面，調用專用處理函數');
+            logger.log('[KemonoFriends] 偵測到個人頁面，調用專用處理函數');
             this.processUserProfilePage();
             return;
         }
         
         // 處理卡片列表頁面
         const cards = this.domManager.findUserCards();
-        console.log('[KemonoFriends] 找到', cards.length, '個卡片');
+        logger.log('[KemonoFriends] 找到', cards.length, '個卡片');
         
-        cards.forEach((card) => {
+        if (cards.length === 0) {
+            logger.warn('[KemonoFriends] 沒有找到任何卡片，可能頁面尚未載入完成');
+            return;
+        }
+        
+        let processedCount = 0;
+        let skippedCount = 0;
+        let errorCount = 0;
+        
+        cards.forEach((card, index) => {
+            logger.debug(`[KemonoFriends] 處理卡片 ${index + 1}/${cards.length}`);
+            
             // 檢查是否已經有按鈕，如果有就跳過
-            if (card.querySelector('.kemono-blacklist-btn')) {
+            const existingButton = card.querySelector('.kemono-blacklist-btn');
+            if (existingButton) {
+                logger.debug(`[KemonoFriends] 卡片 ${index + 1} 已有按鈕，跳過`);
                 // 如果已經有按鈕但沒有處理標記，設置標記
                 if (!card.dataset.blacklistProcessed) {
                     card.dataset.blacklistProcessed = 'true';
                 }
+                skippedCount++;
                 return;
             }
             
             // 如果已經處理過但沒有按鈕，可能是之前的處理失敗了，清除標記重新處理
             if (card.dataset.blacklistProcessed) {
-                console.log('[KemonoFriends] 卡片已標記為處理過但缺少按鈕，重新處理:', card);
+                logger.warn(`[KemonoFriends] 卡片 ${index + 1} 已標記為處理過但缺少按鈕，重新處理`);
                 delete card.dataset.blacklistProcessed;
             }
             
@@ -261,39 +275,62 @@ class KemonoFriends {
             
             let userInfo = null;
             
-            // 判斷是文章卡片還是創作者卡片
-            if (card.classList.contains('post-card')) {
-                // 文章卡片：使用 data-user 和 data-service 屬性
-                userInfo = this.domManager.extractUserInfoFromPostCard(card);
-            } else {
-                // 創作者卡片：使用連結和名稱元素
-                const nameElement = card.querySelector('[class*="name"], h2, h3, .title');
-                userInfo = this.domManager.extractUserInfoFromLink(card.href, nameElement);
-            }
-            
-            if (!userInfo) {
-                return;
-            }
-            
-            // 如果在 /posts 頁面且啟用了隱藏功能，先檢查是否應該隱藏
-            const shouldHide = window.location.href.includes('/posts') && 
-                              this.blacklistManager.visualSettings.hideBlacklistedPosts &&
-                              this.blacklistManager.isBlacklisted(userInfo);
-            
-            if (shouldHide) {
-                card.style.display = 'none';
-                card.dataset.kemonoHidden = 'true';
-                // 如果卡片被隱藏，跳過按鈕創建和樣式應用
-                return;
-            }
-            
-            // 找到icon容器
-            const iconContainer = this.domManager.findIconContainer(card);
-            if (iconContainer) {
+            try {
+                // 判斷是文章卡片還是創作者卡片
+                if (card.classList.contains('post-card')) {
+                    logger.debug(`[KemonoFriends] 卡片 ${index + 1} 是文章卡片`);
+                    // 文章卡片：使用 data-user 和 data-service 屬性
+                    userInfo = this.domManager.extractUserInfoFromPostCard(card);
+                } else {
+                    logger.debug(`[KemonoFriends] 卡片 ${index + 1} 是創作者卡片`);
+                    // 創作者卡片：使用連結和名稱元素
+                    const nameElement = card.querySelector('[class*="name"], h2, h3, .title, .user-card__name');
+                    const href = card.href || card.getAttribute('href') || '';
+                    logger.debug(`[KemonoFriends] 卡片 ${index + 1} href:`, href, 'nameElement:', nameElement?.textContent?.trim());
+                    userInfo = this.domManager.extractUserInfoFromLink(href, nameElement);
+                }
+                
+                if (!userInfo) {
+                    logger.warn(`[KemonoFriends] 卡片 ${index + 1} 無法提取用戶信息`);
+                    errorCount++;
+                    return;
+                }
+                
+                logger.debug(`[KemonoFriends] 卡片 ${index + 1} 用戶信息:`, userInfo);
+                
+                // 如果在 /posts 頁面且啟用了隱藏功能，先檢查是否應該隱藏
+                const shouldHide = window.location.href.includes('/posts') && 
+                                  this.blacklistManager.visualSettings.hideBlacklistedPosts &&
+                                  this.blacklistManager.isBlacklisted(userInfo);
+                
+                if (shouldHide) {
+                    logger.debug(`[KemonoFriends] 卡片 ${index + 1} 被隱藏（黑名單）`);
+                    card.style.display = 'none';
+                    card.dataset.kemonoHidden = 'true';
+                    // 如果卡片被隱藏，跳過按鈕創建和樣式應用
+                    return;
+                }
+                
+                // 找到icon容器
+                const iconContainer = this.domManager.findIconContainer(card);
+                if (!iconContainer) {
+                    logger.warn(`[KemonoFriends] 卡片 ${index + 1} 找不到 icon 容器`);
+                    errorCount++;
+                    return;
+                }
+                
+                logger.debug(`[KemonoFriends] 卡片 ${index + 1} 找到 icon 容器:`, iconContainer.className || iconContainer.tagName);
                 this.domManager.ensureContainerPosition(iconContainer);
                 
                 // 創建黑名單按鈕
-                this.blacklistManager.createBlacklistButton(iconContainer, userInfo, card);
+                const button = this.blacklistManager.createBlacklistButton(iconContainer, userInfo, card);
+                if (button) {
+                    logger.log(`[KemonoFriends] 卡片 ${index + 1} 成功創建黑名單按鈕`);
+                    processedCount++;
+                } else {
+                    logger.warn(`[KemonoFriends] 卡片 ${index + 1} 創建黑名單按鈕失敗（可能已被收藏）`);
+                    skippedCount++;
+                }
                 
                 // 如果在黑名單中，應用樣式
                 if (this.blacklistManager.isBlacklisted(userInfo)) {
@@ -304,8 +341,13 @@ class KemonoFriends {
                 if (this.favoritesManager.isFavorited(userInfo)) {
                     this.favoritesManager.applyFavoriteStyle(card);
                 }
+            } catch (error) {
+                logger.error(`[KemonoFriends] 處理卡片 ${index + 1} 時發生錯誤:`, error);
+                errorCount++;
             }
         });
+        
+        logger.log(`[KemonoFriends] 處理完成 - 成功: ${processedCount}, 跳過: ${skippedCount}, 錯誤: ${errorCount}`);
 
         // 如果是 /posts 頁面，應用隱藏邏輯並更新統計資訊
         if (window.location.href.includes('/posts')) {
