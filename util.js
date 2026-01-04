@@ -357,25 +357,38 @@ window.KemonoUtil = window.KemonoUtil || {
         // 計算去重後的實際圖片總數
         // 邏輯：
         // 1. contentImages 已經只包含圖片（非圖片已經被過濾掉）
-        // 2. 如果封面圖與第一張內文圖相同，總數 = contentImages.length（封面圖已經在 contentImages 中，且去重）
-        // 3. 如果封面圖與第一張內文圖不同，總數 = contentImages.length + 1（封面圖不在 contentImages 中）
-        // 4. 注意：nonImageCount 不需要從 totalImages 中扣除，因為 totalImages 已經只包含圖片
+        // 2. 對 contentImages 進行去重處理
+        // 3. 如果封面圖與第一張內文圖相同，總數 = 去重後的 contentImages.length（封面圖已經在 contentImages 中）
+        // 4. 如果封面圖與第一張內文圖不同，總數 = 去重後的 contentImages.length + 1（封面圖不在 contentImages 中）
+        // 5. 注意：nonImageCount 不需要從 totalImages 中扣除，因為 totalImages 已經只包含圖片
         const calculateTotalImages = () => {
             if (!contentImages || contentImages.length === 0) {
                 // 只有封面圖
                 return coverImage ? 1 : 0;
             }
             
+            // 對 contentImages 進行去重處理
+            const uniqueContentImages = [];
+            for (let i = 0; i < contentImages.length; i++) {
+                const img = contentImages[i];
+                const isDuplicate = uniqueContentImages.some(existingImg => 
+                    this.compareImageUrls(existingImg, img)
+                );
+                if (!isDuplicate) {
+                    uniqueContentImages.push(img);
+                }
+            }
+            
             // 檢查封面圖與第一張內文圖是否相同
-            const isCoverSameAsFirst = coverImage && 
-                this.compareImageUrls(coverImage, contentImages[0]);
+            const isCoverSameAsFirst = coverImage && uniqueContentImages.length > 0 &&
+                this.compareImageUrls(coverImage, uniqueContentImages[0]);
             
             if (isCoverSameAsFirst) {
-                // 封面圖與第一張相同，總數 = contentImages.length（封面圖已經在 contentImages 中，且去重）
-                return contentImages.length;
+                // 封面圖與第一張相同，總數 = 去重後的 contentImages.length（封面圖已經在 contentImages 中）
+                return uniqueContentImages.length;
             } else {
-                // 封面圖與第一張不同，總數 = contentImages.length + 1（封面圖不在 contentImages 中）
-                return contentImages.length + (coverImage ? 1 : 0);
+                // 封面圖與第一張不同，總數 = 去重後的 contentImages.length + 1（封面圖不在 contentImages 中）
+                return uniqueContentImages.length + (coverImage ? 1 : 0);
             }
         };
         
@@ -390,8 +403,21 @@ window.KemonoUtil = window.KemonoUtil || {
         };
         
         // 如果扣除完只剩下封面圖一張，顯示「僅有封面圖」
+        // 需要檢查：1. totalImages === 1 2. 有封面圖 3. contentImages 中所有圖片都與封面圖相同（去重後）
         if (totalImages === 1 && coverImage) {
-            return appendNonImageCount(window.KemonoI18n.t('only_cover_available'));
+            // 檢查 contentImages 中是否所有圖片都與封面圖相同
+            if (!contentImages || contentImages.length === 0) {
+                return appendNonImageCount(window.KemonoI18n.t('only_cover_available'));
+            }
+            
+            // 檢查 contentImages 中所有圖片是否都與封面圖相同
+            const allSameAsCover = contentImages.every(img => 
+                this.compareImageUrls(img, coverImage)
+            );
+            
+            if (allSameAsCover) {
+                return appendNonImageCount(window.KemonoI18n.t('only_cover_available'));
+            }
         }
         
         // 如果只有封面圖（沒有內文圖片或內文圖片只有封面圖本身）
