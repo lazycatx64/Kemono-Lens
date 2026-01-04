@@ -8,7 +8,6 @@ const kemono = {
   // 檢查 URL 是否符合 kemono.cr
   isMatch: (url) => {
     const isMatch = url.match(/https?:\/\/(?:www\.)?kemono\.cr/);
-    kemonoLogger.verbose('Kemono.cr URL 匹配檢查:', isMatch ? 'Yes' : 'No');
     return isMatch;
   },
   
@@ -30,17 +29,13 @@ const kemono = {
       return false;
     }
 
-    kemonoLogger.verbose('檢查元素:', element);
-    
     // Check for post cards on main page
     if (element.classList.contains('post-card__image')) {
-      kemonoLogger.log('Target is post-card__image');
       return true;
     }
     
     // Additional checks for directory page thumbnails
     if (element.closest('.post-card')) {
-      kemonoLogger.log('Target is in post-card');
       return true;
     }
     

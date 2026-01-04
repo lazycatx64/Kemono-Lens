@@ -210,7 +210,6 @@ class KemonoFriends {
                 
                 // 如果不在目標元素或預覽上，關閉預覽
                 if (!isOverTarget) {
-                    logger.verbose('關閉預覽：游標不在目標或預覽上');
                     util.removeActivePreview();
                     currentHoveredElement = null;
                 }

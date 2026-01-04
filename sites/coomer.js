@@ -9,7 +9,6 @@ const coomer = {
   // 檢查 URL 是否符合 coomer.st
   isMatch: (url) => {
     const isMatch = url.match(/https?:\/\/(?:www\.)?coomer\.st/);
-    coomerLogger.verbose('Coomer.st URL 匹配檢查:', isMatch ? 'Yes' : 'No');
     return isMatch;
   },
   
@@ -31,17 +30,13 @@ const coomer = {
       return false;
     }
 
-    coomerLogger.verbose('檢查元素:', element);
-    
     // Check for post cards on main page
     if (element.classList.contains('post-card__image')) {
-      coomerLogger.log('Target is post-card__image');
       return true;
     }
     
     // Additional checks for directory page thumbnails
     if (element.closest('.post-card')) {
-      coomerLogger.log('Target is in post-card');
       return true;
     }
     
