@@ -82,6 +82,9 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.style.maxHeight = '70vh';
         
         const img = document.createElement('img');
+        // 確保圖片受到容器尺寸限制
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '100%';
         
         // 創建狀態顯示區域
         const statusDiv = document.createElement('div');
