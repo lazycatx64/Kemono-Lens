@@ -1,25 +1,3 @@
-// Initialize the logger if it doesn't exist yet
-window.KemonoLogger = window.KemonoLogger || {
-    log: function(...args) {
-        if (window.KemonoConfig && window.KemonoConfig.debug) {
-            console.log('[Kemono Hover]', ...args);
-        }
-    },
-    error: function(...args) {
-        console.error('[Kemono Hover]', ...args);
-    },
-    warn: function(...args) {
-        if (window.KemonoConfig && window.KemonoConfig.debug) {
-            console.warn('[Kemono Hover]', ...args);
-        }
-    }
-};
-
-// Initialize configuration
-window.KemonoConfig = window.KemonoConfig || {
-    debug: true  // Set to false in production
-};
-
 // Initialize utilities
 window.KemonoUtil = window.KemonoUtil || {
     _activePreview: null,
