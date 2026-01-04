@@ -510,99 +510,76 @@ window.KemonoUtil = window.KemonoUtil || {
     },
     
     loadImageWithIndicator: function(imgElement, newSrc, statusText) {
-        // Debug logger
         if (window.DebugLogger) {
             window.DebugLogger.debug('切換預覽圖片', { newSrc, statusText });
         }
         
-        // 顯示載入狀態
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
-        // 添加載入樣式（可選：降低透明度）
-        imgElement.style.opacity = '0.6';
-        imgElement.style.filter = 'blur(1px)';
-        
-        // 創建新的圖片物件來預載入
         const newImg = new Image();
         
         newImg.onload = () => {
-            // 載入完成，更新圖片和狀態
-            imgElement.src = newSrc;
-            imgElement.style.opacity = '1';
-            imgElement.style.filter = 'none';
-            
-            // 確保容器尺寸限制仍然有效
-            if (this._activePreview) {
-                const maxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
-                const maxHeightVh = window.innerHeight * 0.7;
-                
-                // 移除圖片元素上可能存在的 width 和 height 屬性
-                if (imgElement.hasAttribute('width')) {
-                    imgElement.removeAttribute('width');
-                }
-                if (imgElement.hasAttribute('height')) {
-                    imgElement.removeAttribute('height');
-                }
-                
-                // 設定容器尺寸限制
-                this._activePreview.style.setProperty('max-width', `${maxSize}px`, 'important');
-                this._activePreview.style.setProperty('max-height', `${maxHeightVh}px`, 'important');
-                
-                // 設定圖片尺寸限制
-                imgElement.style.setProperty('max-width', '100%', 'important');
-                imgElement.style.setProperty('max-height', '100%', 'important');
-                imgElement.style.setProperty('width', 'auto', 'important');
-                imgElement.style.setProperty('height', 'auto', 'important');
-                
-                // 使用 requestAnimationFrame 確保在渲染後檢查尺寸
-                requestAnimationFrame(() => {
-                    const actualWidth = this._activePreview.offsetWidth;
-                    const actualHeight = this._activePreview.offsetHeight;
-                    const imgWidth = imgElement.offsetWidth;
-                    
-                    // 強制檢查並修正尺寸
-                    if (actualWidth > maxSize) {
-                        this._activePreview.style.setProperty('width', `${maxSize}px`, 'important');
-                        window.KemonoLogger.warn('切換圖片後強制修正預覽寬度:', maxSize, '實際寬度:', actualWidth);
-                    }
-                    
-                    if (actualHeight > maxHeightVh) {
-                        this._activePreview.style.setProperty('height', `${maxHeightVh}px`, 'important');
-                        window.KemonoLogger.warn('切換圖片後強制修正預覽高度:', maxHeightVh, '實際高度:', actualHeight);
-                    }
-                    
-                    if (imgWidth > maxSize) {
-                        imgElement.style.setProperty('width', `${maxSize}px`, 'important');
-                        window.KemonoLogger.warn('切換圖片後強制修正圖片寬度:', maxSize, '實際圖片寬度:', imgWidth);
-                        if (window.DebugLogger) {
-                            window.DebugLogger.warn('切換圖片後圖片寬度超出限制', {
-                                maxSize: maxSize,
-                                imgWidth: imgWidth
-                            });
+            // 重新讀取設定值並計算尺寸
+            let maxSize = 600;
+            if (window.KemonoSettings && window.KemonoSettings.settings) {
+                maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+            }
+            if (maxSize === 600) {
+                try {
+                    const localSettings = localStorage.getItem('kemono_preview_settings');
+                    if (localSettings) {
+                        const previewSettings = JSON.parse(localSettings);
+                        if (previewSettings.maxPreviewSize) {
+                            maxSize = previewSettings.maxPreviewSize;
                         }
                     }
-                });
+                } catch (e) {
+                    // 忽略錯誤
+                }
+            }
+            
+            const maxHeightVh = window.innerHeight * 0.7;
+            
+            // 計算縮放比例
+            const naturalWidth = newImg.naturalWidth;
+            const naturalHeight = newImg.naturalHeight;
+            let scale = 1;
+            if (naturalWidth > maxSize) {
+                scale = Math.min(scale, maxSize / naturalWidth);
+            }
+            if (naturalHeight > maxHeightVh) {
+                scale = Math.min(scale, maxHeightVh / naturalHeight);
+            }
+            
+            const targetWidth = naturalWidth * scale;
+            const targetHeight = naturalHeight * scale;
+            
+            // 更新圖片（直接設定尺寸，不設動畫）
+            imgElement.src = newSrc;
+            imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
+            imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
+            
+            // 更新容器尺寸
+            if (this._activePreview) {
+                const containerPadding = 5 * 2;
+                const containerBorder = 2 * 2;
+                const statusBarHeight = 25;
+                const containerMaxWidth = maxSize + containerPadding + containerBorder;
+                const containerMaxHeight = maxHeightVh + statusBarHeight;
+                this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
+                this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
             }
             
             this.updatePreviewStatus(statusText);
-            window.KemonoLogger.log(statusText);
-            if (window.DebugLogger) {
-                window.DebugLogger.debug('圖片切換完成', { statusText });
-            }
         };
         
         newImg.onerror = () => {
-            // 載入失敗，恢復樣式並顯示錯誤
-            imgElement.style.opacity = '1';
-            imgElement.style.filter = 'none';
             this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
-            window.KemonoLogger.error('圖片載入失敗:', newSrc);
             if (window.DebugLogger) {
                 window.DebugLogger.error('圖片載入失敗', { newSrc });
             }
         };
         
-        // 開始預載入
         newImg.src = newSrc;
     },    positionPreviewAtCursor: function(event) {
         if (!this._activePreview || !event) return;
