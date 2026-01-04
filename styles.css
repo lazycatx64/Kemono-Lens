@@ -103,7 +103,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     z-index: 10000;
     border-radius: 4px;
-    pointer-events: auto;
+    pointer-events: none;
     transition: opacity 0.15s ease;
 }
 
@@ -127,7 +127,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     min-height: 100px;
     visibility: hidden;
     transform-origin: top left;
-    pointer-events: auto;
+    pointer-events: none;
     /* 移除 transition，直接顯示正確尺寸 */
     overflow: visible;
 }
@@ -142,6 +142,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     object-fit: contain !important;
     display: block !important;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 /* 預覽圖片載入狀態 */
@@ -170,6 +171,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     min-width: fit-content;
     height: 25px;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 .kemono-preview-status.loading {
@@ -189,6 +191,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     font-size: 14px;
     color: #333;
     text-align: center;
+    pointer-events: none;
 }
 
 .kemono-loading-spinner {
@@ -199,6 +202,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     border-top: 4px solid #3498db;
     border-radius: 50%;
     animation: kemono-spin 1s linear infinite;
+    pointer-events: none;
 }
 
 @keyframes kemono-spin {
@@ -215,12 +219,14 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     color: #666;
     font-size: 14px;
     padding: 5px;
+    pointer-events: none;
 }
 
 /* 錯誤訊息樣式 */
 .kemono-error-message {
     padding: 10px;
     color: red;
+    pointer-events: none;
 }
 
 /* 無圖片訊息樣式 */
@@ -233,6 +239,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     border-radius: 4px;
     font-family: Arial, sans-serif;
     font-size: 14px;
+    pointer-events: none;
 }
 
 /* ========== 設定視窗樣式 ========== */
