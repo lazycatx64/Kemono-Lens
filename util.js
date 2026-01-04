@@ -630,7 +630,6 @@ window.KemonoUtil = window.KemonoUtil || {
         }
         
         // 上邊界檢查（確保狀態欄不超出，狀態欄在 top - statusBarHeight 位置）
-        const statusBarHeight = 25;
         if (top - statusBarHeight < margin) {
             top = margin + statusBarHeight;
         }
