@@ -6,7 +6,8 @@
   
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "cookies"
   ],
 
   "host_permissions": [

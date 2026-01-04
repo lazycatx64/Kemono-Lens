@@ -50,6 +50,29 @@ class FavoritesManager {
         }
     }
 
+    /**
+     * 獲取 Kemono 網站的 cookie
+     * @param {string} domain - 域名 (例如: 'kemono.cr' 或 'coomer.st')
+     * @returns {Promise<string>} Cookie 字串
+     */
+    async getKemonoCookies(domain) {
+        try {
+            const cookies = await chrome.cookies.getAll({ domain: domain });
+            if (cookies.length === 0) {
+                console.warn(`未找到 ${domain} 的 cookie`);
+                return '';
+            }
+            
+            // 將 cookie 轉換為 Cookie header 格式
+            const cookieString = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+            console.log(`獲取到 ${cookies.length} 個 ${domain} 的 cookie`);
+            return cookieString;
+        } catch (error) {
+            console.error(`獲取 ${domain} cookie 時發生錯誤:`, error);
+            return '';
+        }
+    }
+
     async importKemonoFavorites() {
         const btn = this.elements.importFavoritesBtn;
         if (!btn) return;
@@ -62,16 +85,28 @@ class FavoritesManager {
             
             // 嘗試從兩個域名獲取收藏（優先使用 kemono.cr）
             const apiUrl = 'https://kemono.cr/api/v1/account/favorites?type=artist';
+            
+            // 獲取 kemono.cr 的 cookie
+            const cookieString = await this.getKemonoCookies('kemono.cr');
+            
+            // 構建請求 headers
+            const headers = {
+                'Accept': 'text/css',
+                'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin'
+            };
+            
+            // 如果有 cookie，添加到 headers
+            if (cookieString) {
+                headers['Cookie'] = cookieString;
+            }
+            
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 credentials: 'include',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Sec-Fetch-Dest': 'empty',
-                    'Sec-Fetch-Mode': 'cors',
-                    'Sec-Fetch-Site': 'same-origin'
-                }
+                headers: headers
             });
             
             if (!response.ok) {
@@ -84,12 +119,20 @@ class FavoritesManager {
                 }
             }
             
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('回應不是有效的 JSON 格式');
+            // 即使 Accept 是 text/css，回應內容可能還是 JSON
+            // 嘗試解析為 JSON，如果失敗再檢查 content-type
+            let favoritesData;
+            try {
+                const text = await response.text();
+                favoritesData = JSON.parse(text);
+            } catch (parseError) {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('回應不是有效的 JSON 格式');
+                }
+                // 如果 content-type 是 JSON 但解析失敗，重新拋出解析錯誤
+                throw parseError;
             }
-            
-            const favoritesData = await response.json();
             
             btn.textContent = '⭐ 正在同步收藏標記...';
             await this.syncFavoritesDataFromAPI(favoritesData);
