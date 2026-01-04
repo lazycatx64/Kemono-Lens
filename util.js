@@ -37,19 +37,7 @@ window.KemonoUtil = window.KemonoUtil || {
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
         if (!window.KemonoSettings || !window.KemonoSettings.settings || !window.KemonoSettings.settings.enabled) {
-            if (window.DebugLogger) {
-                window.DebugLogger.debug('預覽功能已停用');
-            }
             return null;
-        }
-        
-        // Debug logger
-        if (window.DebugLogger) {
-            window.DebugLogger.debug('建立預覽（含 API）', {
-                imageSrc: imageSrc,
-                postUrl: postUrl,
-                hasSiteHandler: !!siteHandler
-            });
         }
         
         // 創建基本預覽
@@ -104,10 +92,6 @@ window.KemonoUtil = window.KemonoUtil || {
             } catch (e) {
                 // 忽略錯誤
             }
-        }
-        
-        if (window.DebugLogger) {
-            window.DebugLogger.debug('建立預覽圖', { imageSrc, maxSize });
         }
         
         const preview = document.createElement('div');
@@ -182,15 +166,6 @@ window.KemonoUtil = window.KemonoUtil || {
             img.style.setProperty('width', `${targetWidth}px`, 'important');
             img.style.setProperty('height', `${targetHeight}px`, 'important');
             
-            if (window.DebugLogger) {
-                window.DebugLogger.debug('圖片載入完成', {
-                    naturalSize: `${naturalWidth}x${naturalHeight}`,
-                    targetSize: `${targetWidth}x${targetHeight}`,
-                    maxSize: currentMaxSize,
-                    scale: scale
-                });
-            }
-            
             this.positionPreviewAtCursor(mouseEvent);
             preview.style.visibility = 'visible';
             this._previewReady = true;
@@ -198,9 +173,6 @@ window.KemonoUtil = window.KemonoUtil || {
         
         img.onerror = () => {
             window.KemonoLogger.error('Failed to load image:', imageSrc);
-            if (window.DebugLogger) {
-                window.DebugLogger.error('預覽圖片載入失敗', { imageSrc });
-            }
             const errorMsg = document.createElement('div');
             errorMsg.className = 'kemono-error-message';
             errorMsg.textContent = window.KemonoI18n.t('image_failed_to_load');
@@ -334,14 +306,6 @@ window.KemonoUtil = window.KemonoUtil || {
             const result = await siteHandler.fetchPostImages(postUrl);
             
             window.KemonoLogger.log('API 回應結果:', result);
-            if (window.DebugLogger) {
-                window.DebugLogger.debug('API 回應結果', {
-                    postUrl: postUrl,
-                    coverImage: result.coverImage ? '有' : '無',
-                    contentImagesCount: result.contentImages?.length || 0,
-                    hasOriginalImages: result.hasOriginalImages || false
-                });
-            }
             
             // 處理新的 API 回應格式
             const coverImage = result.coverImage || null;
@@ -509,10 +473,6 @@ window.KemonoUtil = window.KemonoUtil || {
     },
     
     loadImageWithIndicator: function(imgElement, newSrc, statusText) {
-        if (window.DebugLogger) {
-            window.DebugLogger.debug('切換預覽圖片', { newSrc, statusText });
-        }
-        
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
         const newImg = new Image();
@@ -572,9 +532,6 @@ window.KemonoUtil = window.KemonoUtil || {
         
         newImg.onerror = () => {
             this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
-            if (window.DebugLogger) {
-                window.DebugLogger.error('圖片載入失敗', { newSrc });
-            }
         };
         
         newImg.src = newSrc;

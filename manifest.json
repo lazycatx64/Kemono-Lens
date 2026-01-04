@@ -30,7 +30,6 @@
       ],
       "js": [
         "logger.js",
-        "debug-logger.js",
         "i18n.js",
         "settings.js",
         "util.js",
@@ -61,7 +60,7 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Kemono Friends - Debug Log"
+    "default_title": "Kemono Friends - 設定"
   },
   
   "background": {
