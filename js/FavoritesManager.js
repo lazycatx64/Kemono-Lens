@@ -16,9 +16,11 @@ class FavoritesManager {
             processJsonBtn: document.getElementById('process-json-btn'),
             clearJsonBtn: document.getElementById('clear-json-btn'),
             clearFavoritesBtn: document.getElementById('clear-favorites-btn'),
-            favoritesContainer: document.getElementById('favorites-container')
+            favoritesContainer: document.getElementById('favorites-container'),
+            favoritesSearchInput: document.getElementById('favorites-search-input')
         };
         
+        this.searchQuery = '';
         this.setupEventListeners();
     }
 
@@ -47,6 +49,12 @@ class FavoritesManager {
         }
         if (this.elements.clearFavoritesBtn) {
             this.elements.clearFavoritesBtn.addEventListener('click', () => this.clearAllFavorites());
+        }
+        if (this.elements.favoritesSearchInput) {
+            this.elements.favoritesSearchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim().toLowerCase();
+                this.render();
+            });
         }
     }
 
@@ -468,27 +476,73 @@ class FavoritesManager {
             return;
         }
         
-        // 將收藏資料轉換為可顯示的格式
-        const favoritesArray = Object.keys(this.favoritesData).sort();
-        
-        const html = favoritesArray.map(favoriteKey => {
+        // 將收藏資料轉換為可顯示的格式並進行搜尋過濾
+        let favoritesArray = Object.keys(this.favoritesData).map(favoriteKey => {
             const [platform, userId] = favoriteKey.split('-');
             const favoriteData = this.favoritesData[favoriteKey];
             const displayName = favoriteData && favoriteData.name ? favoriteData.name : `User ${userId}`;
             
-            return `
-                <div class="favorite-item">
-                    <div class="user-info">
-                        <span class="favorite-star">⭐</span>
-                        <strong>${displayName}</strong>
-                        <span class="platform-info">(${platform})</span>
-                        <a href="${this.getUserUrl(platform, userId)}" target="_blank" class="kemono-link">🔗</a>
-                    </div>
-                </div>
-            `;
-        }).join('');
+            return {
+                key: favoriteKey,
+                platform: platform,
+                userId: userId,
+                displayName: displayName,
+                favoriteData: favoriteData
+            };
+        });
+        
+        // 搜尋過濾：搜尋範圍包括 artist name 和 id
+        if (this.searchQuery) {
+            favoritesArray = favoritesArray.filter(item => {
+                const nameMatch = item.displayName.toLowerCase().includes(this.searchQuery);
+                const idMatch = item.userId.toLowerCase().includes(this.searchQuery);
+                const platformMatch = item.platform.toLowerCase().includes(this.searchQuery);
+                return nameMatch || idMatch || platformMatch;
+            });
+        }
+        
+        // 排序：先按平台，再按名稱
+        favoritesArray.sort((a, b) => {
+            if (a.platform !== b.platform) {
+                return a.platform.localeCompare(b.platform);
+            }
+            return a.displayName.localeCompare(b.displayName);
+        });
+        
+        if (favoritesArray.length === 0) {
+            this.elements.favoritesContainer.innerHTML = '<div class="empty-message">沒有符合搜尋條件的收藏</div>';
+            return;
+        }
+        
+        // 生成 HTML，使用響應式網格佈局
+        const html = `
+            <div class="favorites-grid">
+                ${favoritesArray.map(item => {
+                    const { platform, userId, displayName } = item;
+                    return `
+                        <div class="favorite-item">
+                            <div class="user-info">
+                                <span class="favorite-star">⭐</span>
+                                <div class="favorite-item-text">
+                                    <span class="favorite-item-name">${this.escapeHtml(displayName)}</span>
+                                    <span class="favorite-item-separator">|</span>
+                                    <span class="favorite-item-platform">${this.escapeHtml(platform)}: ${this.escapeHtml(userId)}</span>
+                                </div>
+                                <a href="${this.getUserUrl(platform, userId)}" target="_blank" class="kemono-link">🔗</a>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
         
         this.elements.favoritesContainer.innerHTML = html;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     async saveFavorites() {
