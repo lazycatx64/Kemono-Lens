@@ -139,6 +139,13 @@ const coomer = {
     return null;
   },
   
+  // 檢查檔案是否為圖片格式
+  isImageFile: (path) => {
+    if (!path) return false;
+    const imageExtensions = /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)(\?|$)/i;
+    return imageExtensions.test(path);
+  },
+  
   // 獲取貼文頁面的所有圖片
   fetchPostImages: async (postUrl) => {
     coomerLogger.log('正在從以下位置獲取貼文圖片:', postUrl);
@@ -183,6 +190,7 @@ const coomer = {
       let hasOriginalImages = false;
       let coverImageUrl = null;
       let contentImages = [];
+      let nonImageCount = 0; // 非圖片數量
       
       // 從 API 回應中獲取預覽圖片
       if (postData.previews && Array.isArray(postData.previews) && postData.previews.length > 0) {
@@ -211,18 +219,31 @@ const coomer = {
         hasOriginalImages = true;
         coomerLogger.warn('沒有找到預覽圖片，改用附件原圖');
         
-        // 第一張附件作為封面圖
-        if (postData.attachments[0] && postData.attachments[0].path) {
-          coverImageUrl = baseUrl + postData.attachments[0].path;
+        // 過濾出圖片格式的附件
+        const imageAttachments = [];
+        for (let i = 0; i < postData.attachments.length; i++) {
+          if (postData.attachments[i] && postData.attachments[i].path) {
+            if (coomer.isImageFile(postData.attachments[i].path)) {
+              imageAttachments.push(postData.attachments[i]);
+            } else {
+              nonImageCount++;
+              coomerLogger.log('過濾掉非圖片附件:', postData.attachments[i].path);
+            }
+          }
+        }
+        
+        // 第一張圖片附件作為封面圖
+        if (imageAttachments.length > 0 && imageAttachments[0].path) {
+          coverImageUrl = baseUrl + imageAttachments[0].path;
           // 轉換為 thumbnail URL
           coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
           coomerLogger.log('找到附件封面原圖:', coverImageUrl);
         }
         
-        // 所有附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
-        for (let i = 0; i < postData.attachments.length; i++) {
-          if (postData.attachments[i] && postData.attachments[i].path) {
-            let fullImageUrl = baseUrl + postData.attachments[i].path;
+        // 所有圖片附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
+        for (let i = 0; i < imageAttachments.length; i++) {
+          if (imageAttachments[i] && imageAttachments[i].path) {
+            let fullImageUrl = baseUrl + imageAttachments[i].path;
             // 轉換為 thumbnail URL
             fullImageUrl = coomer.convertToThumbnailUrl(fullImageUrl);
             contentImages.push(fullImageUrl);
@@ -236,28 +257,36 @@ const coomer = {
         hasOriginalImages = true;
         coomerLogger.warn('沒有找到預覽圖片和附件，改用主要文件');
         
-        coverImageUrl = baseUrl + postData.file.path;
-        // 轉換為 thumbnail URL
-        coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
-        // 主要文件也加入內文圖片列表，這樣即使只有一張圖片也可以切換
-        contentImages.push(coverImageUrl);
-        coomerLogger.log('找到主要文件圖片:', coverImageUrl, '(封面圖)');
+        // 檢查主要文件是否為圖片格式
+        if (coomer.isImageFile(postData.file.path)) {
+          coverImageUrl = baseUrl + postData.file.path;
+          // 轉換為 thumbnail URL
+          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
+          // 主要文件也加入內文圖片列表，這樣即使只有一張圖片也可以切換
+          contentImages.push(coverImageUrl);
+          coomerLogger.log('找到主要文件圖片:', coverImageUrl, '(封面圖)');
+        } else {
+          nonImageCount++;
+          coomerLogger.log('主要文件不是圖片格式，已過濾:', postData.file.path);
+        }
       }
       
-      coomerLogger.log(`從 API 獲取到封面圖: ${coverImageUrl ? '1' : '0'} 張，內文圖片: ${contentImages.length} 張${hasOriginalImages ? ' (包含原圖)' : ''}`);
+      coomerLogger.log(`從 API 獲取到封面圖: ${coverImageUrl ? '1' : '0'} 張，內文圖片: ${contentImages.length} 張，非圖片: ${nonImageCount} 個${hasOriginalImages ? ' (包含原圖)' : ''}`);
       
       // 返回分離的結果
       return {
         coverImage: coverImageUrl,
         contentImages: contentImages,
-        hasOriginalImages: hasOriginalImages
+        hasOriginalImages: hasOriginalImages,
+        nonImageCount: nonImageCount
       };
     } catch (error) {
       coomerLogger.error('獲取貼文圖片時出錯:', error);
       return {
         coverImage: null,
         contentImages: [],
-        hasOriginalImages: false
+        hasOriginalImages: false,
+        nonImageCount: 0
       };
     }
   },
