@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kemono Friends 設定</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 分頁樣式 */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 30px;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        .tab-button.active {
+            color: #007cba;
+            border-bottom-color: #007cba;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #555;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .add-form select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            min-width: 120px;
+        }
+
+        .add-form input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .add-form button, .clear-all-btn {
+            padding: 10px 20px;
+            background: #007cba;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .add-form button:hover {
+            background: #005a87;
+        }
+
+        .clear-all-btn {
+            background: #dc3545;
+            margin-top: 20px;
+        }
+
+        .clear-all-btn:hover {
+            background: #c82333;
+        }
+
+        .import-btn {
+            padding: 12px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .import-btn:hover {
+            background: #218838;
+        }
+
+        .import-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .import-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .favorite-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #fff9c4 0%, #ffffff 100%);
+            border-left: 4px solid #ffd700;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .favorite-item:hover {
+            background: linear-gradient(135deg, #fff3a0 0%, #f9f9f9 100%);
+        }
+
+        .favorite-item .user-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .favorite-star {
+            color: #ffd700;
+            font-size: 16px;
+            margin-right: 5px;
+            text-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
+        }
+
+        .favorite-label {
+            color: #b8860b;
+            font-weight: bold;
+            background: rgba(255, 215, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .favorite-item .platform-info {
+            color: #666;
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        .favorite-item .kemono-link {
+            color: #007cba;
+            text-decoration: none;
+            font-size: 16px;
+            margin-left: auto;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .favorite-item .kemono-link:hover {
+            background-color: rgba(0, 124, 186, 0.1);
+            text-decoration: none;
+        }
+
+        .manual-import-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+        }
+
+        .manual-import-section h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+
+        .manual-import-steps {
+            margin-bottom: 15px;
+        }
+
+        .manual-import-steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .manual-import-steps li {
+            margin: 5px 0;
+            color: #495057;
+        }
+
+        .manual-import-steps a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .manual-import-steps a:hover {
+            text-decoration: underline;
+        }
+
+        #manual-json-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+
+        .manual-import-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .clear-btn {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .clear-btn:hover {
+            background: #5a6268;
+        }
+
+        .favorites-management {
+            margin-top: 20px;
+        }
+
+        .favorites-management h4 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .danger-btn {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .danger-btn:hover {
+            background: #c82333;
+        }
+
+        .danger-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .blacklist-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            gap: 15px;
+        }
+
+        .blacklist-item:hover {
+            background: #e9ecef;
+        }
+
+        .user-avatar-container {
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            background: #f5f5f5;
+        }
+
+
+
+        .user-avatar-placeholder {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #666;
+            cursor: help;
+        }
+
+        .user-avatar-placeholder.no-avatar {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .user-avatar-placeholder.load-failed {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-id {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .user-url {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .user-url a {
+            color: #007cba;
+            text-decoration: none;
+        }
+
+        .user-url a:hover {
+            text-decoration: underline;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .stats {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stats-row {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .platform-breakdown {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .platform-item {
+            display: inline-block;
+            background: rgba(255,255,255,0.7);
+            padding: 4px 8px;
+            margin: 2px 4px 2px 0;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .help-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .import-preview-info {
+            padding: 15px;
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .import-preview-info strong {
+            color: #0066cc;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .import-preview-info small {
+            color: #666;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .confirm-import-btn {
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .confirm-import-btn:hover {
+            background: #218838;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        /* 設定頁面樣式 */
+        .settings-group {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .settings-group h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+
+        /* 開關樣式 */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 24px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .switch::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            background-color: white;
+            transition: transform 0.3s;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+
+        input[type="checkbox"]:checked + .switch {
+            background-color: #007cba;
+        }
+
+        input[type="checkbox"]:checked + .switch::before {
+            transform: translateX(26px);
+        }
+
+        .switch-label {
+            font-weight: 500;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Kemono Friends 管理</h1>
+        
+        <!-- 分頁導航 -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="blacklist">🚫 黑名單管理</button>
+            <button class="tab-button" data-tab="favorites">⭐ 收藏管理</button>
+            <button class="tab-button" data-tab="preview">🖼️ 預覽設定</button>
+            <button class="tab-button" data-tab="settings">⚙️ 顯示設定</button>
+        </div>
+
+        <!-- 全域訊息區域 -->
+        <div class="success-message" id="success-message"></div>
+        <div class="error-message" id="error-message"></div>
+
+        <!-- 黑名單管理頁籤 -->
+        <div class="tab-content" data-tab="blacklist">
+            <div class="stats">
+                <div class="stats-row">
+                    <strong>📊 黑名單統計</strong>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" id="blacklist-total-count">0</div>
+                        <div class="stat-label">總數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="blacklist-platform-count">0</div>
+                        <div class="stat-label">平台數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="blacklist-with-avatar">0</div>
+                        <div class="stat-label">有頭像</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="blacklist-recent-added">0</div>
+                        <div class="stat-label">本週新增</div>
+                    </div>
+                </div>
+                <div class="platform-breakdown" id="blacklist-platform-breakdown"></div>
+            </div>
+
+            <div class="section">
+                <h2>手動添加創作者到黑名單</h2>
+                <div class="add-form">
+                    <select id="platform-select">
+                        <option value="patreon">Patreon</option>
+                        <option value="fantia">Fantia</option>
+                        <option value="fanbox">Pixiv Fanbox</option>
+                        <option value="afdian">愛發電</option>
+                        <option value="boosty">Boosty</option>
+                        <option value="gumroad">Gumroad</option>
+                        <option value="subscribestar">SubscribeStar</option>
+                        <option value="dlsite">DLsite</option>
+                    </select>
+                    <input type="text" id="user-input" placeholder="輸入創作者ID或完整URL">
+                    <button id="add-btn">添加到黑名單</button>
+                </div>
+                <div class="help-text">
+                    💡 小提示：
+                    <br>• 可以輸入創作者ID (例如: 5564244) 或完整URL (例如: https://kemono.cr/patreon/user/5564244)
+                    <br>• 輸入完整URL時會自動識別平台類型
+                    <br>• 也可以直接在 Kemono 網站上點擊創作者頭像右上角的 ❌ 按鈕來快速添加
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>黑名單列表</h2>
+                <div style="margin-bottom: 15px;">
+                    <button class="import-btn" id="export-blacklist-btn">📥 匯出黑名單為 JSON</button>
+                    <button class="import-btn" id="import-blacklist-btn" style="margin-left: 10px;">📤 匯入黑名單</button>
+                </div>
+                
+                <!-- 匯入功能區域 -->
+                <div id="import-blacklist-section" class="import-section" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>匯入黑名單</h3>
+                    <div class="help-text" style="margin-bottom: 15px;">
+                        支援標準 JSON 格式（包含 version, blacklist 陣列）或舊格式（物件格式、陣列格式）
+                    </div>
+                    
+                    <!-- 檔案選擇器 -->
+                    <div class="import-section" style="margin-bottom: 15px;">
+                        <label for="import-blacklist-file" style="display: block; margin-bottom: 8px; font-weight: bold;">方式一：選擇檔案</label>
+                        <input type="file" id="import-blacklist-file" accept=".json" style="display: block; margin-bottom: 10px;">
+                    </div>
+                    
+                    <!-- 文字區域 -->
+                    <div class="import-section" style="display: none;">
+                        <label for="import-blacklist-text" style="display: block; margin-bottom: 8px; font-weight: bold;">方式二：貼上 JSON</label>
+                        <textarea id="import-blacklist-text" placeholder="請貼上 JSON 資料..." rows="8" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    
+                    <!-- 預覽區域 -->
+                    <div id="import-blacklist-preview" style="margin-top: 15px; padding: 10px; background: #fff; border-radius: 4px; border: 1px solid #ddd;"></div>
+                </div>
+                
+                <div id="blacklist-container">
+                    <div class="empty-message">黑名單是空的</div>
+                </div>
+                <button class="clear-all-btn" id="clear-all-btn" style="display: none;">清空所有黑名單</button>
+            </div>
+        </div>
+
+        <!-- 收藏管理頁籤 -->
+        <div class="tab-content" data-tab="favorites">
+            <div class="stats">
+                <div class="stats-row">
+                    <strong>⭐ 收藏統計</strong>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" id="favorites-total-count">0</div>
+                        <div class="stat-label">總收藏數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="favorites-platform-count">0</div>
+                        <div class="stat-label">平台數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="favorites-last-synced">未同步</div>
+                        <div class="stat-label">最後同步</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="favorites-synced-week">0</div>
+                        <div class="stat-label">本週同步</div>
+                    </div>
+                </div>
+                <div class="platform-breakdown" id="favorites-platform-breakdown"></div>
+            </div>
+
+            <div class="section">
+                <h2>同步 Kemono 收藏</h2>
+                <div class="import-section">
+                    <button id="import-favorites-btn" class="import-btn">⭐ 同步 Kemono 收藏</button>
+                    <div class="help-text" style="margin-top: 10px;">
+                        💡 嘗試自動同步您在 Kemono 上的收藏創作者！已收藏的創作者會以 ⭐ 標記顯示在黑名單中
+                        <br>📡 首先嘗試使用 Kemono API 自動獲取，如果失敗會顯示手動同步選項
+                        <br>⚠️ 注意：由於 Kemono 的 API 限制，可能需要使用手動方式同步
+                    </div>
+                    
+                    <!-- 手動輸入區域，作為備用方案，默認隱藏 -->
+                    <div id="manual-import-section" class="manual-import-section" style="display: none;">
+                        <h4>📋 備用方案：手動同步收藏</h4>
+                        <div class="help-text" style="margin-bottom: 15px;">
+                            ⚠️ 當自動同步失敗時顯示此選項。如果自動同步正常工作，您不需要使用此功能。
+                        </div>
+                        <div class="manual-import-steps">
+                            <p><strong>手動步驟（由於 API 限制，需要手動操作）：</strong></p>
+                            <ol>
+                                <li><strong>登入 Kemono：</strong>確保您已在瀏覽器中登入 <a href="https://kemono.cr" target="_blank">Kemono 網站</a></li>
+                                <li><strong>前往匯出頁面：</strong>訪問 <a href="https://kemono.cr/account/favorites/export" target="_blank">收藏匯出頁面</a></li>
+                                <li><strong>產生資料：</strong>點擊頁面上的「Export」按鈕</li>
+                                <li><strong>等待完成：</strong>等待 JSON 資料出現在頁面的文字框中</li>
+                                <li><strong>複製資料：</strong>選取並複製整個 JSON 內容</li>
+                                <li><strong>貼上處理：</strong>將 JSON 貼到下方文字框，然後點擊「處理 JSON 資料」</li>
+                            </ol>
+                            <div class="help-text" style="background: #fff3cd; padding: 10px; border-radius: 4px; margin: 10px 0; border: 1px solid #ffeaa7;">
+                                <strong>💡 提示：</strong>如果匯出頁面顯示空白或錯誤，請確認：
+                                <br>• 您已正確登入 Kemono 帳號
+                                <br>• 您的帳號確實有收藏的創作者
+                                <br>• 嘗試重新整理頁面後再次點擊 Export
+                            </div>
+                        </div>
+                        <textarea id="manual-json-input" placeholder="請將從 Kemono 收藏匯出頁面複製的 JSON 資料貼到這裡..." rows="8"></textarea>
+                        <div class="manual-import-buttons">
+                            <button id="process-json-btn" class="import-btn">📥 處理 JSON 資料</button>
+                            <button id="clear-json-btn" class="clear-btn">🗑️ 清空</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>收藏清單</h2>
+                <div id="favorites-container">
+                    <div class="empty-message">尚未同步任何收藏</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>收藏管理</h2>
+                <div class="favorites-management">
+                    <p class="help-text">管理已同步的收藏標記</p>
+                    <button id="clear-favorites-btn" class="danger-btn">🗑️ 清除所有收藏標記</button>
+                    <div class="help-text" style="margin-top: 8px;">
+                        ⚠️ 此操作只會清除擴充功能中的收藏標記，不會影響 Kemono 網站上的實際收藏
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 顯示設定頁籤 -->
+        <div class="tab-content" data-tab="settings">
+            <div class="section">
+                <h2>顯示效果設定</h2>
+                <p class="help-text">控制黑名單和收藏的視覺效果顯示</p>
+                
+                <div class="settings-group">
+                    <h3>🚫 黑名單顯示效果</h3>
+                    <label class="switch-container">
+                        <input type="checkbox" id="blacklist-visual-effects" checked>
+                        <span class="switch"></span>
+                        <span class="switch-label">啟用黑名單視覺效果（半透明、灰階等）</span>
+                    </label>
+                    <div class="help-text">
+                        關閉後，被黑名單的創作者將不會有任何視覺變化，但黑名單按鈕仍會顯示
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>⭐ 收藏顯示效果</h3>
+                    <label class="switch-container">
+                        <input type="checkbox" id="favorites-visual-effects" checked>
+                        <span class="switch"></span>
+                        <span class="switch-label">啟用收藏視覺效果（金邊框等）</span>
+                    </label>
+                    <div class="help-text">
+                        關閉後，收藏的創作者將不會有任何視覺變化，但收藏按鈕仍會顯示
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>📋 文章頁面設定</h3>
+                    <label class="switch-container">
+                        <input type="checkbox" id="hide-blacklisted-posts">
+                        <span class="switch"></span>
+                        <span class="switch-label">隱藏 /posts 頁面中被黑名單的項目</span>
+                    </label>
+                    <div class="help-text">
+                        啟用後，在 /posts 頁面中，被黑名單的創作者文章將完全隱藏，只顯示未被黑名單的項目
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 預覽設定頁籤 -->
+        <div class="tab-content" data-tab="preview">
+            <div class="section">
+                <h2>懸停預覽設定</h2>
+                <p class="help-text">設定在縮圖上懸停時顯示大圖預覽的功能</p>
+                
+                <div class="settings-group">
+                    <h3>🔧 基本設定</h3>
+                    <label class="switch-container">
+                        <input type="checkbox" id="preview-enabled" checked>
+                        <span class="switch"></span>
+                        <span class="switch-label">啟用懸停預覽功能</span>
+                    </label>
+                    <div class="help-text">
+                        關閉後，將不會顯示懸停預覽
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>🔄 切換模式</h3>
+                    <div style="margin-left: 20px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-switch-mode" value="scroll" style="margin-right: 8px;">
+                            <span>使用滾輪切換</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-switch-mode" value="alt_scroll" checked style="margin-right: 8px;">
+                            <span>按著 Alt 使用滾輪切換</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-switch-mode" value="keyboard" style="margin-right: 8px;">
+                            <span>使用方向鍵切換</span>
+                        </label>
+                    </div>
+                    <div class="help-text">
+                        選擇切換預覽圖片的方式
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>📏 預覽尺寸</h3>
+                    <label style="display: block; margin-bottom: 8px;">
+                        最大預覽尺寸 (px):
+                        <input type="number" id="preview-max-size" value="600" min="200" max="1200" step="50" style="margin-left: 10px; padding: 5px; width: 100px;">
+                    </label>
+                    <div class="help-text">
+                        設定預覽圖的最大寬度（200-1200px）
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入所有 JavaScript 模組 -->
+    <script src="js/MessageManager.js"></script>
+    <script src="js/StatisticsManager.js"></script>
+    <script src="js/TabManager.js"></script>
+    <script src="js/SettingsManager.js"></script>
+    <script src="js/BlacklistManager.js"></script>
+    <script src="js/FavoritesManager.js"></script>
+    <script src="js/App.js"></script>
+    <script src="content-scripts/options-import-inject.js"></script>
+</body>
+</html>

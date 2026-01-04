@@ -1,0 +1,394 @@
+/* Kemono Friends Styles - 整合黑名單、收藏和懸停預覽樣式 */
+
+/* ========== 黑名單樣式 ========== */
+
+.kemono-blacklist-btn {
+    transition: all 0.2s ease;
+}
+
+.kemono-blacklist-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.kemono-blacklisted {
+    transition: all 0.3s ease;
+}
+
+/* 只有在啟用視覺效果時才顯示黑名單樣式 */
+body:not(.blacklist-visual-disabled) .kemono-blacklisted .user-card__name,
+body:not(.blacklist-visual-disabled) .kemono-blacklisted [class*="name"] {
+    color: #ff4444 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+body:not(.blacklist-visual-disabled) .kemono-blacklisted .user-card__banner,
+body:not(.blacklist-visual-disabled) .kemono-blacklisted [class*="banner"],
+body:not(.blacklist-visual-disabled) .kemono-blacklisted img {
+    opacity: 0.5 !important;
+    filter: grayscale(0.3);
+}
+
+/* 隱藏被黑名單用戶的loading動畫 */
+body:not(.blacklist-visual-disabled) .kemono-blacklisted::before,
+body:not(.blacklist-visual-disabled) .kemono-blacklisted *::before,
+body:not(.blacklist-visual-disabled) .kemono-blacklisted *::after {
+    display: none !important;
+}
+
+/* 隱藏可能的loading背景圖片或動畫 */
+body:not(.blacklist-visual-disabled) .kemono-blacklisted [class*="loading"],
+body:not(.blacklist-visual-disabled) .kemono-blacklisted [class*="spinner"],
+body:not(.blacklist-visual-disabled) .kemono-blacklisted [class*="placeholder"] {
+    display: none !important;
+}
+
+/* 隱藏可能的背景loading動畫 */
+body:not(.blacklist-visual-disabled) .kemono-blacklisted {
+    background-image: none !important;
+    animation: none !important;
+}
+
+.kemono-blacklisted {
+    position: relative;
+}
+
+body:not(.blacklist-visual-disabled) .kemono-blacklisted {
+    opacity: 0.7 !important;
+}
+
+body:not(.blacklist-visual-disabled) .kemono-blacklisted::after {
+    content: "BLACKLISTED";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 68, 68, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+body:not(.blacklist-visual-disabled) .kemono-blacklisted:hover::after {
+    opacity: 1;
+}
+
+/* ========== 收藏樣式 ========== */
+
+.kemono-favorited {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* 只有在啟用視覺效果時才顯示邊框 */
+body:not(.favorites-visual-disabled) .kemono-favorited {
+    border: 3px solid #ffd700 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3) !important;
+}
+
+/* ========== 懸停預覽樣式 ========== */
+
+#image-preview {
+    position: absolute;
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    border-radius: 4px;
+    pointer-events: auto;
+    transition: opacity 0.15s ease;
+}
+
+#image-preview img {
+    display: block;
+    transition: max-width 0.2s ease, max-height 0.2s ease;
+}
+
+/* 預覽圖片容器樣式 */
+.kemono-preview-container {
+    position: fixed;
+    z-index: 9999;
+    border: 2px solid #333;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    background-color: #fff;
+    padding: 5px;
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    min-width: 200px;
+    min-height: 100px;
+    visibility: hidden;
+    transform-origin: top left;
+    transition: opacity 0.15s ease;
+    pointer-events: auto;
+}
+
+.kemono-preview-container img {
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 60px);
+    min-width: 180px;
+    min-height: 90px;
+    object-fit: contain;
+    display: block;
+}
+
+/* 預覽圖片載入狀態 */
+.kemono-preview-container img.loading {
+    opacity: 0.6;
+    filter: blur(1px);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* 預覽狀態顯示 */
+.kemono-preview-status {
+    position: absolute;
+    top: -25px;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    z-index: 1;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.kemono-preview-status.loading {
+    background: rgba(255,165,0,0.9);
+    color: #000;
+}
+
+/* 載入指示器樣式 */
+.kemono-preview-container.loading {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.kemono-loading-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #333;
+    text-align: center;
+}
+
+.kemono-loading-spinner {
+    margin: 10px auto;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: kemono-spin 1s linear infinite;
+}
+
+@keyframes kemono-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 載入消息覆蓋 */
+.kemono-loading-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    font-size: 14px;
+    padding: 5px;
+}
+
+/* 錯誤訊息樣式 */
+.kemono-error-message {
+    padding: 10px;
+    color: red;
+}
+
+/* 無圖片訊息樣式 */
+.kemono-no-images-message {
+    position: fixed;
+    z-index: 9999;
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* ========== 設定視窗樣式 ========== */
+
+.kemono-settings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.kemono-settings-window {
+    background: #1a1a1a;
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 420px;
+    max-width: 520px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.8);
+    border: 1px solid #333;
+    font-family: inherit;
+}
+
+.kemono-settings-title {
+    margin-top: 0;
+    margin-bottom: 24px;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 12px;
+}
+
+.kemono-settings-section {
+    margin-bottom: 20px;
+}
+
+.kemono-settings-section:last-of-type {
+    margin-bottom: 24px;
+}
+
+.kemono-settings-label {
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.kemono-checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #ffffff;
+    font-size: 14px;
+    padding: 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.kemono-checkbox-label:hover {
+    background-color: #2a2a2a;
+}
+
+.kemono-checkbox {
+    margin-right: 12px;
+    width: 16px;
+    height: 16px;
+    accent-color: #4CAF50;
+}
+
+.kemono-radio-group {
+    padding-left: 8px;
+}
+
+.kemono-radio-label {
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+    color: #e0e0e0;
+    font-size: 13px;
+    padding: 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.kemono-radio-label:hover {
+    background-color: #2a2a2a;
+}
+
+.kemono-radio {
+    margin-right: 10px;
+    width: 14px;
+    height: 14px;
+    accent-color: #2196F3;
+}
+
+.kemono-input, .kemono-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #2a2a2a;
+    color: #ffffff;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.kemono-input:focus, .kemono-select:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.kemono-select {
+    cursor: pointer;
+}
+
+.kemono-select option {
+    background: #2a2a2a;
+    color: #ffffff;
+}
+
+.kemono-settings-footer {
+    text-align: center;
+    border-top: 1px solid #444;
+    padding-top: 16px;
+}
+
+.kemono-close-button {
+    padding: 10px 24px;
+    background: #4CAF50;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    min-width: 100px;
+}
+
+.kemono-close-button:hover {
+    background-color: #45a049;
+}
+
+/* 確保樣式不被外部網站影響 */
+.kemono-settings-overlay,
+.kemono-settings-overlay * {
+    box-sizing: border-box;
+    line-height: normal;
+    text-decoration: none;
+    text-transform: none;
+    letter-spacing: normal;
+    word-spacing: normal;
+    text-shadow: none;
+    filter: none;
+}

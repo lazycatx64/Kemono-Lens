@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Kemono Friends",
+  "version": "1.0",
+  "description": "管理Kemono網站上的創作者黑名單、收藏和懸停預覽功能",
+  
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "https://kemono.cr/*",
+    "https://coomer.st/*"
+  ],
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kemono.cr/artists",
+        "https://kemono.cr/artists/updated",
+        "https://kemono.cr/*/user/*",
+        "https://kemono.cr/account/favorites/artists",
+        "https://kemono.cr/posts*",
+        "https://coomer.st/artists",
+        "https://coomer.st/artists/updated",
+        "https://coomer.st/*/user/*",
+        "https://coomer.st/account/favorites/artists",
+        "https://coomer.st/posts*"
+      ],
+      "js": [
+        "logger.js",
+        "i18n.js",
+        "settings.js",
+        "util.js",
+        "sites/kemono.js",
+        "sites/coomer.js",
+        "sites/index.js",
+        "content-scripts/DOMManager.js",
+        "content-scripts/BlacklistContentManager.js", 
+        "content-scripts/FavoritesContentManager.js",
+        "content.js"
+      ],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://kemono.cr/account/favorites/export",
+        "https://coomer.st/account/favorites/export"
+      ],
+      "js": [
+        "content-scripts/export-favorites-inject.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "options_page": "options.html"
+  
+}
