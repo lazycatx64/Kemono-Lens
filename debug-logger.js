@@ -18,11 +18,24 @@ class DebugLogger {
         if (!this.enabled) return;
         
         try {
+            // 格式化訊息為易讀格式
+            let formattedMessage = message;
+            if (data !== null && data !== undefined) {
+                try {
+                    const dataStr = typeof data === 'object' 
+                        ? JSON.stringify(data, null, 2) 
+                        : String(data);
+                    formattedMessage = `${message}\n${dataStr}`;
+                } catch (e) {
+                    formattedMessage = `${message}\n[無法序列化資料]`;
+                }
+            }
+            
             // 發送到 background script
             chrome.runtime.sendMessage({
                 type: 'debug-log',
                 level: level,
-                message: message,
+                message: formattedMessage,
                 data: data
             }).catch(() => {
                 // 忽略錯誤（可能 popup 未開啟）

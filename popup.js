@@ -205,24 +205,12 @@ class DebugLogViewer {
             time = '時間錯誤';
         }
         
-        let dataHtml = '';
-        if (log.data) {
-            try {
-                const dataStr = typeof log.data === 'object' 
-                    ? JSON.stringify(log.data, null, 2) 
-                    : String(log.data);
-                dataHtml = `<div class="log-object">${this.escapeHtml(dataStr)}</div>`;
-            } catch (e) {
-                dataHtml = `<div class="log-object">[無法序列化資料]</div>`;
-            }
-        }
-        
+        // 訊息已經包含格式化後的資料，直接顯示
         return `
             <div class="log-entry ${log.level}">
                 <span class="log-time">${time}</span>
                 <span class="log-level ${log.level}">[${log.level.toUpperCase()}]</span>
                 <span class="log-message">${this.escapeHtml(log.message)}</span>
-                ${dataHtml}
             </div>
         `;
     }

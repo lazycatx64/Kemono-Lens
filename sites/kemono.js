@@ -131,10 +131,12 @@ const kemono = {
       kemonoLogger.log('API URL:', apiUrl);
       
       const response = await fetch(apiUrl, {
-        credentials: 'same-origin',
+        credentials: 'include',
         cache: 'no-store',
         headers: {
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Referer': window.location.href,
+          'Origin': window.location.origin
         }
       });
       

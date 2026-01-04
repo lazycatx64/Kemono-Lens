@@ -1,47 +1,70 @@
 /**
- * Debug logger system
+ * Debug logger system - 統一所有日誌輸出到 popup
  */
 
-// 將預設模式設為只顯示警告和錯誤
-const DEBUG_MODE = false;  // 改為 false 以減少日誌輸出
-const VERBOSE_MODE = false; // 詳細模式，用於顯示額外的偵錯訊息
+// 格式化訊息為易讀格式
+function formatMessage(level, ...args) {
+    const parts = [];
+    for (const arg of args) {
+        if (typeof arg === 'object' && arg !== null) {
+            try {
+                parts.push(JSON.stringify(arg, null, 2));
+            } catch (e) {
+                parts.push(String(arg));
+            }
+        } else {
+            parts.push(String(arg));
+        }
+    }
+    return parts.join(' ');
+}
 
 /**
- * 只有在偵錯模式啟用時才記錄訊息
+ * 記錄訊息
  * @param {...any} args - 要記錄的參數
  */
 function log(...args) {
-    if (DEBUG_MODE) {
-        console.log('[Kemono Friends]', ...args);
+    const message = formatMessage('log', ...args);
+    console.log('[Kemono Friends]', ...args);
+    if (window.DebugLogger) {
+        window.DebugLogger.log(message);
     }
 }
 
 /**
- * 詳細模式的日誌，用於高頻率事件
+ * 詳細模式的日誌
  * @param {...any} args - 要記錄的參數
  */
 function verbose(...args) {
-    if (DEBUG_MODE && VERBOSE_MODE) {
-        console.log('[Kemono Friends]', ...args);
+    const message = formatMessage('debug', ...args);
+    console.log('[Kemono Friends]', ...args);
+    if (window.DebugLogger) {
+        window.DebugLogger.debug(message);
     }
 }
 
 /**
- * 只有在偵錯模式啟用時才記錄警告
+ * 記錄警告
  * @param {...any} args - 要記錄的參數
  */
 function warn(...args) {
-    if (DEBUG_MODE) {
-        console.warn('[Kemono Friends]', ...args);
+    const message = formatMessage('warn', ...args);
+    console.warn('[Kemono Friends]', ...args);
+    if (window.DebugLogger) {
+        window.DebugLogger.warn(message);
     }
 }
 
 /**
- * 總是記錄錯誤，無論偵錯模式是否啟用
+ * 記錄錯誤
  * @param {...any} args - 要記錄的參數
  */
 function error(...args) {
+    const message = formatMessage('error', ...args);
     console.error('[Kemono Friends]', ...args);
+    if (window.DebugLogger) {
+        window.DebugLogger.error(message);
+    }
 }
 
 // 在全域暴露這些函數

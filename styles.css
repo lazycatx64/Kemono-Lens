@@ -127,8 +127,9 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     min-height: 100px;
     visibility: hidden;
     transform-origin: top left;
-    transition: opacity 0.15s ease;
     pointer-events: auto;
+    /* 移除 transition，直接顯示正確尺寸 */
+    overflow: hidden;
 }
 
 .kemono-preview-container img {
@@ -167,6 +168,8 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     transition: background-color 0.2s ease;
     white-space: nowrap;
     min-width: fit-content;
+    height: 25px;
+    box-sizing: border-box;
 }
 
 .kemono-preview-status.loading {
