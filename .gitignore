@@ -1,0 +1,45 @@
+.cursor/
+
+refer/
+
+# 作業系統檔案
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 編輯器設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 暫存檔案
+*.tmp
+*.log
+*.bak
+*.backup
+
+# Node modules (如果有的話)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 建置產物
+dist/
+build/
+*.zip
+*.crx
+*.pem
+
+# 測試檔案（如果不需要版本控制）
+*.test.js
+test-data/
+
+# 環境變數檔案
+.env
+.env.local
+
+# 除錯檔案
+debug-*.js
+set-*.js
