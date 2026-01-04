@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const logs = result.debugLogs || [];
             logs.push({
                 id: Date.now() + Math.random(),
-                timestamp: new Date(),
+                timestamp: new Date().toISOString(), // 儲存為 ISO 字串格式
                 level: message.level,
                 message: message.message,
                 data: message.data

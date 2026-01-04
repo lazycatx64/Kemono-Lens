@@ -73,7 +73,23 @@ class DebugLogViewer {
         // 從 storage 載入已儲存的日誌
         chrome.storage.local.get(['debugLogs'], (result) => {
             if (result.debugLogs && Array.isArray(result.debugLogs)) {
-                this.logs = result.debugLogs;
+                // 將時間戳記字串轉換回 Date 物件
+                this.logs = result.debugLogs.map(log => {
+                    if (log.timestamp && !(log.timestamp instanceof Date)) {
+                        // 如果是字串，嘗試轉換為 Date
+                        const date = new Date(log.timestamp);
+                        if (!isNaN(date.getTime())) {
+                            log.timestamp = date;
+                        } else {
+                            // 如果轉換失敗，使用當前時間
+                            log.timestamp = new Date();
+                        }
+                    } else if (!log.timestamp) {
+                        // 如果沒有時間戳記，使用當前時間
+                        log.timestamp = new Date();
+                    }
+                    return log;
+                });
                 this.updateStats();
                 this.renderLogs();
             }
@@ -151,13 +167,43 @@ class DebugLogViewer {
     }
     
     renderLogEntry(log) {
-        const time = log.timestamp.toLocaleTimeString('zh-TW', { 
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            fractionalSecondDigits: 3
-        });
+        let time;
+        try {
+            if (log.timestamp instanceof Date) {
+                time = log.timestamp.toLocaleTimeString('zh-TW', { 
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    fractionalSecondDigits: 3
+                });
+            } else if (typeof log.timestamp === 'string') {
+                const date = new Date(log.timestamp);
+                if (!isNaN(date.getTime())) {
+                    time = date.toLocaleTimeString('zh-TW', { 
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        fractionalSecondDigits: 3
+                    });
+                } else {
+                    time = '無效時間';
+                }
+            } else if (typeof log.timestamp === 'number') {
+                time = new Date(log.timestamp).toLocaleTimeString('zh-TW', { 
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    fractionalSecondDigits: 3
+                });
+            } else {
+                time = '未知時間';
+            }
+        } catch (e) {
+            time = '時間錯誤';
+        }
         
         let dataHtml = '';
         if (log.data) {
@@ -204,9 +250,26 @@ class DebugLogViewer {
         
         try {
             const logText = this.logs.map(log => {
-                const time = log.timestamp instanceof Date 
-                    ? log.timestamp.toISOString() 
-                    : new Date(log.timestamp).toISOString();
+                let time;
+                try {
+                    if (log.timestamp instanceof Date) {
+                        time = log.timestamp.toISOString();
+                    } else if (typeof log.timestamp === 'string') {
+                        const date = new Date(log.timestamp);
+                        if (!isNaN(date.getTime())) {
+                            time = date.toISOString();
+                        } else {
+                            time = '[無效的時間戳記]';
+                        }
+                    } else if (typeof log.timestamp === 'number') {
+                        time = new Date(log.timestamp).toISOString();
+                    } else {
+                        time = '[未知的時間格式]';
+                    }
+                } catch (e) {
+                    time = '[時間處理錯誤]';
+                }
+                
                 let line = `[${time}] [${log.level.toUpperCase()}] ${log.message}`;
                 if (log.data) {
                     try {
