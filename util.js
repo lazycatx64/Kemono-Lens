@@ -104,39 +104,76 @@ window.KemonoUtil = window.KemonoUtil || {
         img.onload = () => {
             // 確保載入後尺寸限制仍然有效
             const currentMaxSize = (window.KemonoSettings && window.KemonoSettings.settings) ? window.KemonoSettings.settings.maxPreviewSize : 600;
+            const maxHeightVh = window.innerHeight * 0.7; // 70vh 的實際像素值
+            
+            // 計算圖片的自然尺寸
+            const naturalWidth = img.naturalWidth;
+            const naturalHeight = img.naturalHeight;
+            
+            // 計算縮放比例，確保不超過最大尺寸
+            let targetWidth = naturalWidth;
+            let targetHeight = naturalHeight;
+            
+            if (targetWidth > currentMaxSize) {
+                const scale = currentMaxSize / targetWidth;
+                targetWidth = currentMaxSize;
+                targetHeight = targetHeight * scale;
+            }
+            
+            if (targetHeight > maxHeightVh) {
+                const scale = maxHeightVh / targetHeight;
+                targetHeight = maxHeightVh;
+                targetWidth = targetWidth * scale;
+            }
+            
+            // 設定容器的最大尺寸
             preview.style.setProperty('max-width', `${currentMaxSize}px`, 'important');
-            preview.style.setProperty('max-height', '70vh', 'important');
+            preview.style.setProperty('max-height', `${maxHeightVh}px`, 'important');
             preview.style.setProperty('width', 'auto', 'important');
             preview.style.setProperty('height', 'auto', 'important');
             
-            // 強制重新計算圖片尺寸
+            // 設定圖片的尺寸，確保不超過容器
             img.style.setProperty('max-width', '100%', 'important');
             img.style.setProperty('max-height', '100%', 'important');
             img.style.setProperty('width', 'auto', 'important');
             img.style.setProperty('height', 'auto', 'important');
             
-            // 強制瀏覽器重新計算尺寸
-            const computedStyle = window.getComputedStyle(preview);
-            const actualWidth = preview.offsetWidth;
-            const actualHeight = preview.offsetHeight;
-            
-            // 如果實際尺寸超過限制，強制縮放
-            if (actualWidth > currentMaxSize) {
-                preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
+            // 移除圖片元素上可能存在的 width 和 height 屬性（如果有的話）
+            if (img.hasAttribute('width')) {
+                img.removeAttribute('width');
             }
+            if (img.hasAttribute('height')) {
+                img.removeAttribute('height');
+            }
+            
+            // 強制瀏覽器重新計算尺寸
+            void preview.offsetWidth; // 觸發重排
             
             this.positionPreviewAtCursor(mouseEvent);
             preview.style.visibility = 'visible';
             this._previewReady = true;
             
-            window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', {
-                maxWidth: preview.style.maxWidth,
-                maxHeight: preview.style.maxHeight,
-                actualWidth: actualWidth,
-                actualHeight: actualHeight,
-                imgWidth: img.offsetWidth,
-                imgHeight: img.offsetHeight
-            });
+            // 再次檢查實際尺寸
+            setTimeout(() => {
+                const actualWidth = preview.offsetWidth;
+                const actualHeight = preview.offsetHeight;
+                window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', {
+                    maxWidth: currentMaxSize,
+                    maxHeight: maxHeightVh,
+                    naturalWidth: naturalWidth,
+                    naturalHeight: naturalHeight,
+                    actualWidth: actualWidth,
+                    actualHeight: actualHeight,
+                    imgWidth: img.offsetWidth,
+                    imgHeight: img.offsetHeight
+                });
+                
+                // 如果仍然超出限制，強制設定寬度
+                if (actualWidth > currentMaxSize) {
+                    preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
+                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize);
+                }
+            }, 0);
         };
         
         img.onerror = () => {
