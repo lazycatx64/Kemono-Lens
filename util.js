@@ -187,6 +187,15 @@ window.KemonoUtil = window.KemonoUtil || {
                 const imgWidth = img.offsetWidth;
                 const imgHeight = img.offsetHeight;
                 
+                // 獲取計算後的樣式，檢查 box-sizing
+                const computedStyle = window.getComputedStyle(preview);
+                const boxSizing = computedStyle.boxSizing;
+                const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+                const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+                const totalExtra = paddingLeft + paddingRight + borderLeft + borderRight;
+                
                 const sizeInfo = {
                     maxWidth: currentMaxSize,
                     maxHeight: maxHeightVh,
@@ -197,7 +206,9 @@ window.KemonoUtil = window.KemonoUtil || {
                     actualWidth: actualWidth,
                     actualHeight: actualHeight,
                     imgWidth: imgWidth,
-                    imgHeight: imgHeight
+                    imgHeight: imgHeight,
+                    boxSizing: boxSizing,
+                    totalExtra: totalExtra
                 };
                 
                 window.KemonoLogger.log('圖片載入完成，預覽容器尺寸:', sizeInfo);
@@ -209,12 +220,20 @@ window.KemonoUtil = window.KemonoUtil || {
                 
                 // 如果實際寬度超過限制，強制設定寬度
                 if (actualWidth > currentMaxSize) {
-                    preview.style.setProperty('width', `${currentMaxSize}px`, 'important');
-                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize, '實際寬度:', actualWidth);
+                    // 如果 box-sizing 是 border-box，直接設定寬度即可
+                    // 否則需要減去 padding 和 border
+                    const targetWidth = boxSizing === 'border-box' 
+                        ? currentMaxSize 
+                        : currentMaxSize - totalExtra;
+                    preview.style.setProperty('width', `${targetWidth}px`, 'important');
+                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize, '實際寬度:', actualWidth, '設定寬度:', targetWidth);
                     if (window.DebugLogger) {
                         window.DebugLogger.warn('預覽寬度超出限制，已強制修正', {
                             maxSize: currentMaxSize,
-                            actualWidth: actualWidth
+                            actualWidth: actualWidth,
+                            targetWidth: targetWidth,
+                            boxSizing: boxSizing,
+                            totalExtra: totalExtra
                         });
                     }
                 }
