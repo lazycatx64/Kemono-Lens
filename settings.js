@@ -4,8 +4,10 @@
 
 class SettingsManager {
   constructor() {
-    this.settings = this.loadSettings();
+    this.settings = this.getDefaultSettings();
     this.settingsWindow = null;
+    // 異步載入設定
+    this.loadSettings();
   }
   
   getDefaultSettings() {
@@ -18,22 +20,65 @@ class SettingsManager {
   }
   
   loadSettings() {
+    // 先嘗試從 chrome.storage 讀取（優先）
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      try {
+        chrome.storage.local.get(['kemono_preview_settings'], (result) => {
+          if (result.kemono_preview_settings) {
+            try {
+              const saved = JSON.parse(result.kemono_preview_settings);
+              this.settings = { ...this.getDefaultSettings(), ...saved };
+              // 同步到 localStorage 以保持相容性
+              try {
+                localStorage.setItem('kemono_preview_settings', JSON.stringify(this.settings));
+              } catch (e) {
+                // 忽略 localStorage 錯誤
+              }
+            } catch (e) {
+              console.error('Error parsing settings from chrome.storage:', e);
+              this.loadFromLocalStorage();
+            }
+          } else {
+            // 如果 chrome.storage 沒有，嘗試從 localStorage 讀取
+            this.loadFromLocalStorage();
+          }
+        });
+      } catch (error) {
+        console.error('Error loading settings from chrome.storage:', error);
+        this.loadFromLocalStorage();
+      }
+    } else {
+      // 如果沒有 chrome.storage，從 localStorage 讀取
+      this.loadFromLocalStorage();
+    }
+  }
+  
+  loadFromLocalStorage() {
     try {
       const saved = localStorage.getItem('kemono_preview_settings');
       if (saved) {
-        return { ...this.getDefaultSettings(), ...JSON.parse(saved) };
+        this.settings = { ...this.getDefaultSettings(), ...JSON.parse(saved) };
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error loading settings from localStorage:', error);
     }
-    return this.getDefaultSettings();
   }
   
   saveSettings() {
     try {
-      localStorage.setItem('kemono_preview_settings', JSON.stringify(this.settings));
+      // 同時儲存到 localStorage 和 chrome.storage
+      const settingsJson = JSON.stringify(this.settings);
+      localStorage.setItem('kemono_preview_settings', settingsJson);
+      
       // 更新語言設定
-      window.KemonoI18n.setLanguage(this.settings.language);
+      if (window.KemonoI18n) {
+        window.KemonoI18n.setLanguage(this.settings.language);
+      }
+      
+      // 儲存到 chrome.storage（如果可用）
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ kemono_preview_settings: settingsJson });
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
     }

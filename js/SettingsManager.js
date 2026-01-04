@@ -98,6 +98,7 @@ class SettingsManager {
                 }
                 
                 // 載入預覽設定（從 localStorage 或 chrome.storage）
+                // 注意：從儲存讀取時使用 enabled, switchMode, maxPreviewSize，然後映射到內部使用的 previewEnabled, previewSwitchMode, previewMaxSize
                 if (result.kemono_preview_settings) {
                     try {
                         const previewSettings = JSON.parse(result.kemono_preview_settings);
@@ -150,6 +151,7 @@ class SettingsManager {
         chrome.storage.local.set({ visualSettings });
 
         // 儲存預覽設定（同時儲存到 chrome.storage 和 localStorage 以保持相容性）
+        // 注意：儲存時使用 enabled, switchMode, maxPreviewSize 以與 content script 的 settings.js 保持一致
         const previewSettings = {
             enabled: this.settings.previewEnabled,
             switchMode: this.settings.previewSwitchMode,
@@ -232,6 +234,22 @@ class SettingsManager {
                 }
             }
         }));
+
+        // 通知所有相關的標籤頁更新預覽設定
+        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'updatePreviewSettings',
+                    settings: {
+                        enabled: this.settings.previewEnabled,
+                        switchMode: this.settings.previewSwitchMode,
+                        maxPreviewSize: this.settings.previewMaxSize
+                    }
+                }).catch(() => {
+                    // 忽略無法發送訊息的標籤頁（例如未載入內容腳本）
+                });
+            });
+        });
     }
 
     getSettings() {

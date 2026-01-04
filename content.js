@@ -418,6 +418,9 @@ class KemonoFriends {
             if (message.action === 'updateVisualSettings') {
                 this.handleVisualSettingsUpdate(message.settings);
                 sendResponse({ success: true });
+            } else if (message.action === 'updatePreviewSettings') {
+                this.handlePreviewSettingsUpdate(message.settings);
+                sendResponse({ success: true });
             }
         });
     }
@@ -475,6 +478,23 @@ class KemonoFriends {
             // 重新應用樣式（會根據新設定決定是否顯示）
             this.favoritesManager.applyFavoriteStyle(card);
         });
+    }
+
+    handlePreviewSettingsUpdate(newSettings) {
+        console.log('[KemonoFriends] 更新預覽設定:', newSettings);
+        
+        // 更新 settings.js 中的設定
+        if (window.KemonoSettings && window.KemonoSettings.settings) {
+            window.KemonoSettings.settings.enabled = newSettings.enabled;
+            window.KemonoSettings.settings.switchMode = newSettings.switchMode;
+            window.KemonoSettings.settings.maxPreviewSize = newSettings.maxPreviewSize;
+            window.KemonoSettings.saveSettings();
+        }
+        
+        // 如果預覽被停用，移除當前預覽
+        if (!newSettings.enabled && util && util.removeActivePreview) {
+            util.removeActivePreview();
+        }
     }
 
     destroy() {
