@@ -751,27 +751,23 @@ window.KemonoUtil = window.KemonoUtil || {
         const cursorY = event.clientY;
         
         // 預設位置：游標右下角，游標位置往右偏移20px作為預覽圖外框左上角
-        // 預覽圖應始終避免顯示在游標下方，所以預設顯示在游標上方
-        // 預覽圖底部對齊游標 Y 座標，這樣預覽圖就在游標上方
         let left = cursorX + horizontalOffset;
-        let top = cursorY - previewHeight;
+        let top = cursorY;
         
         // 檢查是否會超出右邊界
         const wouldExceedRight = left + previewWidth > viewport.width - margin;
         
-        // 檢查是否會超出上邊界
-        const wouldExceedTop = top < margin;
+        // 檢查是否會超出下邊界
+        const wouldExceedBottom = top + previewHeight > viewport.height - margin;
         
         // 如果會超出右邊界，改為顯示在游標左側
         if (wouldExceedRight) {
             left = cursorX - horizontalOffset - previewWidth;
         }
         
-        // 如果會超出上邊界，調整到視窗頂部（但仍保持在游標上方）
-        if (wouldExceedTop) {
-            top = margin;
-            // 確保調整後仍然在游標上方（如果可能的話）
-            // 如果游標位置太低，預覽圖可能會在游標上方但緊貼視窗頂部
+        // 如果會超出下邊界，改為顯示在游標上方
+        if (wouldExceedBottom) {
+            top = cursorY - previewHeight;
         }
         
         // 最終邊界檢查（確保不會超出任何邊界，但不改變預覽圖大小）
@@ -795,13 +791,38 @@ window.KemonoUtil = window.KemonoUtil || {
             top = viewport.height - previewHeight - margin;
         }
         
-        // 最終確保預覽圖不會顯示在游標下方（避免遮擋使用者視線）
-        // 如果預覽圖底部在游標下方，則調整到游標上方
-        if (top + previewHeight > cursorY) {
-            top = cursorY - previewHeight;
-            // 如果調整後超出上邊界，則限制在上邊界（這是不得已的情況，但至少不會完全遮擋游標）
-            if (top < margin) {
-                top = margin;
+        // 檢查預覽圖是否會覆蓋游標位置（避免游標 hover 在預覽圖上，導致無法點擊頁面內容）
+        // 如果游標在預覽圖範圍內，則調整位置避免覆蓋
+        const cursorInPreviewX = cursorX >= left && cursorX <= left + previewWidth;
+        const cursorInPreviewY = cursorY >= top && cursorY <= top + previewHeight;
+        
+        if (cursorInPreviewX && cursorInPreviewY) {
+            // 游標在預覽圖範圍內，需要調整位置避免覆蓋
+            // 優先嘗試將預覽圖移到游標上方（預覽圖底部在游標上方）
+            const topAboveCursor = cursorY - previewHeight - 5; // 加一個小間距確保不覆蓋
+            if (topAboveCursor >= margin) {
+                top = topAboveCursor;
+            } else {
+                // 如果上方空間不足，則移到游標下方（預覽圖頂部在游標下方）
+                const topBelowCursor = cursorY + 5; // 加一個小間距確保不覆蓋
+                if (topBelowCursor + previewHeight <= viewport.height - margin) {
+                    top = topBelowCursor;
+                } else {
+                    // 如果上下都不行，則調整水平位置，讓預覽圖移到游標左側或右側
+                    if (left < cursorX) {
+                        // 原本在左側，改到右側
+                        left = cursorX + horizontalOffset;
+                        if (left + previewWidth > viewport.width - margin) {
+                            left = viewport.width - previewWidth - margin;
+                        }
+                    } else {
+                        // 原本在右側，改到左側
+                        left = cursorX - horizontalOffset - previewWidth;
+                        if (left < margin) {
+                            left = margin;
+                        }
+                    }
+                }
             }
         }
         
