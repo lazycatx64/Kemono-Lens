@@ -173,27 +173,23 @@ class RequestQueue {
     }
 
     // 檢查並移除重複的請求（相同 URL）
+    // 只移除等待中的重複請求，不取消正在處理的請求
     removeDuplicateRequests(url, currentRequestId) {
         const duplicates = [];
         
-        // 檢查正在處理的請求
-        for (const [id, request] of this.currentRequests.entries()) {
-            if (id !== currentRequestId && request.url === url) {
-                duplicates.push(id);
-            }
-        }
-        
-        // 檢查等待中的請求
+        // 只檢查等待中的請求，不取消正在處理的請求
+        // 因為正在處理的請求可能已經開始載入，取消它會浪費已載入的資源
         for (const id of this.pendingRequests) {
             if (id !== currentRequestId) {
                 const request = this.currentRequests.get(id);
                 if (request && request.url === url) {
+                    // 只取消等待中的重複請求
                     duplicates.push(id);
                 }
             }
         }
         
-        // 取消重複的請求
+        // 取消重複的等待請求
         duplicates.forEach(id => {
             const request = this.currentRequests.get(id);
             if (request && request.abortController) {
