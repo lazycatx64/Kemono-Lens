@@ -389,6 +389,11 @@ window.KemonoUtil = window.KemonoUtil || {
             return text;
         };
         
+        // 如果扣除完只剩下封面圖一張，顯示「僅有封面圖」
+        if (totalImages === 1 && coverImage) {
+            return appendNonImageCount(window.KemonoI18n.t('only_cover_available'));
+        }
+        
         // 如果只有封面圖（沒有內文圖片或內文圖片只有封面圖本身）
         if (!contentImages || contentImages.length === 0) {
             return appendNonImageCount(window.KemonoI18n.t('only_cover_available'));
