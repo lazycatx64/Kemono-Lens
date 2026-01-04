@@ -129,7 +129,7 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     transform-origin: top left;
     pointer-events: auto;
     /* 移除 transition，直接顯示正確尺寸 */
-    overflow: hidden;
+    overflow: visible;
 }
 
 .kemono-preview-container img {
