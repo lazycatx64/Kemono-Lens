@@ -74,6 +74,7 @@ class KemonoFriends {
             if (window.KemonoSettings && window.KemonoSettings.settings && 
                 window.KemonoSettings.settings.switchMode === 'keyboard' && 
                 (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                if (!util || !util.getActivePreview) return;
                 const preview = util.getActivePreview();
                 if (preview && !util.isLoadingImages()) {
                     e.preventDefault();
@@ -169,14 +170,18 @@ class KemonoFriends {
 
         // 處理鼠標移動，更新預覽位置並檢測離開
         document.addEventListener('mousemove', function(e) {
+            if (!util || !util.getActivePreview) return;
+            
             const activePreview = util.getActivePreview();
             if (!activePreview) return;
             
             // 始終更新預覽位置，不論游標位於何處
-            util.updatePreviewPosition(e);
+            if (util.updatePreviewPosition) {
+                util.updatePreviewPosition(e);
+            }
             
             // 檢查游標是否在預覽圖上
-            const isOverPreview = util.isMouseOverPreview(e);
+            const isOverPreview = util.isMouseOverPreview ? util.isMouseOverPreview(e) : false;
             
             // 獲取當前游標下的元素
             const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
