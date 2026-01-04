@@ -238,8 +238,9 @@ window.KemonoUtil = window.KemonoUtil || {
             }
             
             // 設定圖片的尺寸，確保不超過容器
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('max-height', '100%', 'important');
+            // 使用計算出的目標尺寸，確保按比例正確縮放
+            img.style.setProperty('max-width', `${targetWidth}px`, 'important');
+            img.style.setProperty('max-height', `${targetHeight}px`, 'important');
             img.style.setProperty('width', 'auto', 'important');
             img.style.setProperty('height', 'auto', 'important');
             
