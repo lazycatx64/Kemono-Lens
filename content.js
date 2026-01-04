@@ -186,6 +186,13 @@ class KemonoFriends {
             const preview = util.getActivePreview();
             if (!preview) return;
             
+            // 檢查是否有任何圖片正在載入（包括 API 載入和單個圖片載入）
+            // 如果正在載入，阻止頁面滾動但不處理切換
+            if (util.isAnyImageLoading && util.isAnyImageLoading()) {
+                e.preventDefault();
+                return;
+            }
+            
             // 節流處理：限制切換頻率
             const now = Date.now();
             if (now - lastWheelTime < wheelThrottleDelay) {
@@ -199,7 +206,6 @@ class KemonoFriends {
             
             const postUrl = siteHandler.getPostUrl ? siteHandler.getPostUrl(currentHoveredElement) : null;
             
-            // 滾輪事件處理邏輯
             if (postUrl && !util.isLoadingImages()) {
                 // 檢查是否有任何可切換的圖片
                 const hasImages = util._relatedImages.length > 0 || util._coverImage;
