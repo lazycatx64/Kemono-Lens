@@ -145,7 +145,7 @@ window.KemonoUtil = window.KemonoUtil || {
                 });
             }
             
-            // 計算縮放比例，確保不超過最大尺寸
+            // 計算縮放比例，確保圖片本身不超過最大尺寸
             let scale = 1;
             if (naturalWidth > currentMaxSize) {
                 scale = Math.min(scale, currentMaxSize / naturalWidth);
@@ -154,12 +154,18 @@ window.KemonoUtil = window.KemonoUtil || {
                 scale = Math.min(scale, maxHeightVh / naturalHeight);
             }
             
-            // 計算目標尺寸
+            // 計算目標尺寸（圖片內容區域的尺寸）
             const targetWidth = Math.min(naturalWidth * scale, currentMaxSize);
             const targetHeight = Math.min(naturalHeight * scale, maxHeightVh);
             
+            // 計算容器的實際最大寬度（考慮 padding 和 border）
+            const containerPadding = 5 * 2; // 左右各 5px
+            const containerBorder = 2 * 2; // 左右各 2px
+            const containerExtra = containerPadding + containerBorder; // 總共 14px
+            const containerMaxWidth = currentMaxSize + containerExtra;
+            
             // 設定容器的尺寸限制
-            preview.style.setProperty('max-width', `${currentMaxSize}px`, 'important');
+            preview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
             preview.style.setProperty('max-height', `${maxHeightVh}px`, 'important');
             
             // 移除圖片元素上可能存在的 width 和 height 屬性
@@ -221,22 +227,35 @@ window.KemonoUtil = window.KemonoUtil || {
                     window.DebugLogger.debug('預覽尺寸檢查', sizeInfo);
                 }
                 
+                // 計算容器的實際最大寬度（考慮 padding 和 border）
+                const containerPadding = 5 * 2; // 左右各 5px
+                const containerBorder = 2 * 2; // 左右各 2px
+                const containerExtra = containerPadding + containerBorder; // 總共 14px
+                const containerMaxWidth = currentMaxSize + containerExtra;
+                
                 // 如果實際寬度超過限制，強制設定寬度
-                if (actualWidth > currentMaxSize) {
-                    // 如果 box-sizing 是 border-box，直接設定寬度即可
-                    // 否則需要減去 padding 和 border
-                    const targetWidth = boxSizing === 'border-box' 
-                        ? currentMaxSize 
-                        : currentMaxSize - totalExtra;
-                    preview.style.setProperty('width', `${targetWidth}px`, 'important');
-                    window.KemonoLogger.warn('強制修正預覽寬度:', currentMaxSize, '實際寬度:', actualWidth, '設定寬度:', targetWidth);
+                if (actualWidth > containerMaxWidth) {
+                    preview.style.setProperty('width', `${containerMaxWidth}px`, 'important');
+                    window.KemonoLogger.warn('強制修正預覽容器寬度:', containerMaxWidth, '實際寬度:', actualWidth);
                     if (window.DebugLogger) {
-                        window.DebugLogger.warn('預覽寬度超出限制，已強制修正', {
+                        window.DebugLogger.warn('預覽容器寬度超出限制，已強制修正', {
                             maxSize: currentMaxSize,
+                            containerMaxWidth: containerMaxWidth,
                             actualWidth: actualWidth,
-                            targetWidth: targetWidth,
                             boxSizing: boxSizing,
                             totalExtra: totalExtra
+                        });
+                    }
+                }
+                
+                // 檢查圖片寬度是否超過限制
+                if (imgWidth > currentMaxSize) {
+                    img.style.setProperty('width', `${currentMaxSize}px`, 'important');
+                    window.KemonoLogger.warn('強制修正圖片寬度:', currentMaxSize, '實際圖片寬度:', imgWidth);
+                    if (window.DebugLogger) {
+                        window.DebugLogger.warn('圖片寬度超出限制，已強制修正', {
+                            maxSize: currentMaxSize,
+                            imgWidth: imgWidth
                         });
                     }
                 }
