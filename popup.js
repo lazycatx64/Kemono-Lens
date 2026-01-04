@@ -175,7 +175,7 @@ class DebugLogViewer {
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    fractionalSecondDigits: 3
+                    fractionalSecondDigits: 2
                 });
             } else if (typeof log.timestamp === 'string') {
                 const date = new Date(log.timestamp);
@@ -185,7 +185,7 @@ class DebugLogViewer {
                         hour: '2-digit',
                         minute: '2-digit',
                         second: '2-digit',
-                        fractionalSecondDigits: 3
+                        fractionalSecondDigits: 2
                     });
                 } else {
                     time = '無效時間';
@@ -196,7 +196,7 @@ class DebugLogViewer {
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    fractionalSecondDigits: 3
+                    fractionalSecondDigits: 2
                 });
             } else {
                 time = '未知時間';
@@ -205,14 +205,8 @@ class DebugLogViewer {
             time = '時間錯誤';
         }
         
-        // 訊息已經包含格式化後的資料，直接顯示
-        return `
-            <div class="log-entry ${log.level}">
-                <span class="log-time">${time}</span>
-                <span class="log-level ${log.level}">[${log.level.toUpperCase()}]</span>
-                <span class="log-message">${this.escapeHtml(log.message)}</span>
-            </div>
-        `;
+        // 訊息已經包含格式化後的資料，直接顯示（單行顯示）
+        return `<div class="log-entry ${log.level}"><span class="log-time">${time}</span><span class="log-level ${log.level}">[${log.level.toUpperCase()}]</span><span class="log-message">${this.escapeHtml(log.message)}</span></div>`;
     }
     
     escapeHtml(text) {
