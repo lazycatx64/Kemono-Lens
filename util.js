@@ -4,6 +4,7 @@ window.KemonoUtil = window.KemonoUtil || {
     _currentImageIndex: 0,
     _relatedImages: [],
     _isLoadingImages: false,
+    _isLoadingSingleImage: false, // 追蹤單個圖片是否正在載入
     _postImages: [],
     _pendingPreview: null,
     _previewReady: false,
@@ -354,16 +355,41 @@ window.KemonoUtil = window.KemonoUtil || {
             return window.KemonoI18n.t('only_cover_available');
         }
         
+        // 如果沒有當前圖片，預設顯示第一張內文圖的狀態
+        if (!currentImgSrc) {
+            return window.KemonoI18n.t('preview_content_image', { 
+                current: 1, 
+                total: contentImages.length 
+            });
+        }
+        
         // 找到當前圖片在內文圖片列表中的索引
         const currentIndex = contentImages.findIndex(img => 
-            currentImgSrc ? this.compareImageUrls(img, currentImgSrc) : false
+            this.compareImageUrls(img, currentImgSrc)
         );
         
-        // 如果找不到當前圖片，預設為第一張
-        const displayIndex = currentIndex >= 0 ? currentIndex : 0;
-        const currentImageUrl = contentImages[displayIndex];
+        // 如果找不到當前圖片在內文圖片列表中，檢查是否為封面圖
+        if (currentIndex < 0) {
+            // 如果當前圖片是封面圖，且封面圖與第一張內文圖不同
+            if (coverImage && this.compareImageUrls(coverImage, currentImgSrc)) {
+                // 檢查封面圖與第一張內文圖是否相同
+                const isCoverSameAsFirst = contentImages.length > 0 && 
+                    this.compareImageUrls(coverImage, contentImages[0]);
+                if (!isCoverSameAsFirst) {
+                    return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
+                }
+            }
+            // 如果找不到且不是封面圖，預設顯示第一張的狀態
+            return window.KemonoI18n.t('preview_content_image', { 
+                current: 1, 
+                total: contentImages.length 
+            });
+        }
         
-        // 檢查封面圖與第一張內文圖是否相同
+        // 當前圖片在內文圖片列表中的索引
+        const displayIndex = currentIndex;
+        
+        // 檢查封面圖與第一張內文圖是否相同（嚴格比較）
         const isCoverSameAsFirst = coverImage && contentImages.length > 0 && 
             this.compareImageUrls(coverImage, contentImages[0]);
         
@@ -371,11 +397,21 @@ window.KemonoUtil = window.KemonoUtil || {
         const isCurrentCover = coverImage && this.compareImageUrls(coverImage, currentImgSrc);
         
         // 檢查當前圖片是否為第一張內文圖
-        const isCurrentFirst = contentImages.length > 0 && 
-            this.compareImageUrls(contentImages[0], currentImgSrc);
+        const isCurrentFirst = displayIndex === 0;
         
-        // 如果封面圖與第一張內文圖相同，且正在預覽這張圖
-        if (isCoverSameAsFirst && (isCurrentCover || isCurrentFirst)) {
+        // 只有在以下條件都滿足時，才顯示「正在預覽封面圖與第 1 張」：
+        // 1. 封面圖與第一張內文圖確實相同
+        // 2. 當前正在預覽第一張內文圖（索引為 0）
+        // 3. 當前圖片確實是封面圖（雙重確認）
+        if (isCoverSameAsFirst && isCurrentFirst && isCurrentCover) {
+            window.KemonoLogger.log('顯示「正在預覽封面圖與第 1 張」', {
+                coverImage,
+                firstContentImage: contentImages[0],
+                currentImgSrc,
+                isCoverSameAsFirst,
+                isCurrentFirst,
+                isCurrentCover
+            });
             return window.KemonoI18n.t('preview_cover_and_first', { total: contentImages.length });
         }
         
@@ -384,7 +420,7 @@ window.KemonoUtil = window.KemonoUtil || {
             return window.KemonoI18n.t('preview_cover_with_content_count', { total: contentImages.length });
         }
         
-        // 如果正在預覽內文圖
+        // 如果正在預覽內文圖（包括第一張，但封面圖與第一張不同）
         return window.KemonoI18n.t('preview_content_image', { 
             current: displayIndex + 1, 
             total: contentImages.length 
@@ -620,12 +656,16 @@ window.KemonoUtil = window.KemonoUtil || {
             return;
         }
         
+        // 標記開始載入單個圖片
+        this._isLoadingSingleImage = true;
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
         // 使用請求排隊系統載入圖片
         if (window.KemonoRequestQueue) {
             window.KemonoRequestQueue.loadImage(newSrc)
                 .then((newImg) => {
+                    // 標記載入完成
+                    this._isLoadingSingleImage = false;
                     // 重新讀取設定值並計算尺寸
                     let maxSize = 600;
                     if (window.KemonoSettings && window.KemonoSettings.settings) {
@@ -692,6 +732,8 @@ window.KemonoUtil = window.KemonoUtil || {
                     }, 100);
                 })
                 .catch((error) => {
+                    // 標記載入完成（即使失敗也要清除標記）
+                    this._isLoadingSingleImage = false;
                     if (error.message !== 'Request aborted') {
                         this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
                         window.KemonoLogger.error('載入圖片失敗:', error);
@@ -702,6 +744,8 @@ window.KemonoUtil = window.KemonoUtil || {
             const newImg = new Image();
             
             newImg.onload = () => {
+                // 標記載入完成
+                this._isLoadingSingleImage = false;
                 // 重新讀取設定值並計算尺寸
                 let maxSize = 600;
                 if (window.KemonoSettings && window.KemonoSettings.settings) {
@@ -769,6 +813,8 @@ window.KemonoUtil = window.KemonoUtil || {
             };
             
             newImg.onerror = () => {
+                // 標記載入完成（即使失敗也要清除標記）
+                this._isLoadingSingleImage = false;
                 this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
             };
             
@@ -1033,6 +1079,11 @@ window.KemonoUtil = window.KemonoUtil || {
     
     isLoadingImages: function() {
         return this._isLoadingImages;
+    },
+    
+    // 檢查是否有任何圖片正在載入（包括 API 載入和單個圖片載入）
+    isAnyImageLoading: function() {
+        return this._isLoadingImages || this._isLoadingSingleImage;
     },
     
     resetPostImages: function() {
