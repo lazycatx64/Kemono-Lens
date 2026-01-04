@@ -44,16 +44,6 @@
       ],
       "css": ["styles.css"],
       "run_at": "document_end"
-    },
-    {
-      "matches": [
-        "https://kemono.cr/account/favorites/export",
-        "https://coomer.st/account/favorites/export"
-      ],
-      "js": [
-        "content-scripts/export-favorites-inject.js"
-      ],
-      "run_at": "document_end"
     }
   ],
   
