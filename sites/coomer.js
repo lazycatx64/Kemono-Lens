@@ -203,141 +203,19 @@ const coomer = {
       coomerLogger.log('API 回應:', postData);
       
       const baseUrl = new URL(postUrl).origin;
-      let hasOriginalImages = false;
-      let coverImageUrl = null;
-      let contentImages = [];
-      let nonImageCount = 0; // 非圖片數量
-      
-      // 從 API 回應中獲取預覽圖片
-      if (postData.previews && Array.isArray(postData.previews) && postData.previews.length > 0) {
-        // 第一張圖片是封面圖
-        if (postData.previews[0] && postData.previews[0].path) {
-          coverImageUrl = baseUrl + postData.previews[0].path;
-          // 轉換為 thumbnail URL
-          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
-          coomerLogger.log('API 封面圖片:', coverImageUrl);
-        }
-        
-        // 所有預覽圖片都加入內文圖片列表，包括封面圖，這樣可以支持完整的圖片切換
-        for (let i = 0; i < postData.previews.length; i++) {
-          if (postData.previews[i] && postData.previews[i].path) {
-            let fullImageUrl = baseUrl + postData.previews[i].path;
-            // 轉換為 thumbnail URL
-            fullImageUrl = coomer.convertToThumbnailUrl(fullImageUrl);
-            contentImages.push(fullImageUrl);
-            coomerLogger.log('找到圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
-          }
-        }
+      if (window.KemonoUtil && typeof window.KemonoUtil.parsePostApiImages === 'function') {
+        return window.KemonoUtil.parsePostApiImages(postData, baseUrl, {
+          convertToThumbnailUrl: coomer.convertToThumbnailUrl,
+          logger: coomerLogger
+        });
       }
-      
-      // 處理 attachments 以計算非圖片數量（即使 previews 存在也要處理）
-      if (postData.attachments && Array.isArray(postData.attachments) && postData.attachments.length > 0) {
-        // 如果沒有封面圖，嘗試從 attachments 獲取原圖
-        if (!coverImageUrl) {
-          hasOriginalImages = true;
-          coomerLogger.warn('沒有找到預覽圖片，改用附件原圖');
-        }
-        
-        // 過濾出圖片格式的附件
-        const imageAttachments = [];
-        for (let i = 0; i < postData.attachments.length; i++) {
-          if (postData.attachments[i] && postData.attachments[i].path) {
-            if (coomer.isImageFile(postData.attachments[i].path)) {
-              imageAttachments.push(postData.attachments[i]);
-            } else {
-              nonImageCount++;
-              coomerLogger.log('過濾掉非圖片附件:', postData.attachments[i].path);
-            }
-          }
-        }
-        
-        // 如果沒有封面圖，第一張圖片附件作為封面圖
-        if (!coverImageUrl && imageAttachments.length > 0 && imageAttachments[0].path) {
-          coverImageUrl = baseUrl + imageAttachments[0].path;
-          // 轉換為 thumbnail URL
-          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
-          coomerLogger.log('找到附件封面原圖:', coverImageUrl);
-        }
-        
-        // 如果沒有封面圖，所有圖片附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
-        if (!coverImageUrl) {
-          for (let i = 0; i < imageAttachments.length; i++) {
-            if (imageAttachments[i] && imageAttachments[i].path) {
-              let fullImageUrl = baseUrl + imageAttachments[i].path;
-              // 轉換為 thumbnail URL
-              fullImageUrl = coomer.convertToThumbnailUrl(fullImageUrl);
-              contentImages.push(fullImageUrl);
-              coomerLogger.log('找到附件圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
-            }
-          }
-        }
-      }
-      
-      // 如果還是沒有封面圖，嘗試從主要文件獲取
-      if (!coverImageUrl && postData.file && postData.file.path) {
-        hasOriginalImages = true;
-        coomerLogger.warn('沒有找到預覽圖片，改用附件原圖');
-        
-        // 過濾出圖片格式的附件
-        const imageAttachments = [];
-        for (let i = 0; i < postData.attachments.length; i++) {
-          if (postData.attachments[i] && postData.attachments[i].path) {
-            if (coomer.isImageFile(postData.attachments[i].path)) {
-              imageAttachments.push(postData.attachments[i]);
-            } else {
-              nonImageCount++;
-              coomerLogger.log('過濾掉非圖片附件:', postData.attachments[i].path);
-            }
-          }
-        }
-        
-        // 第一張圖片附件作為封面圖
-        if (imageAttachments.length > 0 && imageAttachments[0].path) {
-          coverImageUrl = baseUrl + imageAttachments[0].path;
-          // 轉換為 thumbnail URL
-          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
-          coomerLogger.log('找到附件封面原圖:', coverImageUrl);
-        }
-        
-        // 所有圖片附件都加入內文圖片列表，包括第一張，這樣可以支持完整的圖片切換
-        for (let i = 0; i < imageAttachments.length; i++) {
-          if (imageAttachments[i] && imageAttachments[i].path) {
-            let fullImageUrl = baseUrl + imageAttachments[i].path;
-            // 轉換為 thumbnail URL
-            fullImageUrl = coomer.convertToThumbnailUrl(fullImageUrl);
-            contentImages.push(fullImageUrl);
-            coomerLogger.log('找到附件圖片:', fullImageUrl, i === 0 ? '(封面圖)' : '(內文圖片)');
-          }
-        }
-      }
-      
-      // 如果還是沒有封面圖，嘗試從主要文件獲取
-      if (!coverImageUrl && postData.file && postData.file.path) {
-        hasOriginalImages = true;
-        coomerLogger.warn('沒有找到預覽圖片和附件，改用主要文件');
-        
-        // 檢查主要文件是否為圖片格式
-        if (coomer.isImageFile(postData.file.path)) {
-          coverImageUrl = baseUrl + postData.file.path;
-          // 轉換為 thumbnail URL
-          coverImageUrl = coomer.convertToThumbnailUrl(coverImageUrl);
-          // 主要文件也加入內文圖片列表，這樣即使只有一張圖片也可以切換
-          contentImages.push(coverImageUrl);
-          coomerLogger.log('找到主要文件圖片:', coverImageUrl, '(封面圖)');
-        } else {
-          nonImageCount++;
-          coomerLogger.log('主要文件不是圖片格式，已過濾:', postData.file.path);
-        }
-      }
-      
-      coomerLogger.log(`從 API 獲取到封面圖: ${coverImageUrl ? '1' : '0'} 張，內文圖片: ${contentImages.length} 張，非圖片: ${nonImageCount} 個${hasOriginalImages ? ' (包含原圖)' : ''}`);
-      
-      // 返回分離的結果
+
+      coomerLogger.warn('KemonoUtil.parsePostApiImages 不可用，使用後備解析');
       return {
-        coverImage: coverImageUrl,
-        contentImages: contentImages,
-        hasOriginalImages: hasOriginalImages,
-        nonImageCount: nonImageCount
+        coverImage: null,
+        contentImages: [],
+        hasOriginalImages: false,
+        nonImageCount: 0
       };
     } catch (error) {
       coomerLogger.error('獲取貼文圖片時出錯:', error);

@@ -1308,6 +1308,135 @@ window.KemonoUtil = window.KemonoUtil || {
     // 清除預載入快取
     clearPreloadedImages: function() {
         this._preloadedImages.clear();
+    },
+
+    /**
+     * 判斷路徑或檔名是否為圖片
+     */
+    isImageFilePath: function(pathOrName) {
+        if (!pathOrName) return false;
+        return /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)(\?|$)/i.test(pathOrName);
+    },
+
+    /**
+     * 解析貼文 API 回應中的圖片清單。
+     * 同時支援：
+     * 1. 包裝格式：{ post, previews, attachments }（常見於 kemono.cr）
+     * 2. 扁平格式：{ file, attachments, ... }（無 previews，例如部分鏡像站）
+     *
+     * @param {object} raw - API JSON
+     * @param {string} baseUrl - 站點 origin，例如 https://pawchive.pw
+     * @param {{ convertToThumbnailUrl: Function, logger?: object }} helpers
+     * @returns {{ coverImage: string|null, contentImages: string[], hasOriginalImages: boolean, nonImageCount: number }}
+     */
+    parsePostApiImages: function(raw, baseUrl, helpers) {
+        const convertToThumbnailUrl = helpers?.convertToThumbnailUrl || ((url) => url);
+        const logger = helpers?.logger || window.KemonoLogger || console;
+        const isImageFile = (item) => {
+            if (!item) return false;
+            return this.isImageFilePath(item.path) || this.isImageFilePath(item.name);
+        };
+
+        const post = (raw && raw.post && typeof raw.post === 'object') ? raw.post : raw;
+        const previews = Array.isArray(raw?.previews)
+            ? raw.previews
+            : (Array.isArray(post?.previews) ? post.previews : []);
+        // 優先使用頂層 attachments（包裝格式常含 server 欄位）
+        const attachments = Array.isArray(raw?.attachments) && raw.attachments.length > 0
+            ? raw.attachments
+            : (Array.isArray(post?.attachments) ? post.attachments : []);
+        const file = post?.file || raw?.file || null;
+
+        const buildUrl = (item) => {
+            if (!item || !item.path) return null;
+            let fullUrl;
+            if (item.server) {
+                fullUrl = `${String(item.server).replace(/\/$/, '')}${item.path}`;
+            } else {
+                fullUrl = `${baseUrl}${item.path}`;
+            }
+            return convertToThumbnailUrl(fullUrl);
+        };
+
+        let coverImage = null;
+        let contentImages = [];
+        let nonImageCount = 0;
+        let hasOriginalImages = false;
+
+        if (previews.length > 0) {
+            // 格式一：有 previews（縮圖清單）
+            for (let i = 0; i < previews.length; i++) {
+                const preview = previews[i];
+                if (!preview || !preview.path) continue;
+                const url = buildUrl(preview);
+                if (url) {
+                    contentImages.push(url);
+                    logger.log?.('找到預覽圖片:', url, i === 0 ? '(封面圖)' : '(內文圖片)');
+                }
+            }
+            if (contentImages.length > 0) {
+                coverImage = contentImages[0];
+            }
+
+            // 非圖片數量仍從 attachments 統計
+            for (let i = 0; i < attachments.length; i++) {
+                const att = attachments[i];
+                if (!att || !att.path) continue;
+                if (!isImageFile(att)) {
+                    nonImageCount++;
+                    logger.log?.('過濾掉非圖片附件:', att.path);
+                }
+            }
+        } else {
+            // 格式二：扁平 file + attachments（無 previews）
+            hasOriginalImages = true;
+            logger.warn?.('沒有找到預覽圖片，改用 file／attachments');
+
+            const candidates = [];
+            if (file && file.path) {
+                candidates.push(file);
+            }
+            for (let i = 0; i < attachments.length; i++) {
+                if (attachments[i] && attachments[i].path) {
+                    candidates.push(attachments[i]);
+                }
+            }
+
+            const seenPaths = new Set();
+            for (let i = 0; i < candidates.length; i++) {
+                const item = candidates[i];
+                if (seenPaths.has(item.path)) {
+                    continue;
+                }
+                seenPaths.add(item.path);
+
+                if (isImageFile(item)) {
+                    const url = buildUrl(item);
+                    if (url) {
+                        contentImages.push(url);
+                        logger.log?.('找到附件圖片:', url, i === 0 ? '(封面圖)' : '(內文圖片)');
+                    }
+                } else {
+                    nonImageCount++;
+                    logger.log?.('過濾掉非圖片附件:', item.path);
+                }
+            }
+
+            if (contentImages.length > 0) {
+                coverImage = contentImages[0];
+            }
+        }
+
+        logger.log?.(
+            `從 API 獲取到封面圖: ${coverImage ? '1' : '0'} 張，內文圖片: ${contentImages.length} 張，非圖片: ${nonImageCount} 個${hasOriginalImages ? ' (包含原圖)' : ''}`
+        );
+
+        return {
+            coverImage,
+            contentImages,
+            hasOriginalImages,
+            nonImageCount
+        };
     }
 };
 
