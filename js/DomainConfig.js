@@ -1,0 +1,303 @@
+/**
+ * 網站網域設定 - 集中管理 kemono / coomer 網域
+ * 以經典 script 暴露於 window.KemonoDomainConfig
+ */
+
+(function (global) {
+    const STORAGE_KEY = 'siteDomains';
+
+    const DEFAULT_DOMAINS = {
+        kemono: 'kemono.cr',
+        coomer: 'coomer.st'
+    };
+
+    const CONTENT_SCRIPT_IDS = {
+        kemono: 'kemono-custom',
+        coomer: 'coomer-custom'
+    };
+
+    const CONTENT_SCRIPT_PATHS = [
+        '/artists*',
+        '/artists/updated*',
+        '/*/user/*',
+        '/account/favorites/artists*',
+        '/posts*'
+    ];
+
+    const CONTENT_SCRIPT_JS = [
+        'logger.js',
+        'i18n.js',
+        'RequestQueue.js',
+        'settings.js',
+        'util.js',
+        'js/DomainConfig.js',
+        'sites/kemono.js',
+        'sites/coomer.js',
+        'sites/index.js',
+        'content-scripts/DOMManager.js',
+        'content-scripts/BlacklistContentManager.js',
+        'content-scripts/FavoritesContentManager.js',
+        'content.js'
+    ];
+
+    const CONTENT_SCRIPT_CSS = ['styles.css'];
+
+    let cachedDomains = { ...DEFAULT_DOMAINS };
+
+    function normalizeDomain(input) {
+        if (!input || typeof input !== 'string') {
+            return '';
+        }
+
+        let domain = input.trim().toLowerCase();
+        domain = domain.replace(/^https?:\/\//, '');
+        domain = domain.replace(/\/.*$/, '');
+        domain = domain.replace(/:\d+$/, '');
+        domain = domain.replace(/^www\./, '');
+        domain = domain.replace(/\.$/, '');
+
+        // 簡單驗證：至少含一個點，且僅允許合法主機字元
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
+            return '';
+        }
+
+        return domain;
+    }
+
+    function getOriginPatterns(domain) {
+        const normalized = normalizeDomain(domain);
+        if (!normalized) {
+            return [];
+        }
+        return [
+            `https://${normalized}/*`,
+            `https://*.${normalized}/*`
+        ];
+    }
+
+    function buildMatchesForDomain(domain) {
+        const normalized = normalizeDomain(domain);
+        if (!normalized) {
+            return [];
+        }
+        return CONTENT_SCRIPT_PATHS.map((path) => `https://${normalized}${path}`);
+    }
+
+    function isDefaultDomain(site, domain) {
+        const normalized = normalizeDomain(domain);
+        return normalized === DEFAULT_DOMAINS[site];
+    }
+
+    function hostnameMatchesDomain(hostname, domain) {
+        if (!hostname || !domain) {
+            return false;
+        }
+        const host = hostname.toLowerCase().replace(/^www\./, '');
+        const target = normalizeDomain(domain);
+        return host === target || host.endsWith(`.${target}`);
+    }
+
+    function resolveSiteFamily(hostname) {
+        if (!hostname) {
+            return null;
+        }
+        if (hostnameMatchesDomain(hostname, cachedDomains.kemono)) {
+            return 'kemono';
+        }
+        if (hostnameMatchesDomain(hostname, cachedDomains.coomer)) {
+            return 'coomer';
+        }
+        return null;
+    }
+
+    function getDomain(site) {
+        return cachedDomains[site] || DEFAULT_DOMAINS[site];
+    }
+
+    function getDomains() {
+        return { ...cachedDomains };
+    }
+
+    function setCachedDomains(domains) {
+        cachedDomains = {
+            kemono: normalizeDomain(domains?.kemono) || DEFAULT_DOMAINS.kemono,
+            coomer: normalizeDomain(domains?.coomer) || DEFAULT_DOMAINS.coomer
+        };
+        return getDomains();
+    }
+
+    function loadDomains() {
+        return new Promise((resolve) => {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                setCachedDomains(DEFAULT_DOMAINS);
+                resolve(getDomains());
+                return;
+            }
+
+            chrome.storage.local.get([STORAGE_KEY], (result) => {
+                const stored = result[STORAGE_KEY] || {};
+                setCachedDomains({
+                    kemono: stored.kemono || DEFAULT_DOMAINS.kemono,
+                    coomer: stored.coomer || DEFAULT_DOMAINS.coomer
+                });
+                resolve(getDomains());
+            });
+        });
+    }
+
+    function setDomains(domains) {
+        const next = setCachedDomains(domains);
+        return new Promise((resolve, reject) => {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                resolve(next);
+                return;
+            }
+            chrome.storage.local.set({ [STORAGE_KEY]: next }, () => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                resolve(next);
+            });
+        });
+    }
+
+    function buildUserUrl(site, platform, userId) {
+        const domain = getDomain(site || 'kemono');
+        return `https://${domain}/${platform}/user/${userId}`;
+    }
+
+    function buildIconUrl(site, platform, userId) {
+        const domain = getDomain(site || 'kemono');
+        return `https://${domain}/icons/${platform}/${userId}`;
+    }
+
+    function buildApiUrl(site, path) {
+        const domain = getDomain(site || 'kemono');
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        return `https://${domain}${normalizedPath}`;
+    }
+
+    function buildImgThumbnailUrl(site, path) {
+        const domain = getDomain(site || 'kemono');
+        return `https://img.${domain}/thumbnail/data/${path}`;
+    }
+
+    function getTabQueryUrls() {
+        const domains = getDomains();
+        const urls = [];
+        Object.values(domains).forEach((domain) => {
+            urls.push(`https://${domain}/*`);
+            urls.push(`https://*.${domain}/*`);
+        });
+        return urls;
+    }
+
+    function rewriteIconUrlHost(iconUrl, oldDomain, newDomain) {
+        if (!iconUrl || !oldDomain || !newDomain) {
+            return iconUrl;
+        }
+        try {
+            const url = new URL(iconUrl);
+            if (!hostnameMatchesDomain(url.hostname, oldDomain)) {
+                return iconUrl;
+            }
+            // 保留子網域前綴（例如 img.）
+            const host = url.hostname.toLowerCase();
+            const oldNorm = normalizeDomain(oldDomain);
+            const newNorm = normalizeDomain(newDomain);
+            if (host === oldNorm || host === `www.${oldNorm}`) {
+                url.hostname = newNorm;
+            } else if (host.endsWith(`.${oldNorm}`)) {
+                const prefix = host.slice(0, -(oldNorm.length + 1));
+                url.hostname = `${prefix}.${newNorm}`;
+            } else {
+                return iconUrl;
+            }
+            return url.toString();
+        } catch (e) {
+            return iconUrl;
+        }
+    }
+
+    async function migrateBlacklistIconUrls(oldDomains, newDomains) {
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            return 0;
+        }
+
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['blacklistData'], (result) => {
+                const blacklistData = result.blacklistData || {};
+                let changed = 0;
+
+                Object.keys(blacklistData).forEach((userId) => {
+                    const entry = blacklistData[userId];
+                    if (!entry || !entry.iconUrl) {
+                        return;
+                    }
+
+                    let nextUrl = entry.iconUrl;
+                    if (oldDomains.kemono !== newDomains.kemono) {
+                        nextUrl = rewriteIconUrlHost(nextUrl, oldDomains.kemono, newDomains.kemono);
+                    }
+                    if (oldDomains.coomer !== newDomains.coomer) {
+                        nextUrl = rewriteIconUrlHost(nextUrl, oldDomains.coomer, newDomains.coomer);
+                    }
+
+                    if (nextUrl !== entry.iconUrl) {
+                        entry.iconUrl = nextUrl;
+                        changed += 1;
+                    }
+                });
+
+                if (changed === 0) {
+                    resolve(0);
+                    return;
+                }
+
+                chrome.storage.local.set({ blacklistData }, () => resolve(changed));
+            });
+        });
+    }
+
+    const api = {
+        STORAGE_KEY,
+        DEFAULT_DOMAINS,
+        CONTENT_SCRIPT_IDS,
+        CONTENT_SCRIPT_JS,
+        CONTENT_SCRIPT_CSS,
+        normalizeDomain,
+        getOriginPatterns,
+        buildMatchesForDomain,
+        isDefaultDomain,
+        hostnameMatchesDomain,
+        resolveSiteFamily,
+        getDomain,
+        getDomains,
+        setCachedDomains,
+        loadDomains,
+        setDomains,
+        buildUserUrl,
+        buildIconUrl,
+        buildApiUrl,
+        buildImgThumbnailUrl,
+        getTabQueryUrls,
+        rewriteIconUrlHost,
+        migrateBlacklistIconUrls
+    };
+
+    // 瀏覽器頁面 / content script
+    if (typeof window !== 'undefined') {
+        window.KemonoDomainConfig = api;
+    }
+
+    // Service worker（importScripts）
+    if (typeof self !== 'undefined' && typeof window === 'undefined') {
+        self.KemonoDomainConfig = api;
+    }
+
+    // 同步環境（Node 測試等）
+    if (typeof global !== 'undefined') {
+        global.KemonoDomainConfig = api;
+    }
+})(typeof globalThis !== 'undefined' ? globalThis : self);

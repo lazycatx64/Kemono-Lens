@@ -22,6 +22,11 @@ class KemonoFriends {
     }
 
     async init() {
+        // 先載入可設定網域，供 site handler / DOM 判斷使用
+        if (window.KemonoDomainConfig) {
+            await window.KemonoDomainConfig.loadDomains();
+        }
+
         // 檢查是否應該在當前頁面運行（黑名單/收藏功能）
         if (!this.domManager.shouldRunOnCurrentPage()) {
             this.isActive = false;

@@ -1,15 +1,24 @@
 // Access the global logger using a different variable name
 const coomerLogger = window.KemonoLogger;
 
+function escapeRegExpCoomer(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getCoomerDomainPattern() {
+  const domain = (window.KemonoDomainConfig && window.KemonoDomainConfig.getDomain('coomer')) || 'coomer.st';
+  return escapeRegExpCoomer(domain);
+}
+
 /**
- * Image preview handler module for Coomer.st website
- * 架構與 kemono.cr 相同，只需修改域名匹配
+ * Image preview handler module for Coomer website
+ * 架構與 kemono 相同，網域由 DomainConfig 決定
  */
 const coomer = {
-  // 檢查 URL 是否符合 coomer.st
+  // 檢查 URL 是否符合目前設定的 coomer 網域
   isMatch: (url) => {
-    const isMatch = url.match(/https?:\/\/(?:www\.)?coomer\.st/);
-    return isMatch;
+    const pattern = getCoomerDomainPattern();
+    return url.match(new RegExp(`https?:\\/\\/(?:www\\.)?${pattern}`, 'i'));
   },
   
   // 檢查當前頁面是否為貼文目錄頁面（而不是單個貼文）
@@ -17,8 +26,9 @@ const coomer = {
     // 貼文頁面 URL 含有 '/post/'
     const isPostPage = url.includes('/post/');
     
-    // 如果是 coomer.st 但不是貼文頁面，則為目錄頁面
-    const isDirectory = url.match(/https?:\/\/(?:www\.)?coomer\.st/) && !isPostPage;
+    // 如果是 coomer 網域但不是貼文頁面，則為目錄頁面
+    const pattern = getCoomerDomainPattern();
+    const isDirectory = url.match(new RegExp(`https?:\\/\\/(?:www\\.)?${pattern}`, 'i')) && !isPostPage;
     
     return isDirectory;
   },
@@ -48,16 +58,20 @@ const coomer = {
     if (!url) return url;
     
     try {
-      // 檢查是否為 coomer.st 的圖片 URL
-      // 匹配格式：coomer.st/xx/xx/xxxxx... 或 https://coomer.st/xx/xx/xxxxx...
-      const coomerPattern = /(https?:\/\/)?(www\.)?coomer\.st\/([a-f0-9]{2})\/([a-f0-9]{2})\/([a-f0-9]+[^\/\s?#]*)/i;
+      const domainPattern = getCoomerDomainPattern();
+      // 匹配格式：{domain}/xx/xx/xxxxx... 或 https://{domain}/xx/xx/xxxxx...
+      const coomerPattern = new RegExp(
+        `(https?:\\/\\/)?(www\\.)?${domainPattern}\\/([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
+        'i'
+      );
       const match = url.match(coomerPattern);
       
       if (match) {
         // 提取路徑部分（xx/xx/xxxxx...）
         const path = `${match[3]}/${match[4]}/${match[5]}`;
-        // 轉換為 thumbnail URL
-        const thumbnailUrl = `https://img.coomer.st/thumbnail/data/${path}`;
+        const thumbnailUrl = window.KemonoDomainConfig
+          ? window.KemonoDomainConfig.buildImgThumbnailUrl('coomer', path)
+          : `https://img.coomer.st/thumbnail/data/${path}`;
         coomerLogger.log('轉換為 thumbnail URL:', url, '->', thumbnailUrl);
         return thumbnailUrl;
       }
@@ -151,10 +165,13 @@ const coomer = {
     coomerLogger.log('正在從以下位置獲取貼文圖片:', postUrl);
     
     try {
-      // 支援 coomer.st
+      // 將網站路徑轉為 /api/v1/...
       let apiUrl = postUrl;
-      if (apiUrl.includes('coomer.st/')) {
-        apiUrl = apiUrl.replace('coomer.st/', 'coomer.st/api/v1/');
+      try {
+        const parsed = new URL(postUrl);
+        apiUrl = `${parsed.origin}/api/v1${parsed.pathname}${parsed.search}`;
+      } catch (e) {
+        coomerLogger.warn('解析貼文 URL 失敗，使用原始 URL:', e);
       }
       coomerLogger.log('API URL:', apiUrl);
       
@@ -379,4 +396,4 @@ const coomer = {
 window.KemonoSites = window.KemonoSites || {};
 window.KemonoSites.coomer = coomer;
 
-coomerLogger.log('Coomer.st handler module loaded');
+coomerLogger.log('Coomer handler module loaded');

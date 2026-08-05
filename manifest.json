@@ -7,12 +7,17 @@
   "permissions": [
     "storage",
     "activeTab",
-    "cookies"
+    "cookies",
+    "scripting"
   ],
 
   "host_permissions": [
     "https://kemono.cr/*",
     "https://coomer.st/*"
+  ],
+
+  "optional_host_permissions": [
+    "https://*/*"
   ],
   
   "content_scripts": [
@@ -35,6 +40,7 @@
         "RequestQueue.js",
         "settings.js",
         "util.js",
+        "js/DomainConfig.js",
         "sites/kemono.js",
         "sites/coomer.js",
         "sites/index.js",

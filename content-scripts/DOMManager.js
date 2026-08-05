@@ -10,8 +10,19 @@ class DOMManager {
     shouldRunOnCurrentPage() {
         const url = window.location.href;
         
-        // 檢查是否為支援的域名
-        const isSupportedDomain = /https?:\/\/(?:www\.)?(kemono\.cr|coomer\.st)/.test(url);
+        // 檢查是否為支援的網域（依 DomainConfig 設定）
+        const domainConfig = window.KemonoDomainConfig;
+        let isSupportedDomain = false;
+        if (domainConfig) {
+            try {
+                const hostname = new URL(url).hostname;
+                isSupportedDomain = !!domainConfig.resolveSiteFamily(hostname);
+            } catch (e) {
+                isSupportedDomain = false;
+            }
+        } else {
+            isSupportedDomain = /https?:\/\/(?:www\.)?(kemono\.cr|coomer\.st)/.test(url);
+        }
         if (!isSupportedDomain) {
             return false;
         }
@@ -213,7 +224,7 @@ class DOMManager {
     // 從URL提取個人頁面的創作者信息
     extractUserInfoFromCurrentPage() {
         const url = window.location.href;
-        // 支援 kemono.cr 和 coomer.st
+        // 支援目前設定的站點網域
         const match = url.match(/\/(\w+)\/user\/(\d+)(?:\?.*)?$/);
         
         if (match) {
@@ -294,8 +305,8 @@ class DOMManager {
     }
 
     extractUserInfoFromLink(href, nameElement) {
-        // 匹配 kemono.cr 或 coomer.st 的格式，也支持不含域名的格式，支援URL參數
-        let match = href.match(/(?:kemono\.cr|coomer\.st)\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
+        // 匹配 /平台/user/ID（含可選網域前綴），支援 URL 參數
+        let match = href.match(/https?:\/\/[^/]+\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
         if (!match) {
             // 嘗試匹配不含域名的格式 /平台/user/ID，支援URL參數
             match = href.match(/\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);

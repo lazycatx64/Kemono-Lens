@@ -56,8 +56,9 @@ class BlacklistManager {
 
     handleInputChange() {
         const input = this.elements.userInput.value.trim();
-        // 如果輸入是URL，自動提取平台和ID，支援URL參數（支援 kemono.cr 和 coomer.st）
-        const urlMatch = input.match(/(?:kemono\.cr|coomer\.st)\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
+        // 如果輸入是 URL，自動提取平台和 ID
+        const urlMatch = input.match(/https?:\/\/[^/]+\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/)
+            || input.match(/\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
         if (urlMatch && this.elements.platformSelect) {
             const platform = urlMatch[1];
             // 自動設置平台選擇器
@@ -76,8 +77,9 @@ class BlacklistManager {
 
         let userId, userPlatform, userName;
 
-        // 檢查是否是完整URL，支援URL參數（支援 kemono.cr 和 coomer.st）
-        const urlMatch = input.match(/(?:kemono\.cr|coomer\.st)\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
+        // 檢查是否是完整 URL
+        const urlMatch = input.match(/https?:\/\/[^/]+\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/)
+            || input.match(/\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
         if (urlMatch) {
             userPlatform = urlMatch[1];
             userId = urlMatch[2];
@@ -85,7 +87,7 @@ class BlacklistManager {
         } else {
             // 驗證ID格式（應該是數字）
             if (!/^\d+$/.test(input)) {
-                this.messageManager.showError('創作者ID應該是純數字，或提供完整的 kemono.cr 或 coomer.st URL');
+                this.messageManager.showError('創作者ID應該是純數字，或提供完整的網站 URL');
                 return;
             }
             userId = input;
@@ -289,22 +291,29 @@ class BlacklistManager {
     }
 
     getUserUrl(platform, userId) {
-        // 根據當前域名決定使用哪個網站 URL
-        // 如果在選項頁面，預設使用 kemono.cr
-        if (!window.location.hostname || window.location.hostname === '') {
+        const domainConfig = window.KemonoDomainConfig;
+        if (!domainConfig) {
             return `https://kemono.cr/${platform}/user/${userId}`;
         }
-        const currentDomain = window.location.hostname;
-        if (currentDomain.includes('coomer.st')) {
-            return `https://coomer.st/${platform}/user/${userId}`;
+
+        // options 頁面預設使用 kemono 網域；content 頁面依目前主機判斷站點家族
+        let site = 'kemono';
+        const hostname = window.location.hostname;
+        if (hostname) {
+            const family = domainConfig.resolveSiteFamily(hostname);
+            if (family) {
+                site = family;
+            }
         }
-        return `https://kemono.cr/${platform}/user/${userId}`;
+        return domainConfig.buildUserUrl(site, platform, userId);
     }
 
     async fetchUserIcon(platform, userId) {
         try {
-            // 嘗試從兩個域名獲取頭像
-            const domains = ['kemono.cr', 'coomer.st'];
+            const domainConfig = window.KemonoDomainConfig;
+            const domains = domainConfig
+                ? Object.values(domainConfig.getDomains())
+                : ['kemono.cr', 'coomer.st'];
             const possibleIconUrls = [];
             
             for (const domain of domains) {

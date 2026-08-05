@@ -117,9 +117,130 @@ class SettingsManager {
                 }
             });
         }
+
+        // 網站網域設定
+        const saveDomainsBtn = document.getElementById('save-site-domains-btn');
+        if (saveDomainsBtn) {
+            saveDomainsBtn.addEventListener('click', () => this.saveSiteDomains());
+        }
+    }
+
+    getTabQueryUrls() {
+        if (window.KemonoDomainConfig) {
+            return window.KemonoDomainConfig.getTabQueryUrls();
+        }
+        return ['https://kemono.cr/*', 'https://coomer.st/*'];
+    }
+
+    async loadSiteDomainsIntoUI() {
+        const domainConfig = window.KemonoDomainConfig;
+        if (!domainConfig) {
+            return;
+        }
+        const domains = await domainConfig.loadDomains();
+        const kemonoInput = document.getElementById('kemono-domain-input');
+        const coomerInput = document.getElementById('coomer-domain-input');
+        if (kemonoInput) {
+            kemonoInput.value = domains.kemono;
+        }
+        if (coomerInput) {
+            coomerInput.value = domains.coomer;
+        }
+        this.updateDomainHelpLinks(domains);
+    }
+
+    updateDomainHelpLinks(domains) {
+        const kemonoDomain = domains?.kemono || 'kemono.cr';
+        const siteLink = document.getElementById('favorites-kemono-site-link');
+        const exportLink = document.getElementById('favorites-kemono-export-link');
+        if (siteLink) {
+            siteLink.href = `https://${kemonoDomain}/`;
+            siteLink.textContent = 'Kemono 網站';
+        }
+        if (exportLink) {
+            exportLink.href = `https://${kemonoDomain}/account/favorites/export`;
+        }
+        const blacklistHelpExample = document.getElementById('blacklist-url-example');
+        if (blacklistHelpExample) {
+            blacklistHelpExample.textContent = `https://${kemonoDomain}/patreon/user/5564244`;
+        }
+    }
+
+    async saveSiteDomains() {
+        const domainConfig = window.KemonoDomainConfig;
+        if (!domainConfig) {
+            this.messageManager.showError('網域設定模組未載入');
+            return;
+        }
+
+        const kemonoInput = document.getElementById('kemono-domain-input');
+        const coomerInput = document.getElementById('coomer-domain-input');
+        const kemonoRaw = kemonoInput?.value || '';
+        const coomerRaw = coomerInput?.value || '';
+
+        const kemonoDomain = domainConfig.normalizeDomain(kemonoRaw);
+        const coomerDomain = domainConfig.normalizeDomain(coomerRaw);
+
+        if (!kemonoDomain || !coomerDomain) {
+            this.messageManager.showError('請輸入有效的網域（例如 kemono.cr）');
+            return;
+        }
+
+        const previousDomains = domainConfig.getDomains();
+        const nextDomains = {
+            kemono: kemonoDomain,
+            coomer: coomerDomain
+        };
+
+        // 收集需要向使用者請求的 optional 權限
+        const originsToRequest = [];
+        for (const site of ['kemono', 'coomer']) {
+            const domain = nextDomains[site];
+            if (domainConfig.isDefaultDomain(site, domain)) {
+                continue;
+            }
+            originsToRequest.push(...domainConfig.getOriginPatterns(domain));
+        }
+        const uniqueOrigins = [...new Set(originsToRequest)];
+
+        try {
+            if (uniqueOrigins.length > 0) {
+                const granted = await chrome.permissions.request({ origins: uniqueOrigins });
+                if (!granted) {
+                    this.messageManager.showError('未獲得網域權限，設定未儲存');
+                    await this.loadSiteDomainsIntoUI();
+                    return;
+                }
+            }
+
+            await domainConfig.setDomains(nextDomains);
+            const migrated = await domainConfig.migrateBlacklistIconUrls(previousDomains, nextDomains);
+
+            const syncResult = await chrome.runtime.sendMessage({
+                action: 'SYNC_CONTENT_SCRIPTS',
+                previousDomains
+            });
+
+            if (syncResult && syncResult.ok === false) {
+                this.messageManager.showError(`網域已儲存，但同步腳本失敗：${syncResult.error || '未知錯誤'}`);
+                return;
+            }
+
+            if (kemonoInput) kemonoInput.value = kemonoDomain;
+            if (coomerInput) coomerInput.value = coomerDomain;
+            this.updateDomainHelpLinks(nextDomains);
+
+            const migrateHint = migrated > 0 ? `，已更新 ${migrated} 個頭像連結` : '';
+            this.messageManager.showSuccess(`網域設定已儲存${migrateHint}。請重新整理已開啟的網站分頁以使功能生效。`);
+        } catch (error) {
+            console.error('儲存網域設定失敗:', error);
+            this.messageManager.showError(`儲存網域設定失敗：${error.message || error}`);
+            await this.loadSiteDomainsIntoUI();
+        }
     }
 
     async loadSettings() {
+        await this.loadSiteDomainsIntoUI();
         return new Promise((resolve) => {
             chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings'], (result) => {
                 if (result.visualSettings) {
@@ -269,8 +390,8 @@ class SettingsManager {
     }
 
     notifySettingsChanged(type, enabled) {
-        // 通知內容腳本更新設定（支援兩個域名）
-        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+        // 通知內容腳本更新設定（依目前網域設定）
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updateVisualSettings',
@@ -304,7 +425,7 @@ class SettingsManager {
         }));
 
         // 通知所有相關的標籤頁更新預覽設定
-        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updatePreviewSettings',
@@ -350,7 +471,7 @@ class SettingsManager {
         }));
 
         // 通知所有相關的標籤頁更新請求排隊設定
-        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updateRequestQueueSettings',

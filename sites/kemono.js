@@ -1,14 +1,23 @@
 // Access the global logger using a different variable name
 const kemonoLogger = window.KemonoLogger;
 
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getKemonoDomainPattern() {
+  const domain = (window.KemonoDomainConfig && window.KemonoDomainConfig.getDomain('kemono')) || 'kemono.cr';
+  return escapeRegExp(domain);
+}
+
 /**
- * Image preview handler module for Kemono.cr website
+ * Image preview handler module for Kemono website
  */
 const kemono = {
-  // 檢查 URL 是否符合 kemono.cr
+  // 檢查 URL 是否符合目前設定的 kemono 網域
   isMatch: (url) => {
-    const isMatch = url.match(/https?:\/\/(?:www\.)?kemono\.cr/);
-    return isMatch;
+    const pattern = getKemonoDomainPattern();
+    return url.match(new RegExp(`https?:\\/\\/(?:www\\.)?${pattern}`, 'i'));
   },
   
   // 檢查當前頁面是否為貼文目錄頁面（而不是單個貼文）
@@ -16,8 +25,9 @@ const kemono = {
     // 貼文頁面 URL 含有 '/post/'
     const isPostPage = url.includes('/post/');
     
-    // 如果是 kemono.cr 但不是貼文頁面，則為目錄頁面
-    const isDirectory = url.match(/https?:\/\/(?:www\.)?kemono\.cr/) && !isPostPage;
+    // 如果是 kemono 網域但不是貼文頁面，則為目錄頁面
+    const pattern = getKemonoDomainPattern();
+    const isDirectory = url.match(new RegExp(`https?:\\/\\/(?:www\\.)?${pattern}`, 'i')) && !isPostPage;
     
     return isDirectory;
   },
@@ -47,16 +57,20 @@ const kemono = {
     if (!url) return url;
     
     try {
-      // 檢查是否為 kemono.cr 的圖片 URL
-      // 匹配格式：kemono.cr/xx/xx/xxxxx... 或 https://kemono.cr/xx/xx/xxxxx...
-      const kemonoPattern = /(https?:\/\/)?(www\.)?kemono\.cr\/([a-f0-9]{2})\/([a-f0-9]{2})\/([a-f0-9]+[^\/\s?#]*)/i;
+      const domainPattern = getKemonoDomainPattern();
+      // 匹配格式：{domain}/xx/xx/xxxxx... 或 https://{domain}/xx/xx/xxxxx...
+      const kemonoPattern = new RegExp(
+        `(https?:\\/\\/)?(www\\.)?${domainPattern}\\/([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
+        'i'
+      );
       const match = url.match(kemonoPattern);
       
       if (match) {
         // 提取路徑部分（xx/xx/xxxxx...）
         const path = `${match[3]}/${match[4]}/${match[5]}`;
-        // 轉換為 thumbnail URL
-        const thumbnailUrl = `https://img.kemono.cr/thumbnail/data/${path}`;
+        const thumbnailUrl = window.KemonoDomainConfig
+          ? window.KemonoDomainConfig.buildImgThumbnailUrl('kemono', path)
+          : `https://img.kemono.cr/thumbnail/data/${path}`;
         kemonoLogger.log('轉換為 thumbnail URL:', url, '->', thumbnailUrl);
         return thumbnailUrl;
       }
@@ -150,12 +164,13 @@ const kemono = {
     kemonoLogger.log('正在從以下位置獲取貼文圖片:', postUrl);
     
     try {
-      // 支援 kemono.cr 和 coomer.st
+      // 將網站路徑轉為 /api/v1/...
       let apiUrl = postUrl;
-      if (apiUrl.includes('kemono.cr/')) {
-        apiUrl = apiUrl.replace('kemono.cr/', 'kemono.cr/api/v1/');
-      } else if (apiUrl.includes('coomer.st/')) {
-        apiUrl = apiUrl.replace('coomer.st/', 'coomer.st/api/v1/');
+      try {
+        const parsed = new URL(postUrl);
+        apiUrl = `${parsed.origin}/api/v1${parsed.pathname}${parsed.search}`;
+      } catch (e) {
+        kemonoLogger.warn('解析貼文 URL 失敗，使用原始 URL:', e);
       }
       kemonoLogger.log('API URL:', apiUrl);
       
@@ -380,4 +395,4 @@ const kemono = {
 window.KemonoSites = window.KemonoSites || {};
 window.KemonoSites.kemono = kemono;
 
-kemonoLogger.log('Kemono.cr handler module loaded');
+kemonoLogger.log('Kemono handler module loaded');

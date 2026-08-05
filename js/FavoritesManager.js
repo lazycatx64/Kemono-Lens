@@ -25,16 +25,20 @@ class FavoritesManager {
     }
 
     getUserUrl(platform, userId) {
-        // 根據當前域名決定使用哪個網站 URL
-        // 如果在選項頁面，預設使用 kemono.cr
-        if (!window.location.hostname || window.location.hostname === '') {
+        const domainConfig = window.KemonoDomainConfig;
+        if (!domainConfig) {
             return `https://kemono.cr/${platform}/user/${userId}`;
         }
-        const currentDomain = window.location.hostname;
-        if (currentDomain.includes('coomer.st')) {
-            return `https://coomer.st/${platform}/user/${userId}`;
+
+        let site = 'kemono';
+        const hostname = window.location.hostname;
+        if (hostname) {
+            const family = domainConfig.resolveSiteFamily(hostname);
+            if (family) {
+                site = family;
+            }
         }
-        return `https://kemono.cr/${platform}/user/${userId}`;
+        return domainConfig.buildUserUrl(site, platform, userId);
     }
 
     setupEventListeners() {
@@ -91,11 +95,17 @@ class FavoritesManager {
             btn.disabled = true;
             btn.textContent = '⏳ 正在獲取收藏資料...';
             
-            // 嘗試從兩個域名獲取收藏（優先使用 kemono.cr）
-            const apiUrl = 'https://kemono.cr/api/v1/account/favorites?type=artist';
+            // 使用目前設定的 kemono 網域取得收藏
+            const domainConfig = window.KemonoDomainConfig;
+            const kemonoDomain = domainConfig
+                ? domainConfig.getDomain('kemono')
+                : 'kemono.cr';
+            const apiUrl = domainConfig
+                ? domainConfig.buildApiUrl('kemono', '/api/v1/account/favorites?type=artist')
+                : `https://${kemonoDomain}/api/v1/account/favorites?type=artist`;
             
-            // 獲取 kemono.cr 的 cookie
-            const cookieString = await this.getKemonoCookies('kemono.cr');
+            // 獲取對應網域的 cookie
+            const cookieString = await this.getKemonoCookies(kemonoDomain);
             
             // 構建請求 headers
             const headers = {

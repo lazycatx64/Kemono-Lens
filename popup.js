@@ -16,7 +16,17 @@ class PopupSettingsManager {
         this.init();
     }
     
-    init() {
+    getTabQueryUrls() {
+        if (window.KemonoDomainConfig) {
+            return window.KemonoDomainConfig.getTabQueryUrls();
+        }
+        return ['https://kemono.cr/*', 'https://coomer.st/*'];
+    }
+
+    async init() {
+        if (window.KemonoDomainConfig) {
+            await window.KemonoDomainConfig.loadDomains();
+        }
         this.setupEventListeners();
         this.loadSettings();
         this.setupOpenOptionsLink();
@@ -179,7 +189,7 @@ class PopupSettingsManager {
 
     notifySettingsChanged(type, enabled) {
         // 通知內容腳本更新設定
-        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updateVisualSettings',
@@ -193,7 +203,7 @@ class PopupSettingsManager {
 
     notifyPreviewSettingsChanged() {
         // 通知所有相關的標籤頁更新預覽設定
-        chrome.tabs.query({url: ['https://kemono.cr/*', 'https://coomer.st/*']}, (tabs) => {
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updatePreviewSettings',

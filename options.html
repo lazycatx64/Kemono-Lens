@@ -694,7 +694,7 @@
                 </div>
                 <div class="help-text">
                     💡 小提示：
-                    <br>• 可以輸入創作者ID (例如: 5564244) 或完整URL (例如: https://kemono.cr/patreon/user/5564244)
+                    <br>• 可以輸入創作者ID (例如: 5564244) 或完整URL (例如: <span id="blacklist-url-example">https://kemono.cr/patreon/user/5564244</span>)
                     <br>• 輸入完整URL時會自動識別平台類型
                     <br>• 也可以直接在 Kemono 網站上點擊創作者頭像右上角的 ❌ 按鈕來快速添加
                 </div>
@@ -783,8 +783,8 @@
                         <div class="manual-import-steps">
                             <p><strong>手動步驟（由於 API 限制，需要手動操作）：</strong></p>
                             <ol>
-                                <li><strong>登入 Kemono：</strong>確保您已在瀏覽器中登入 <a href="https://kemono.cr" target="_blank">Kemono 網站</a></li>
-                                <li><strong>前往匯出頁面：</strong>訪問 <a href="https://kemono.cr/account/favorites/export" target="_blank">收藏匯出頁面</a></li>
+                                <li><strong>登入 Kemono：</strong>確保您已在瀏覽器中登入 <a id="favorites-kemono-site-link" href="https://kemono.cr" target="_blank">Kemono 網站</a></li>
+                                <li><strong>前往匯出頁面：</strong>訪問 <a id="favorites-kemono-export-link" href="https://kemono.cr/account/favorites/export" target="_blank">收藏匯出頁面</a></li>
                                 <li><strong>產生資料：</strong>點擊頁面上的「Export」按鈕</li>
                                 <li><strong>等待完成：</strong>等待 JSON 資料出現在頁面的文字框中</li>
                                 <li><strong>複製資料：</strong>選取並複製整個 JSON 內容</li>
@@ -869,6 +869,26 @@
                         啟用後，在 /posts 頁面中，被黑名單的創作者文章將完全隱藏，只顯示未被黑名單的項目
                     </div>
                 </div>
+
+                <div class="settings-group">
+                    <h3>🌐 網站網域</h3>
+                    <p class="help-text" style="margin-bottom: 12px;">
+                        Kemono／Coomer 更換網域時可在此修改。儲存非預設網域時，Chrome 會跳出權限確認；拒絕則不會儲存。
+                        儲存成功後請重新整理已開啟的網站分頁。
+                    </p>
+                    <label style="display: block; margin-bottom: 10px;">
+                        Kemono 網域：
+                        <input type="text" id="kemono-domain-input" value="kemono.cr" placeholder="kemono.cr" style="margin-left: 8px; padding: 6px 10px; width: 220px;">
+                    </label>
+                    <label style="display: block; margin-bottom: 12px;">
+                        Coomer 網域：
+                        <input type="text" id="coomer-domain-input" value="coomer.st" placeholder="coomer.st" style="margin-left: 8px; padding: 6px 10px; width: 220px;">
+                    </label>
+                    <button id="save-site-domains-btn" class="import-btn">儲存網域設定</button>
+                    <div class="help-text" style="margin-top: 8px;">
+                        可輸入完整 URL 或純網域，系統會自動正規化（例如 <code>https://kemono.cr/</code> → <code>kemono.cr</code>）
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -948,6 +968,7 @@
     </div>
 
     <!-- 載入所有 JavaScript 模組 -->
+    <script src="js/DomainConfig.js"></script>
     <script src="js/MessageManager.js"></script>
     <script src="js/StatisticsManager.js"></script>
     <script src="js/TabManager.js"></script>
