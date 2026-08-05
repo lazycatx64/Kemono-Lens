@@ -221,8 +221,8 @@ class SettingsManager {
                 previousDomains
             });
 
-            if (syncResult && syncResult.ok === false) {
-                this.messageManager.showError(`網域已儲存，但同步腳本失敗：${syncResult.error || '未知錯誤'}`);
+            if (!syncResult || syncResult.ok === false) {
+                this.messageManager.showError(`網域已儲存，但同步腳本失敗：${(syncResult && syncResult.error) || '未收到背景腳本回應'}`);
                 return;
             }
 
@@ -342,7 +342,7 @@ class SettingsManager {
             console.warn('無法寫入 localStorage:', e);
         }
 
-        this.messageManager.showSuccess('設定已保存');
+        this.messageManager.showSuccess('設定已儲存');
     }
 
     updateUI() {

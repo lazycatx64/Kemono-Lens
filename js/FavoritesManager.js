@@ -64,7 +64,7 @@ class FavoritesManager {
 
     /**
      * 獲取 Kemono 網站的 cookie
-     * @param {string} domain - 域名 (例如: 'kemono.cr' 或 'coomer.st')
+     * @param {string} domain - 網域 (例如: 'kemono.cr' 或 'coomer.st')
      * @returns {Promise<string>} Cookie 字串
      */
     async getKemonoCookies(domain) {

@@ -61,7 +61,7 @@ class BlacklistManager {
             || input.match(/\/(\w+)\/user\/(\d+)(?:\?.*)?(?:#.*)?/);
         if (urlMatch && this.elements.platformSelect) {
             const platform = urlMatch[1];
-            // 自動設置平台選擇器
+            // 自動設定平台選擇器
             this.elements.platformSelect.value = platform;
         }
     }

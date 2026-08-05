@@ -80,7 +80,11 @@
         if (!normalized) {
             return [];
         }
-        return CONTENT_SCRIPT_PATHS.map((path) => `https://${normalized}${path}`);
+        // 同時涵蓋 apex 與 www，與 isMatch 行為一致
+        return CONTENT_SCRIPT_PATHS.flatMap((path) => [
+            `https://${normalized}${path}`,
+            `https://www.${normalized}${path}`
+        ]);
     }
 
     function isDefaultDomain(site, domain) {

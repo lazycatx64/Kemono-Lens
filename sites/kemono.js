@@ -58,16 +58,15 @@ const kemono = {
     
     try {
       const domainPattern = getKemonoDomainPattern();
-      // 匹配格式：{domain}/xx/xx/xxxxx... 或 https://{domain}/xx/xx/xxxxx...
+      // 匹配 apex／www／CDN 子網域上的資料路徑
       const kemonoPattern = new RegExp(
-        `(https?:\\/\\/)?(www\\.)?${domainPattern}\\/([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
+        `(https?:\\/\\/)?(?:[\\w-]+\\.)?${domainPattern}\\/(?:(?:thumbnail\\/)?data\\/)?([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
         'i'
       );
       const match = url.match(kemonoPattern);
       
       if (match) {
-        // 提取路徑部分（xx/xx/xxxxx...）
-        const path = `${match[3]}/${match[4]}/${match[5]}`;
+        const path = `${match[2]}/${match[3]}/${match[4]}`;
         const thumbnailUrl = window.KemonoDomainConfig
           ? window.KemonoDomainConfig.buildImgThumbnailUrl('kemono', path)
           : `https://img.kemono.cr/thumbnail/data/${path}`;
