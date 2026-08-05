@@ -7,16 +7,28 @@ importScripts('js/DomainConfig.js');
 
 const DomainConfig = self.KemonoDomainConfig;
 
+/** 序列化同步，避免 SW 啟動與訊息處理並發註冊造成 Duplicate script ID */
+let syncLock = Promise.resolve();
+
 /**
  * 同步動態 content scripts：僅為非預設網域註冊，避免與靜態 manifest 重複注入
  */
-async function syncContentScripts() {
+function syncContentScripts() {
+    const task = syncLock.then(() => doSyncContentScripts());
+    // 失敗不阻塞後續同步
+    syncLock = task.catch(() => {});
+    return task;
+}
+
+async function doSyncContentScripts() {
     const domains = await DomainConfig.loadDomains();
+    const knownIds = Object.values(DomainConfig.CONTENT_SCRIPT_IDS);
+
+    // 先移除既有自訂腳本（再註冊），避免並發或殘留造成 Duplicate script ID
     const existing = await chrome.scripting.getRegisteredContentScripts();
-    const existingIds = existing.map((script) => script.id);
-    const idsToRemove = Object.values(DomainConfig.CONTENT_SCRIPT_IDS).filter((id) =>
-        existingIds.includes(id)
-    );
+    const idsToRemove = existing
+        .map((script) => script.id)
+        .filter((id) => knownIds.includes(id));
 
     if (idsToRemove.length > 0) {
         await chrome.scripting.unregisterContentScripts({ ids: idsToRemove });
@@ -46,7 +58,17 @@ async function syncContentScripts() {
     }
 
     if (toRegister.length > 0) {
-        await chrome.scripting.registerContentScripts(toRegister);
+        try {
+            await chrome.scripting.registerContentScripts(toRegister);
+        } catch (error) {
+            // 競態殘留時改以 update 覆寫
+            const message = error && error.message ? error.message : String(error);
+            if (message.includes('Duplicate script ID')) {
+                await chrome.scripting.updateContentScripts(toRegister);
+            } else {
+                throw error;
+            }
+        }
     }
 
     return {
