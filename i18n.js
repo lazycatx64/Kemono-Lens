@@ -74,7 +74,16 @@ const translations = {
     'preview_switch_mode': '預覽圖切換方式',
     'preview_max_size': '最大預覽尺寸 (px)',
     'preload_image_count': '預載入圖片數量',
-    'preload_image_count_help': '預先載入接下來的圖片，以便滾輪切換時不用等待'
+    'preload_image_count_help': '預先載入接下來的圖片，以便滾輪切換時不用等待',
+    'preview_control_mode': '預覽觸發控制',
+    'control_hold_to_hide': '懸停即預覽，按著快速鍵暫時停用',
+    'control_hold_to_show': '按著快速鍵並懸停縮圖時才預覽',
+    'preview_control_mode_help': '與下方「預覽圖切換方式」分開；切換圖片的 Alt+滾輪仍固定使用 Alt',
+    'preview_modifier_key': '預覽控制快速鍵',
+    'modifier_alt': 'Alt',
+    'modifier_ctrl': 'Ctrl',
+    'modifier_shift': 'Shift',
+    'preview_modifier_key_help': '若選「懸停即預覽，按著快速鍵暫時停用」且切圖也用 Alt+滾輪，建議將此快速鍵改為 Ctrl 或 Shift，避免衝突'
   },
   
   'en': {

@@ -14,6 +14,8 @@ class SettingsManager {
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
             preloadImageCount: 5,
+            previewControlMode: 'hold_to_hide',
+            previewModifierKey: 'alt',
             // 請求速率限制
             requestRateLimit: 10
         };
@@ -73,6 +75,30 @@ class SettingsManager {
             radio.addEventListener('change', (e) => {
                 if (e.target.checked) {
                     this.settings.previewSwitchMode = e.target.value;
+                    this.saveSettings();
+                    this.notifyPreviewSettingsChanged();
+                }
+            });
+        });
+
+        // 預覽觸發控制
+        const previewControlRadios = document.querySelectorAll('input[name="preview-control-mode"]');
+        previewControlRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.settings.previewControlMode = e.target.value;
+                    this.saveSettings();
+                    this.notifyPreviewSettingsChanged();
+                }
+            });
+        });
+
+        // 預覽控制快速鍵
+        const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
+        previewModifierRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.settings.previewModifierKey = e.target.value;
                     this.saveSettings();
                     this.notifyPreviewSettingsChanged();
                 }
@@ -256,6 +282,8 @@ class SettingsManager {
                         this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                         this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                         this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
+                        this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                        this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                     } catch (e) {
                         // 如果解析失敗，嘗試從 localStorage 讀取
                         try {
@@ -266,6 +294,8 @@ class SettingsManager {
                                 this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                                 this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                                 this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
+                                this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                                this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                             }
                         } catch (e2) {
                             console.error('載入預覽設定失敗:', e2);
@@ -281,6 +311,8 @@ class SettingsManager {
                             this.settings.previewSwitchMode = previewSettings.switchMode || this.settings.previewSwitchMode;
                             this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                             this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
+                            this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                            this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                         }
                     } catch (e) {
                         console.error('載入預覽設定失敗:', e);
@@ -333,7 +365,9 @@ class SettingsManager {
             enabled: this.settings.previewEnabled,
             switchMode: this.settings.previewSwitchMode,
             maxPreviewSize: this.settings.previewMaxSize,
-            preloadImageCount: this.settings.preloadImageCount
+            preloadImageCount: this.settings.preloadImageCount,
+            controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            modifierKey: this.settings.previewModifierKey || 'alt'
         };
         chrome.storage.local.set({ kemono_preview_settings: JSON.stringify(previewSettings) });
         try {
@@ -374,6 +408,16 @@ class SettingsManager {
             radio.checked = radio.value === this.settings.previewSwitchMode;
         });
 
+        const previewControlRadios = document.querySelectorAll('input[name="preview-control-mode"]');
+        previewControlRadios.forEach(radio => {
+            radio.checked = radio.value === (this.settings.previewControlMode || 'hold_to_hide');
+        });
+
+        const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
+        previewModifierRadios.forEach(radio => {
+            radio.checked = radio.value === (this.settings.previewModifierKey || 'alt');
+        });
+
         if (previewMaxSizeInput) {
             previewMaxSizeInput.value = this.settings.previewMaxSize;
         }
@@ -406,21 +450,21 @@ class SettingsManager {
     }
 
     notifyPreviewSettingsChanged() {
+        const previewPayload = {
+            enabled: this.settings.previewEnabled,
+            switchMode: this.settings.previewSwitchMode,
+            maxPreviewSize: this.settings.previewMaxSize,
+            preloadImageCount: this.settings.preloadImageCount,
+            controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            modifierKey: this.settings.previewModifierKey || 'alt'
+        };
+
         // 觸發預覽設定變更事件（供 content script 使用）
         window.dispatchEvent(new CustomEvent('kemonoSettingsChanged', {
             detail: {
                 key: 'preview',
-                value: {
-                    enabled: this.settings.previewEnabled,
-                    switchMode: this.settings.previewSwitchMode,
-                    maxPreviewSize: this.settings.previewMaxSize
-                },
-                settings: {
-                    enabled: this.settings.previewEnabled,
-                    switchMode: this.settings.previewSwitchMode,
-                    maxPreviewSize: this.settings.previewMaxSize,
-                    preloadImageCount: this.settings.preloadImageCount
-                }
+                value: previewPayload,
+                settings: previewPayload
             }
         }));
 
@@ -429,11 +473,7 @@ class SettingsManager {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updatePreviewSettings',
-                    settings: {
-                        enabled: this.settings.previewEnabled,
-                        switchMode: this.settings.previewSwitchMode,
-                        maxPreviewSize: this.settings.previewMaxSize
-                    }
+                    settings: previewPayload
                 }).catch(() => {
                     // 忽略無法發送訊息的標籤頁（例如未載入內容腳本）
                 });

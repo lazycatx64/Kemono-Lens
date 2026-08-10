@@ -9,7 +9,90 @@ const siteManager = window.KemonoSites;
 // 懸停預覽相關變數
 let currSite = window.location.href;
 let currentHoveredElement = null;
-let altKeyPressed = false;
+let modifierKeyPressed = false;
+
+const SCROLL_KEYS = new Set([
+    ' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'PageUp', 'PageDown', 'Home', 'End'
+]);
+
+function getPreviewSettings() {
+    return (window.KemonoSettings && window.KemonoSettings.settings) || {};
+}
+
+function getConfiguredModifierKey() {
+    const key = (getPreviewSettings().modifierKey || 'alt').toLowerCase();
+    if (key === 'ctrl' || key === 'control') return 'ctrl';
+    if (key === 'shift') return 'shift';
+    return 'alt';
+}
+
+function isEventModifierPressed(e) {
+    const key = getConfiguredModifierKey();
+    if (key === 'ctrl') return !!(e.ctrlKey || e.metaKey);
+    if (key === 'shift') return !!e.shiftKey;
+    return !!e.altKey;
+}
+
+function isKeyboardModifierMatch(e) {
+    const key = getConfiguredModifierKey();
+    if (key === 'ctrl') return e.key === 'Control' || e.key === 'Meta';
+    if (key === 'shift') return e.key === 'Shift';
+    return e.key === 'Alt';
+}
+
+function getControlMode() {
+    const mode = getPreviewSettings().controlMode;
+    return mode === 'hold_to_show' ? 'hold_to_show' : 'hold_to_hide';
+}
+
+function shouldCreatePreviewNow() {
+    const settings = getPreviewSettings();
+    if (!settings.enabled) return false;
+    if (getControlMode() === 'hold_to_show') {
+        return modifierKeyPressed;
+    }
+    // hold_to_hide：按著修飾鍵時暫時停用
+    return !modifierKeyPressed;
+}
+
+function isFormFieldFocused(target) {
+    if (!target || !target.tagName) return false;
+    return /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable;
+}
+
+function findTargetImageAtPoint(clientX, clientY, siteHandler) {
+    const elementAtPoint = document.elementFromPoint(clientX, clientY);
+    if (!elementAtPoint || !siteHandler) return null;
+    
+    let targetElement = elementAtPoint;
+    while (targetElement && targetElement !== document.body) {
+        if (targetElement.tagName === 'IMG' && siteHandler.isTargetElement(targetElement)) {
+            return targetElement;
+        }
+        targetElement = targetElement.parentElement;
+    }
+    return null;
+}
+
+function syncHoverTargetFromEvent(e, siteHandler) {
+    const target = findTargetImageAtPoint(e.clientX, e.clientY, siteHandler);
+    currentHoveredElement = target;
+    return target;
+}
+
+function tryCreatePreviewForCurrentHover(e) {
+    if (!currentHoveredElement || !shouldCreatePreviewNow()) return;
+    const siteHandler = siteManager.getHandler(currSite);
+    if (!siteHandler) return;
+    createPreview(currentHoveredElement, siteHandler, e);
+}
+
+function dismissPreviewForControlMode() {
+    if (util && util.removeActivePreview) {
+        util.removeActivePreview();
+    }
+}
 
 // 黑名單和收藏管理器
 class KemonoFriends {
@@ -72,43 +155,70 @@ class KemonoFriends {
 
         // 監聽按鍵事件
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Alt') {
-                altKeyPressed = true;
+            if (isKeyboardModifierMatch(e)) {
+                const wasPressed = modifierKeyPressed;
+                modifierKeyPressed = true;
+                
+                if (!wasPressed) {
+                    if (getControlMode() === 'hold_to_show') {
+                        tryCreatePreviewForCurrentHover(e);
+                    } else if (getControlMode() === 'hold_to_hide') {
+                        dismissPreviewForControlMode();
+                    }
+                }
+            }
+            
+            const preview = util && util.getActivePreview ? util.getActivePreview() : null;
+            if (preview && !isFormFieldFocused(e.target) && SCROLL_KEYS.has(e.key)) {
+                e.preventDefault();
             }
             
             // 處理方向鍵導航
             if (window.KemonoSettings && window.KemonoSettings.settings && 
                 window.KemonoSettings.settings.switchMode === 'keyboard' && 
                 (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                if (!util || !util.getActivePreview) return;
-                const preview = util.getActivePreview();
-                if (preview && util.isLoadingImages && !util.isLoadingImages()) {
-                    e.preventDefault();
-                    const direction = e.key === 'ArrowRight' ? 1 : -1;
-                    
-                    // 如果有貼文圖片則導航，否則載入圖片
-                    if (util._relatedImages && util._relatedImages.length > 0 && util.navigateImages) {
-                        util.navigateImages(direction);
-                    } else if (currentHoveredElement) {
-                        const siteHandler = siteManager.getHandler(currSite);
-                        const postUrl = siteHandler && siteHandler.getPostUrl ? siteHandler.getPostUrl(currentHoveredElement) : null;
-                        if (postUrl) {
-                            util.loadPostImagesAsync(postUrl, siteHandler);
-                        }
+                if (!preview) return;
+                if (util.isLoadingImages && util.isLoadingImages()) return;
+                
+                const direction = e.key === 'ArrowRight' ? 1 : -1;
+                
+                // 如果有貼文圖片則導航，否則載入圖片
+                if (util._relatedImages && util._relatedImages.length > 0 && util.navigateImages) {
+                    util.navigateImages(direction);
+                } else if (currentHoveredElement) {
+                    const siteHandler = siteManager.getHandler(currSite);
+                    const postUrl = siteHandler && siteHandler.getPostUrl ? siteHandler.getPostUrl(currentHoveredElement) : null;
+                    if (postUrl) {
+                        util.loadPostImagesAsync(postUrl, siteHandler);
                     }
                 }
             }
-        });
+        }, true);
 
         document.addEventListener('keyup', function(e) {
-            if (e.key === 'Alt') {
-                altKeyPressed = false;
+            if (isKeyboardModifierMatch(e)) {
+                modifierKeyPressed = false;
+                
+                if (getControlMode() === 'hold_to_show') {
+                    dismissPreviewForControlMode();
+                } else if (getControlMode() === 'hold_to_hide') {
+                    tryCreatePreviewForCurrentHover(e);
+                }
             }
-        });
+        }, true);
 
         // 頁面失去焦點時重置按鍵狀態
         window.addEventListener('blur', function() {
-            altKeyPressed = false;
+            const wasPressed = modifierKeyPressed;
+            modifierKeyPressed = false;
+            if (wasPressed) {
+                if (getControlMode() === 'hold_to_show') {
+                    dismissPreviewForControlMode();
+                } else if (getControlMode() === 'hold_to_hide' && currentHoveredElement) {
+                    const pos = util && util._lastMousePos ? util._lastMousePos : null;
+                    tryCreatePreviewForCurrentHover(pos || { clientX: 0, clientY: 0 });
+                }
+            }
         });
 
         // 監聽點擊事件，當點擊貼文連結時立即清除預覽圖
@@ -162,124 +272,116 @@ class KemonoFriends {
                 return;
             }
             
+            // 同步修飾鍵狀態（較穩）
+            modifierKeyPressed = isEventModifierPressed(e);
+            
             // 檢查是否為可預覽的目標元素
             if (siteHandler.isTargetElement(target)) {
-                // 處理預覽
                 currentHoveredElement = target;
-                createPreview(target, siteHandler, e);
+                if (shouldCreatePreviewNow()) {
+                    createPreview(target, siteHandler, e);
+                }
             }
         });
 
         // 滾輪事件節流變數
         let lastWheelTime = 0;
-        let wheelThrottleDelay = 50; // 最小間隔50ms，最多每秒20次切換
+        const wheelThrottleDelay = 50; // 最小間隔50ms，最多每秒20次切換
         
-        // 使用事件委派處理所有 wheel 事件
+        // 預覽期間一律擋捲動；再依 switchMode 決定是否切圖
         document.addEventListener('wheel', function(e) {
-            if (!window.KemonoSettings || !window.KemonoSettings.settings) return;
-            const settings = window.KemonoSettings.settings;
-            if (!settings.enabled) return;
-            
-            // 檢查切換模式
-            const shouldHandle = 
-                (settings.switchMode === 'scroll') ||
-                (settings.switchMode === 'alt_scroll' && altKeyPressed);
-            
-            if (!shouldHandle || !currentHoveredElement) return;
-            
             if (!util || !util.getActivePreview) return;
             const preview = util.getActivePreview();
             if (!preview) return;
             
-            // 檢查是否有任何圖片正在載入（包括 API 載入和單個圖片載入）
-            // 如果正在載入，阻止頁面滾動但不處理切換
+            // 預覽期間一律擋頁面捲動（含 Ctrl+滾輪縮放、節流期間）
+            e.preventDefault();
+            
+            if (!window.KemonoSettings || !window.KemonoSettings.settings) return;
+            const settings = window.KemonoSettings.settings;
+            if (!settings.enabled) return;
+            
+            const switchModifierPressed = settings.switchMode === 'alt_scroll'
+                ? !!e.altKey
+                : modifierKeyPressed;
+            
+            // 檢查切換模式
+            const shouldNavigate = 
+                (settings.switchMode === 'scroll') ||
+                (settings.switchMode === 'alt_scroll' && switchModifierPressed);
+            
+            if (!shouldNavigate || !currentHoveredElement) return;
+            
+            // 檢查是否有任何圖片正在載入
             if (util.isAnyImageLoading && util.isAnyImageLoading()) {
-                e.preventDefault();
                 return;
             }
             
-            // 節流處理：限制切換頻率
+            // 節流處理：限制切換頻率（已 preventDefault，不會漏放行捲動）
             const now = Date.now();
             if (now - lastWheelTime < wheelThrottleDelay) {
-                return; // 忽略過於頻繁的滾輪事件
+                return;
             }
             lastWheelTime = now;
             
-            e.preventDefault();
             const siteHandler = siteManager.getHandler(currSite);
             if (!siteHandler || !currentHoveredElement) return;
             
             const postUrl = siteHandler.getPostUrl ? siteHandler.getPostUrl(currentHoveredElement) : null;
             
             if (postUrl && !util.isLoadingImages()) {
-                // 檢查是否有任何可切換的圖片
                 const hasImages = util._relatedImages.length > 0 || util._coverImage;
                 
                 if (!hasImages) {
-                    // 如果還沒有圖片數據，觸發 API 讀取
                     logger.log('Wheel event triggered post images loading');
                     util.loadPostImagesAsync(postUrl, siteHandler);
                 } else {
-                    // 已有圖片數據，直接切換
                     logger.log('Wheel event triggered image navigation, direction:', e.deltaY > 0 ? 'down' : 'up');
                     util.navigateImages(e.deltaY > 0 ? 1 : -1);
                 }
             }
-        }, { passive: false });
+        }, { passive: false, capture: true });
 
-        // 處理鼠標移動，更新預覽位置並檢測離開
+        // 處理鼠標移動：更新懸停狀態（與預覽顯示解耦）並更新預覽位置
         document.addEventListener('mousemove', function(e) {
-            if (!util || !util.getActivePreview) return;
+            currSite = window.location.href;
+            modifierKeyPressed = isEventModifierPressed(e);
             
-            const activePreview = util.getActivePreview();
-            if (!activePreview) return;
+            const siteHandler = siteManager.getHandler(currSite);
+            if (!siteHandler || !siteHandler.isPostsDirectory || !siteHandler.isPostsDirectory(currSite)) {
+                return;
+            }
             
-            // 始終更新預覽位置，不論游標位於何處
-            if (util.updatePreviewPosition) {
+            const activePreview = util && util.getActivePreview ? util.getActivePreview() : null;
+            const isOverPreview = activePreview && util.isMouseOverPreview
+                ? util.isMouseOverPreview(e)
+                : false;
+            
+            // 有預覽時更新位置
+            if (activePreview && util.updatePreviewPosition) {
                 util.updatePreviewPosition(e);
             }
             
-            // 檢查游標是否在預覽圖上
-            const isOverPreview = util.isMouseOverPreview ? util.isMouseOverPreview(e) : false;
+            // 游標在預覽幾何範圍時，不更新離開偵測（避免誤關）
+            if (isOverPreview) {
+                return;
+            }
             
-            // 獲取當前游標下的元素
-            const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
-            if (!elementAtPoint) return;
+            const previousHovered = currentHoveredElement;
+            const target = syncHoverTargetFromEvent(e, siteHandler);
             
-            // 獲取處理模組
-            const siteHandler = siteManager.getHandler(currSite);
-            if (!siteHandler) return;
-            
-            // 只有當游標不在預覽圖上時，才檢查是否需要關閉預覽
-            if (!isOverPreview) {
-                // 檢查游標是否在目標元素或其祖先上
-                let targetElement = elementAtPoint;
-                let isOverTarget = false;
-                
-                // 檢查元素本身及其所有父元素
-                while (targetElement && targetElement !== document.body) {
-                    // 如果是圖片元素並且是目標元素
-                    if (targetElement.tagName === 'IMG' && siteHandler.isTargetElement(targetElement)) {
-                        isOverTarget = true;
-                        // 如果游標移動到新的目標元素上，更新當前懸停元素並創建新的預覽
-                        if (targetElement !== currentHoveredElement) {
-                            currentHoveredElement = targetElement;
-                            createPreview(targetElement, siteHandler, e);
-                        }
-                        break;
+            if (target) {
+                if (shouldCreatePreviewNow()) {
+                    if (!activePreview || target !== previousHovered) {
+                        createPreview(target, siteHandler, e);
                     }
-                    // 向上一級
-                    targetElement = targetElement.parentElement;
+                } else if (activePreview) {
+                    dismissPreviewForControlMode();
                 }
-                
-                // 如果不在目標元素或預覽上，關閉預覽
-                if (!isOverTarget) {
-                    if (util && util.removeActivePreview) {
-                        if (util && util.removeActivePreview) {
-            util.removeActivePreview();
-        }
-                    }
-                    currentHoveredElement = null;
+            } else {
+                currentHoveredElement = null;
+                if (activePreview) {
+                    dismissPreviewForControlMode();
                 }
             }
         });
@@ -556,11 +658,22 @@ class KemonoFriends {
             window.KemonoSettings.settings.switchMode = newSettings.switchMode;
             window.KemonoSettings.settings.maxPreviewSize = newSettings.maxPreviewSize;
             window.KemonoSettings.settings.preloadImageCount = newSettings.preloadImageCount || 5;
+            if (newSettings.controlMode !== undefined) {
+                window.KemonoSettings.settings.controlMode = newSettings.controlMode;
+            }
+            if (newSettings.modifierKey !== undefined) {
+                window.KemonoSettings.settings.modifierKey = newSettings.modifierKey;
+            }
             window.KemonoSettings.saveSettings();
         }
         
         // 如果預覽被停用，移除當前預覽
         if (!newSettings.enabled && util && util.removeActivePreview) {
+            util.removeActivePreview();
+        }
+        
+        // 控制模式變更時依新規則調整目前預覽
+        if (newSettings.enabled && !shouldCreatePreviewNow() && util && util.removeActivePreview) {
             util.removeActivePreview();
         }
     }
@@ -604,6 +717,10 @@ class KemonoFriends {
  */
 function createPreview(target, siteHandler, event) {
     if (!window.KemonoSettings || !window.KemonoSettings.settings || !window.KemonoSettings.settings.enabled) {
+        return;
+    }
+    
+    if (!shouldCreatePreviewNow()) {
         return;
     }
     

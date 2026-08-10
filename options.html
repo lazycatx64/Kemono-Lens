@@ -911,6 +911,44 @@
                 </div>
 
                 <div class="settings-group">
+                    <h3>🎛️ 預覽觸發控制</h3>
+                    <div style="margin-left: 20px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-control-mode" value="hold_to_hide" checked style="margin-right: 8px;">
+                            <span>懸停即預覽，按著快速鍵暫時停用</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-control-mode" value="hold_to_show" style="margin-right: 8px;">
+                            <span>按著快速鍵並懸停縮圖時才預覽</span>
+                        </label>
+                    </div>
+                    <div class="help-text">
+                        與下方「切換模式」分開；切換圖片的 Alt+滾輪仍固定使用 Alt
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>⌨️ 預覽控制快速鍵</h3>
+                    <div style="margin-left: 20px;">
+                        <label style="display: inline-block; margin-right: 16px; cursor: pointer;">
+                            <input type="radio" name="preview-modifier-key" value="alt" checked style="margin-right: 6px;">
+                            <span>Alt</span>
+                        </label>
+                        <label style="display: inline-block; margin-right: 16px; cursor: pointer;">
+                            <input type="radio" name="preview-modifier-key" value="ctrl" style="margin-right: 6px;">
+                            <span>Ctrl</span>
+                        </label>
+                        <label style="display: inline-block; margin-right: 16px; cursor: pointer;">
+                            <input type="radio" name="preview-modifier-key" value="shift" style="margin-right: 6px;">
+                            <span>Shift</span>
+                        </label>
+                    </div>
+                    <div class="help-text">
+                        若選「懸停即預覽，按著快速鍵暫時停用」且切圖也用 Alt+滾輪，建議將此快速鍵改為 Ctrl 或 Shift，避免衝突
+                    </div>
+                </div>
+
+                <div class="settings-group">
                     <h3>🔄 切換模式</h3>
                     <div style="margin-left: 20px;">
                         <label style="display: block; margin-bottom: 10px; cursor: pointer;">

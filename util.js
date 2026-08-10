@@ -14,7 +14,129 @@ window.KemonoUtil = window.KemonoUtil || {
     _resizeObserver: null, // ResizeObserver 用於監聽尺寸變化
     _preloadedImages: new Map(), // 預載入的圖片快取，key 為圖片 URL，value 為 Image 物件
     _nonImageCount: 0, // 非圖片數量
-    _lastMouseEvent: null, // 最後一次游標位置，用於圖片切換時重新計算位置
+    _lastMousePos: null, // 最後一次游標座標 { clientX, clientY }
+    _placementQuadrant: null, // 整輪預覽鎖定的放置方向：bottom-right / bottom-left / top-right / top-left
+    _knownPreviewSize: null, // 已知外框尺寸 { width, height }，切圖時優先使用
+    _positionRafId: null,
+    
+    getMaxPreviewSize: function() {
+        let maxSize = 600;
+        if (window.KemonoSettings && window.KemonoSettings.settings) {
+            maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
+        }
+        if (maxSize === 600) {
+            try {
+                const localSettings = localStorage.getItem('kemono_preview_settings');
+                if (localSettings) {
+                    const previewSettings = JSON.parse(localSettings);
+                    if (previewSettings.maxPreviewSize) {
+                        maxSize = previewSettings.maxPreviewSize;
+                    }
+                }
+            } catch (e) {
+                // 忽略錯誤
+            }
+        }
+        return maxSize;
+    },
+    
+    getPreviewChromeMetrics: function(preview) {
+        const el = preview || this._activePreview;
+        if (!el) {
+            return { paddingX: 10, paddingY: 10, borderX: 4, borderY: 4, statusHeight: 29 };
+        }
+        const style = window.getComputedStyle(el);
+        const paddingX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        const paddingY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+        const borderX = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+        const borderY = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+        const statusDiv = el.querySelector('.kemono-preview-status');
+        let statusHeight = 29;
+        if (statusDiv) {
+            const statusStyle = window.getComputedStyle(statusDiv);
+            const measured = statusDiv.offsetHeight;
+            const marginBottom = parseFloat(statusStyle.marginBottom) || 0;
+            statusHeight = (measured > 0 ? measured : 25) + marginBottom;
+        }
+        return { paddingX, paddingY, borderX, borderY, statusHeight };
+    },
+    
+    computeFittedImageSize: function(naturalWidth, naturalHeight, preview) {
+        const maxSize = this.getMaxPreviewSize();
+        const margin = 5;
+        const chrome = this.getPreviewChromeMetrics(preview);
+        const availWidth = Math.max(50, window.innerWidth - margin * 2 - chrome.paddingX - chrome.borderX);
+        const availHeight = Math.max(
+            50,
+            window.innerHeight - margin * 2 - chrome.paddingY - chrome.borderY - chrome.statusHeight
+        );
+        const maxWidth = Math.min(maxSize, availWidth);
+        const maxHeight = Math.min(maxSize, availHeight);
+        
+        let scale = 1;
+        if (naturalWidth > 0 && naturalWidth > maxWidth) {
+            scale = Math.min(scale, maxWidth / naturalWidth);
+        }
+        if (naturalHeight > 0 && naturalHeight > maxHeight) {
+            scale = Math.min(scale, maxHeight / naturalHeight);
+        }
+        
+        const targetWidth = Math.max(1, naturalWidth * scale);
+        const targetHeight = Math.max(1, naturalHeight * scale);
+        const containerWidth = targetWidth + chrome.paddingX + chrome.borderX;
+        const containerHeight = targetHeight + chrome.paddingY + chrome.borderY + chrome.statusHeight;
+        
+        return {
+            targetWidth,
+            targetHeight,
+            containerWidth,
+            containerHeight,
+            maxSize,
+            chrome
+        };
+    },
+    
+    applyFittedImageSize: function(imgElement, naturalWidth, naturalHeight) {
+        if (!this._activePreview || !imgElement) return null;
+        
+        const fitted = this.computeFittedImageSize(naturalWidth, naturalHeight, this._activePreview);
+        imgElement.style.setProperty('width', `${fitted.targetWidth}px`, 'important');
+        imgElement.style.setProperty('height', `${fitted.targetHeight}px`, 'important');
+        
+        this._activePreview.style.setProperty('max-width', `${fitted.containerWidth}px`, 'important');
+        this._activePreview.style.setProperty('max-height', `${fitted.containerHeight}px`, 'important');
+        this._activePreview.style.setProperty('width', `${fitted.containerWidth}px`, 'important');
+        
+        this._knownPreviewSize = {
+            width: fitted.containerWidth,
+            height: fitted.containerHeight
+        };
+        
+        return fitted;
+    },
+    
+    saveMousePos: function(event) {
+        if (!event || typeof event.clientX !== 'number') return;
+        this._lastMousePos = {
+            clientX: event.clientX,
+            clientY: event.clientY
+        };
+    },
+    
+    schedulePositionUpdate: function(event) {
+        if (event) {
+            this.saveMousePos(event);
+        }
+        if (this._positionRafId) {
+            cancelAnimationFrame(this._positionRafId);
+        }
+        this._positionRafId = requestAnimationFrame(() => {
+            this._positionRafId = requestAnimationFrame(() => {
+                this._positionRafId = null;
+                this.positionPreviewAtCursor(this._lastMousePos);
+            });
+        });
+    },
     
     createImagePreviewWithAPI: function(imageSrc, mouseEvent, postUrl, siteHandler) {
         // 檢查是否啟用
@@ -57,24 +179,12 @@ window.KemonoUtil = window.KemonoUtil || {
             this.removeActivePreview();
         }
         
-        // 讀取設定值
-        let maxSize = 600;
-        if (window.KemonoSettings && window.KemonoSettings.settings) {
-            maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-        }
-        if (maxSize === 600) {
-            try {
-                const localSettings = localStorage.getItem('kemono_preview_settings');
-                if (localSettings) {
-                    const previewSettings = JSON.parse(localSettings);
-                    if (previewSettings.maxPreviewSize) {
-                        maxSize = previewSettings.maxPreviewSize;
-                    }
-                }
-            } catch (e) {
-                // 忽略錯誤
-            }
-        }
+        // 新預覽：重置放置方向
+        this._placementQuadrant = null;
+        this._knownPreviewSize = null;
+        this.saveMousePos(mouseEvent);
+        
+        const maxSize = this.getMaxPreviewSize();
         
         const preview = document.createElement('div');
         preview.id = 'image-preview';
@@ -84,71 +194,19 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.style.setProperty('box-sizing', 'border-box', 'important');
         preview.style.setProperty('margin', '0', 'important');
         
-        const img = document.createElement('img');
-        img.style.setProperty('max-width', '100%', 'important');
-        img.style.setProperty('max-height', '100%', 'important');
-        img.style.setProperty('display', 'block', 'important');
-        img.style.setProperty('object-fit', 'contain', 'important');
-        
-        // 創建狀態顯示區域
+        // 狀態列在上（文件流）
         const statusDiv = document.createElement('div');
         statusDiv.className = 'kemono-preview-status';
         statusDiv.textContent = window.KemonoI18n.t('loading_post_images');
         
+        const img = document.createElement('img');
+        img.style.setProperty('max-width', '100%', 'important');
+        img.style.setProperty('display', 'block', 'important');
+        img.style.setProperty('object-fit', 'contain', 'important');
+        
         img.onload = () => {
-            // 重新讀取設定值
-            let currentMaxSize = 600;
-            if (window.KemonoSettings && window.KemonoSettings.settings) {
-                currentMaxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-            }
-            if (currentMaxSize === 600) {
-                try {
-                    const localSettings = localStorage.getItem('kemono_preview_settings');
-                    if (localSettings) {
-                        const previewSettings = JSON.parse(localSettings);
-                        if (previewSettings.maxPreviewSize) {
-                            currentMaxSize = previewSettings.maxPreviewSize;
-                        }
-                    }
-                } catch (e) {
-                    // 忽略錯誤
-                }
-            }
-            
-            const naturalWidth = img.naturalWidth;
-            const naturalHeight = img.naturalHeight;
-            
-            // 計算縮放比例（同時考慮寬度和高度限制）
-            let scale = 1;
-            if (naturalWidth > currentMaxSize) {
-                scale = Math.min(scale, currentMaxSize / naturalWidth);
-            }
-            if (naturalHeight > currentMaxSize) {
-                scale = Math.min(scale, currentMaxSize / naturalHeight);
-            }
-            
-            // 計算目標尺寸
-            const targetWidth = naturalWidth * scale;
-            const targetHeight = naturalHeight * scale;
-            
-            // 計算容器最大寬度（考慮 padding 和 border）
-            const containerPadding = 5 * 2;
-            const containerBorder = 2 * 2;
-            const containerMaxWidth = currentMaxSize + containerPadding + containerBorder;
-            
-            // 計算容器最大高度（考慮狀態欄在容器上方）
-            const statusBarHeight = 25;
-            const containerMaxHeight = currentMaxSize + statusBarHeight;
-            
-            // 設定容器尺寸
-            preview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
-            preview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
-            
-            // 設定圖片尺寸（直接設定寬度，不設動畫）
-            img.style.setProperty('width', `${targetWidth}px`, 'important');
-            img.style.setProperty('height', `${targetHeight}px`, 'important');
-            
-            this.positionPreviewAtCursor(mouseEvent);
+            this.applyFittedImageSize(img, img.naturalWidth, img.naturalHeight);
+            this.schedulePositionUpdate(mouseEvent);
             preview.style.visibility = 'visible';
             this._previewReady = true;
         };
@@ -174,8 +232,8 @@ window.KemonoUtil = window.KemonoUtil || {
             }
         }, 300);
         
-        preview.appendChild(img);
         preview.appendChild(statusDiv);
+        preview.appendChild(img);
         document.body.appendChild(preview);
         this._activePreview = preview;
         
@@ -207,6 +265,8 @@ window.KemonoUtil = window.KemonoUtil || {
         preview.appendChild(loadingText);
         document.body.appendChild(preview);
         this._activePreview = preview;
+        this._placementQuadrant = null;
+        this._knownPreviewSize = null;
         
         this.positionPreviewAtCursor(mouseEvent);
         
@@ -349,6 +409,12 @@ window.KemonoUtil = window.KemonoUtil || {
         const statusDiv = this._activePreview.querySelector('.kemono-preview-status');
         if (statusDiv) {
             statusDiv.textContent = statusText;
+            // 狀態列高度可能因換行改變，重新套用尺寸
+            const img = this._activePreview.querySelector('img');
+            if (img && img.naturalWidth) {
+                this.applyFittedImageSize(img, img.naturalWidth, img.naturalHeight);
+                this.schedulePositionUpdate();
+            }
         }
     },
     
@@ -748,76 +814,22 @@ window.KemonoUtil = window.KemonoUtil || {
         this._isLoadingSingleImage = true;
         this.updatePreviewStatus(window.KemonoI18n.t('loading'));
         
+        const applyLoadedImage = (newImg) => {
+            this._isLoadingSingleImage = false;
+            imgElement.src = newSrc;
+            this.applyFittedImageSize(imgElement, newImg.naturalWidth, newImg.naturalHeight);
+            this.updatePreviewStatus(statusText);
+            this.schedulePositionUpdate();
+            setTimeout(() => {
+                this.preloadNextImages();
+            }, 100);
+        };
+        
         // 使用請求排隊系統載入圖片
         if (window.KemonoRequestQueue) {
             window.KemonoRequestQueue.loadImage(newSrc)
                 .then((newImg) => {
-                    // 標記載入完成
-                    this._isLoadingSingleImage = false;
-                    // 重新讀取設定值並計算尺寸
-                    let maxSize = 600;
-                    if (window.KemonoSettings && window.KemonoSettings.settings) {
-                        maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-                    }
-                    if (maxSize === 600) {
-                        try {
-                            const localSettings = localStorage.getItem('kemono_preview_settings');
-                            if (localSettings) {
-                                const previewSettings = JSON.parse(localSettings);
-                                if (previewSettings.maxPreviewSize) {
-                                    maxSize = previewSettings.maxPreviewSize;
-                                }
-                            }
-                        } catch (e) {
-                            // 忽略錯誤
-                        }
-                    }
-                    
-                    // 計算縮放比例（同時考慮寬度和高度限制）
-                    const naturalWidth = newImg.naturalWidth;
-                    const naturalHeight = newImg.naturalHeight;
-                    let scale = 1;
-                    if (naturalWidth > maxSize) {
-                        scale = Math.min(scale, maxSize / naturalWidth);
-                    }
-                    if (naturalHeight > maxSize) {
-                        scale = Math.min(scale, maxSize / naturalHeight);
-                    }
-                    
-                    const targetWidth = naturalWidth * scale;
-                    const targetHeight = naturalHeight * scale;
-                    
-                    // 更新圖片（直接設定尺寸，不設動畫）
-                    imgElement.src = newSrc;
-                    imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
-                    imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
-                    
-                    // 更新容器尺寸
-                    if (this._activePreview) {
-                        const containerPadding = 5 * 2;
-                        const containerBorder = 2 * 2;
-                        const statusBarHeight = 25;
-                        const containerMaxWidth = maxSize + containerPadding + containerBorder;
-                        const containerMaxHeight = maxSize + statusBarHeight;
-                        this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
-                        this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
-                    }
-                    
-                    this.updatePreviewStatus(statusText);
-                    
-                    // 圖片尺寸更新後，重新計算預覽圖位置
-                    // 使用保存的最後一次游標位置
-                    if (this._lastMouseEvent) {
-                        // 等待 DOM 更新後再重新計算位置
-                        setTimeout(() => {
-                            this.positionPreviewAtCursor(this._lastMouseEvent);
-                        }, 0);
-                    }
-                    
-                    // 載入完成後，繼續預載入接下來的圖片
-                    setTimeout(() => {
-                        this.preloadNextImages();
-                    }, 100);
+                    applyLoadedImage(newImg);
                 })
                 .catch((error) => {
                     // 標記載入完成（即使失敗也要清除標記）
@@ -832,72 +844,7 @@ window.KemonoUtil = window.KemonoUtil || {
             const newImg = new Image();
             
             newImg.onload = () => {
-                // 標記載入完成
-                this._isLoadingSingleImage = false;
-                // 重新讀取設定值並計算尺寸
-                let maxSize = 600;
-                if (window.KemonoSettings && window.KemonoSettings.settings) {
-                    maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-                }
-                if (maxSize === 600) {
-                    try {
-                        const localSettings = localStorage.getItem('kemono_preview_settings');
-                        if (localSettings) {
-                            const previewSettings = JSON.parse(localSettings);
-                            if (previewSettings.maxPreviewSize) {
-                                maxSize = previewSettings.maxPreviewSize;
-                            }
-                        }
-                    } catch (e) {
-                        // 忽略錯誤
-                    }
-                }
-                
-                // 計算縮放比例（同時考慮寬度和高度限制）
-                const naturalWidth = newImg.naturalWidth;
-                const naturalHeight = newImg.naturalHeight;
-                let scale = 1;
-                if (naturalWidth > maxSize) {
-                    scale = Math.min(scale, maxSize / naturalWidth);
-                }
-                if (naturalHeight > maxSize) {
-                    scale = Math.min(scale, maxSize / naturalHeight);
-                }
-                
-                const targetWidth = naturalWidth * scale;
-                const targetHeight = naturalHeight * scale;
-                
-                // 更新圖片（直接設定尺寸，不設動畫）
-                imgElement.src = newSrc;
-                imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
-                imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
-                
-                // 更新容器尺寸
-                if (this._activePreview) {
-                    const containerPadding = 5 * 2;
-                    const containerBorder = 2 * 2;
-                    const statusBarHeight = 25;
-                    const containerMaxWidth = maxSize + containerPadding + containerBorder;
-                    const containerMaxHeight = maxSize + statusBarHeight;
-                    this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
-                    this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
-                }
-                
-                this.updatePreviewStatus(statusText);
-                
-                // 圖片尺寸更新後，重新計算預覽圖位置
-                // 使用保存的最後一次游標位置
-                if (this._lastMouseEvent) {
-                    // 等待 DOM 更新後再重新計算位置
-                    setTimeout(() => {
-                        this.positionPreviewAtCursor(this._lastMouseEvent);
-                    }, 0);
-                }
-                
-                // 載入完成後，繼續預載入接下來的圖片
-                setTimeout(() => {
-                    this.preloadNextImages();
-                }, 100);
+                applyLoadedImage(newImg);
             };
             
             newImg.onerror = () => {
@@ -912,84 +859,26 @@ window.KemonoUtil = window.KemonoUtil || {
     
     // 從預載入的圖片更新顯示
     updateImageFromPreloaded: function(imgElement, preloadedImg, statusText) {
-        // 重新讀取設定值並計算尺寸
-        let maxSize = 600;
-        if (window.KemonoSettings && window.KemonoSettings.settings) {
-            maxSize = window.KemonoSettings.settings.maxPreviewSize || 600;
-        }
-        if (maxSize === 600) {
-            try {
-                const localSettings = localStorage.getItem('kemono_preview_settings');
-                if (localSettings) {
-                    const previewSettings = JSON.parse(localSettings);
-                    if (previewSettings.maxPreviewSize) {
-                        maxSize = previewSettings.maxPreviewSize;
-                    }
-                }
-            } catch (e) {
-                // 忽略錯誤
-            }
-        }
-        
-        // 計算縮放比例
-        const naturalWidth = preloadedImg.naturalWidth;
-        const naturalHeight = preloadedImg.naturalHeight;
-        let scale = 1;
-        if (naturalWidth > maxSize) {
-            scale = Math.min(scale, maxSize / naturalWidth);
-        }
-        if (naturalHeight > maxSize) {
-            scale = Math.min(scale, maxSize / naturalHeight);
-        }
-        
-        const targetWidth = naturalWidth * scale;
-        const targetHeight = naturalHeight * scale;
-        
-        // 更新圖片（直接設定尺寸，不設動畫）
         imgElement.src = preloadedImg.src;
-        imgElement.style.setProperty('width', `${targetWidth}px`, 'important');
-        imgElement.style.setProperty('height', `${targetHeight}px`, 'important');
-        
-        // 更新容器尺寸
-        if (this._activePreview) {
-            const containerPadding = 5 * 2;
-            const containerBorder = 2 * 2;
-            const statusBarHeight = 25;
-            const containerMaxWidth = maxSize + containerPadding + containerBorder;
-            const containerMaxHeight = maxSize + statusBarHeight;
-            this._activePreview.style.setProperty('max-width', `${containerMaxWidth}px`, 'important');
-            this._activePreview.style.setProperty('max-height', `${containerMaxHeight}px`, 'important');
-        }
-        
+        this.applyFittedImageSize(imgElement, preloadedImg.naturalWidth, preloadedImg.naturalHeight);
         this.updatePreviewStatus(statusText);
-        
-        // 圖片尺寸更新後，重新計算預覽圖位置
-        // 使用保存的最後一次游標位置
-        if (this._lastMouseEvent) {
-            // 等待 DOM 更新後再重新計算位置
-            setTimeout(() => {
-                this.positionPreviewAtCursor(this._lastMouseEvent);
-            }, 0);
-        }
-    },    positionPreviewAtCursor: function(event) {
+        this.schedulePositionUpdate();
+    },
+    
+    positionPreviewAtCursor: function(event) {
         if (!this._activePreview) return;
         
-        // 如果沒有提供 event，使用保存的最後一次游標位置
-        if (!event && this._lastMouseEvent) {
-            event = this._lastMouseEvent;
+        if (event && typeof event.clientX === 'number') {
+            this.saveMousePos(event);
         }
         
-        if (!event) return;
-        
-        // 保存游標位置，以便圖片切換時重新計算位置
-        this._lastMouseEvent = event;
+        const pos = this._lastMousePos;
+        if (!pos) return;
         
         const preview = this._activePreview;
         
         // 確保預覽圖使用 fixed 定位（相對於視窗）
-        if (preview.style.position !== 'fixed') {
-            preview.style.position = 'fixed';
-        }
+        preview.style.position = 'fixed';
         
         // 確保預覽圖可見以獲取正確的尺寸
         if (preview.style.visibility === 'hidden') {
@@ -997,117 +886,91 @@ window.KemonoUtil = window.KemonoUtil || {
             preview.style.opacity = '0';
         }
         
-        // 獲取視窗尺寸（相對於目前顯示畫面範圍）
         const viewport = {
             width: window.innerWidth,
             height: window.innerHeight
         };
         
-        // 獲取預覽圖尺寸（包含狀態欄和 padding、border）
-        // getBoundingClientRect() 對於 position: fixed 的元素，返回的座標是相對於視窗的
-        // 為了確保能正確獲取尺寸，先強制重新計算佈局
-        const previewRect = preview.getBoundingClientRect();
-        let previewWidth = previewRect.width || 300;
-        let previewHeight = previewRect.height || 200;
-        
-        // 如果尺寸為 0 或異常，使用備用值並強制重新計算
-        if (previewWidth <= 0 || previewHeight <= 0) {
-            // 強制重新計算佈局
-            preview.offsetHeight; // 觸發重新計算
-            const rect = preview.getBoundingClientRect();
-            previewWidth = rect.width || 300;
-            previewHeight = rect.height || 200;
-        }
-        
-        // 邊距設定
-        const margin = 5;
-        const horizontalOffset = 20; // 游標右側偏移量
-        const verticalOffset = 10; // 游標下方偏移量，確保游標不在預覽圖範圍內
-        
-        // 游標位置（相對於視窗）
-        const cursorX = event.clientX;
-        const cursorY = event.clientY;
-        
-        // 先獲取預覽圖尺寸，然後根據尺寸計算相對位置
-        let left, top;
-        
-        // 檢查是否會超出右邊界和下邊界
-        const wouldExceedRight = cursorX + horizontalOffset + previewWidth > viewport.width - margin;
-        const wouldExceedBottom = cursorY + verticalOffset + previewHeight > viewport.height - margin;
-        
-        if (wouldExceedRight && wouldExceedBottom) {
-            // 同時太靠近右側和下方邊界：預覽圖顯示在游標左上
-            // 預覽圖右下角對齊游標左上，所以預覽圖左上角 = 游標位置 - 預覽圖尺寸 - 偏移
-            left = cursorX - previewWidth - horizontalOffset;
-            top = cursorY - previewHeight - verticalOffset;
-        } else if (wouldExceedRight) {
-            // 太靠近右側邊界：預覽圖顯示在游標左下
-            // 預覽圖右上角對齊游標左側，所以預覽圖左上角 = 游標X - 預覽圖寬度 - 偏移，Y = 游標Y + 偏移
-            left = cursorX - previewWidth - horizontalOffset;
-            top = cursorY + verticalOffset;
-        } else if (wouldExceedBottom) {
-            // 太靠近下方邊界：預覽圖顯示在游標右上
-            // 預覽圖左下角對齊游標上方，所以預覽圖左上角 = 游標X + 偏移，Y = 游標Y - 預覽圖高度 - 偏移
-            left = cursorX + horizontalOffset;
-            top = cursorY - previewHeight - verticalOffset;
+        let previewWidth;
+        let previewHeight;
+        if (this._knownPreviewSize && this._knownPreviewSize.width > 0 && this._knownPreviewSize.height > 0) {
+            previewWidth = this._knownPreviewSize.width;
+            previewHeight = this._knownPreviewSize.height;
         } else {
-            // 平常狀態：預覽圖顯示在游標右下角
-            // 預覽圖左上角 = 游標位置 + 偏移
-            left = cursorX + horizontalOffset;
-            top = cursorY + verticalOffset;
+            preview.offsetHeight; // 強制重新計算佈局
+            const previewRect = preview.getBoundingClientRect();
+            previewWidth = previewRect.width || 300;
+            previewHeight = previewRect.height || 200;
         }
         
-        // 最終邊界檢查（確保不會超出任何邊界，但不改變預覽圖大小）
-        // 左邊界檢查
+        const margin = 5;
+        const horizontalOffset = 20;
+        const verticalOffset = 10;
+        
+        const cursorX = pos.clientX;
+        const cursorY = pos.clientY;
+        
+        const chooseQuadrant = () => {
+            const wouldExceedRight = cursorX + horizontalOffset + previewWidth > viewport.width - margin;
+            const wouldExceedBottom = cursorY + verticalOffset + previewHeight > viewport.height - margin;
+            if (wouldExceedRight && wouldExceedBottom) return 'top-left';
+            if (wouldExceedRight) return 'bottom-left';
+            if (wouldExceedBottom) return 'top-right';
+            return 'bottom-right';
+        };
+        
+        if (!this._placementQuadrant) {
+            this._placementQuadrant = chooseQuadrant();
+        }
+        
+        let left;
+        let top;
+        switch (this._placementQuadrant) {
+            case 'top-left':
+                left = cursorX - previewWidth - horizontalOffset;
+                top = cursorY - previewHeight - verticalOffset;
+                break;
+            case 'bottom-left':
+                left = cursorX - previewWidth - horizontalOffset;
+                top = cursorY + verticalOffset;
+                break;
+            case 'top-right':
+                left = cursorX + horizontalOffset;
+                top = cursorY - previewHeight - verticalOffset;
+                break;
+            case 'bottom-right':
+            default:
+                left = cursorX + horizontalOffset;
+                top = cursorY + verticalOffset;
+                break;
+        }
+        
+        // 最終邊界夾緊（不改象限、不改尺寸）
         if (left < margin) {
             left = margin;
         }
-        
-        // 右邊界檢查
         if (left + previewWidth > viewport.width - margin) {
-            left = viewport.width - previewWidth - margin;
+            left = Math.max(margin, viewport.width - previewWidth - margin);
         }
-        
-        // 上邊界檢查
         if (top < margin) {
             top = margin;
         }
-        
-        // 下邊界檢查
         if (top + previewHeight > viewport.height - margin) {
-            top = viewport.height - previewHeight - margin;
+            top = Math.max(margin, viewport.height - previewHeight - margin);
         }
         
-        // 檢查預覽圖是否會覆蓋游標位置（避免游標 hover 在預覽圖上，導致無法點擊頁面內容）
-        // 如果游標在預覽圖範圍內，則微調位置避免覆蓋
-        const cursorInPreviewX = cursorX >= left && cursorX <= left + previewWidth;
-        const cursorInPreviewY = cursorY >= top && cursorY <= top + previewHeight;
-        
-        if (cursorInPreviewX && cursorInPreviewY) {
-            // 游標在預覽圖範圍內，需要微調位置避免覆蓋
-            // 優先嘗試將預覽圖稍微往下移，讓游標在預覽圖上方
-            const topBelowCursor = cursorY + verticalOffset;
-            if (topBelowCursor + previewHeight <= viewport.height - margin) {
-                top = topBelowCursor;
-            } else {
-                // 如果下方空間不足，則移到游標上方
-                const topAboveCursor = cursorY - previewHeight - verticalOffset;
-                if (topAboveCursor >= margin) {
-                    top = topAboveCursor;
-                }
-                // 如果上下都不行，則保持原位置（已經在邊界檢查中處理過了）
-            }
-        }
-        
-        // 設定位置（固定大小，不因靠近邊界而調整）
         preview.style.left = `${Math.round(left)}px`;
         preview.style.top = `${Math.round(top)}px`;
         preview.style.opacity = '1';
     },
-      updatePreviewPosition: function(event) {
-        // 使用相同的智能定位邏輯
+    
+    updatePreviewPosition: function(event) {
         if (!this._activePreview) return;
-        
+        // 載入單圖期間只更新游標座標，等尺寸寫入後再定位
+        if (this._isLoadingSingleImage) {
+            this.saveMousePos(event);
+            return;
+        }
         this.positionPreviewAtCursor(event);
     },
     
@@ -1118,6 +981,11 @@ window.KemonoUtil = window.KemonoUtil || {
             this._pendingPreview = null;
         }
         
+        if (this._positionRafId) {
+            cancelAnimationFrame(this._positionRafId);
+            this._positionRafId = null;
+        }
+        
         // 取消正在進行的圖片預載入請求
         if (window.KemonoRequestQueue) {
             const abortedCount = window.KemonoRequestQueue.abortRequestsByType('image');
@@ -1125,6 +993,9 @@ window.KemonoUtil = window.KemonoUtil || {
                 window.KemonoLogger.log(`已取消 ${abortedCount} 個正在進行的圖片預載入請求`);
             }
         }
+        
+        this._placementQuadrant = null;
+        this._knownPreviewSize = null;
         
         if (this._activePreview && this._activePreview.parentNode) {
             // 使用淡出效果移除預覽

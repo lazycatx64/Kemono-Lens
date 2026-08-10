@@ -16,6 +16,8 @@ class SettingsManager {
       switchMode: 'alt_scroll', // 'scroll', 'alt_scroll', 'keyboard'
       maxPreviewSize: 600,
       preloadImageCount: 5, // 預載入接下來的圖片數量
+      controlMode: 'hold_to_hide', // 'hold_to_show' | 'hold_to_hide'
+      modifierKey: 'alt', // 'alt' | 'ctrl' | 'shift'
       language: window.KemonoI18n.currentLanguage
     };
   }
@@ -142,6 +144,40 @@ class SettingsManager {
       </div>
       
       <div class="kemono-settings-section">
+        <label class="kemono-settings-label">${i18n.t('preview_control_mode')}</label>
+        <div class="kemono-radio-group">
+          <label class="kemono-radio-label">
+            <input type="radio" name="controlMode" value="hold_to_hide" class="kemono-radio" ${this.settings.controlMode !== 'hold_to_show' ? 'checked' : ''}>
+            <span>${i18n.t('control_hold_to_hide')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="controlMode" value="hold_to_show" class="kemono-radio" ${this.settings.controlMode === 'hold_to_show' ? 'checked' : ''}>
+            <span>${i18n.t('control_hold_to_show')}</span>
+          </label>
+        </div>
+        <div class="kemono-settings-help">${i18n.t('preview_control_mode_help')}</div>
+      </div>
+      
+      <div class="kemono-settings-section">
+        <label class="kemono-settings-label">${i18n.t('preview_modifier_key')}</label>
+        <div class="kemono-radio-group">
+          <label class="kemono-radio-label">
+            <input type="radio" name="modifierKey" value="alt" class="kemono-radio" ${(this.settings.modifierKey || 'alt') === 'alt' ? 'checked' : ''}>
+            <span>${i18n.t('modifier_alt')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="modifierKey" value="ctrl" class="kemono-radio" ${this.settings.modifierKey === 'ctrl' ? 'checked' : ''}>
+            <span>${i18n.t('modifier_ctrl')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="modifierKey" value="shift" class="kemono-radio" ${this.settings.modifierKey === 'shift' ? 'checked' : ''}>
+            <span>${i18n.t('modifier_shift')}</span>
+          </label>
+        </div>
+        <div class="kemono-settings-help">${i18n.t('preview_modifier_key_help')}</div>
+      </div>
+      
+      <div class="kemono-settings-section">
         <label class="kemono-settings-label">${i18n.t('preview_switch_mode')}</label>
         <div class="kemono-radio-group">
           <label class="kemono-radio-label">
@@ -199,6 +235,24 @@ class SettingsManager {
       radio.addEventListener('change', (e) => {
         if (e.target.checked) {
           this.updateSetting('switchMode', e.target.value);
+        }
+      });
+    });
+    
+    // 預覽控制模式
+    document.querySelectorAll('input[name="controlMode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          this.updateSetting('controlMode', e.target.value);
+        }
+      });
+    });
+    
+    // 修飾鍵
+    document.querySelectorAll('input[name="modifierKey"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          this.updateSetting('modifierKey', e.target.value);
         }
       });
     });

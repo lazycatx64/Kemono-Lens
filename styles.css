@@ -95,54 +95,43 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
 
 /* ========== 懸停預覽樣式 ========== */
 
-#image-preview {
-    position: absolute;
-    border: 1px solid #ccc;
-    background: #fff;
-    padding: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    z-index: 10000;
-    border-radius: 4px;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-}
-
-#image-preview img {
-    display: block;
-    transition: max-width 0.2s ease, max-height 0.2s ease;
-}
-
-/* 預覽圖片容器樣式 */
-.kemono-preview-container {
+/* 預覽圖片容器：資訊列在文件流內，與圖片一起計算外框 */
+.kemono-preview-container,
+#image-preview.kemono-preview-container {
     position: fixed;
     z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     border: 2px solid #333;
     box-shadow: 0 0 10px rgba(0,0,0,0.5);
     background-color: #fff;
     padding: 5px;
-    /* max-width 和 max-height 由 JavaScript 動態設定，此處僅作為安全限制確保不超出視窗 */
-    max-width: 100vw;
-    max-height: 100vh;
+    box-sizing: border-box;
+    /* max-width / max-height 由 JavaScript 依視窗與資訊列動態設定 */
+    max-width: calc(100vw - 10px);
+    max-height: calc(100vh - 10px);
     min-width: 200px;
-    min-height: 100px;
     visibility: hidden;
     transform-origin: top left;
     pointer-events: none;
-    /* 移除 transition，直接顯示正確尺寸 */
-    overflow: visible;
+    overflow: hidden;
+    border-radius: 4px;
+    transition: opacity 0.15s ease;
 }
 
 .kemono-preview-container img {
     max-width: 100% !important;
-    max-height: 100% !important;
+    max-height: none !important;
     width: auto !important;
     height: auto !important;
-    min-width: 180px;
-    min-height: 90px;
+    min-width: 0;
+    min-height: 0;
     object-fit: contain !important;
     display: block !important;
     box-sizing: border-box;
     pointer-events: none;
+    flex-shrink: 0;
 }
 
 /* 預覽圖片載入狀態 */
@@ -152,12 +141,13 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     transition: opacity 0.3s ease, filter 0.3s ease;
 }
 
-/* 預覽狀態顯示 */
+/* 預覽狀態顯示（文件流，在圖片上方） */
 .kemono-preview-status {
-    position: absolute;
-    top: -25px;
-    left: 0;
-    right: 0;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    flex-shrink: 0;
     background: rgba(0,0,0,0.8);
     color: #fff;
     padding: 4px 8px;
@@ -167,11 +157,14 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     text-align: center;
     z-index: 1;
     transition: background-color 0.2s ease;
-    white-space: nowrap;
-    min-width: fit-content;
-    height: 25px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+    min-height: 25px;
+    height: auto;
     box-sizing: border-box;
     pointer-events: none;
+    margin-bottom: 4px;
 }
 
 .kemono-preview-status.loading {
