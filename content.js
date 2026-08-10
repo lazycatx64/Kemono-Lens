@@ -493,7 +493,7 @@ class KemonoFriends {
         const userInfo = this.domManager.extractUserInfoFromCurrentPage();
         
         if (!userInfo) {
-            logger.warn('[KemonoFriends] 無法提取個人頁面的創作者信息');
+            logger.log('[KemonoFriends] 無法提取個人頁面的創作者資訊');
             return;
         }
         

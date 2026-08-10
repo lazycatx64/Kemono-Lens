@@ -18,6 +18,7 @@ class SettingsManager {
       preloadImageCount: 5, // 預載入接下來的圖片數量
       controlMode: 'hold_to_hide', // 'hold_to_show' | 'hold_to_hide'
       modifierKey: 'alt', // 'alt' | 'ctrl' | 'shift'
+      loggerLevel: 'info', // 'silent' | 'error' | 'warn' | 'info' | 'debug'
       language: window.KemonoI18n.currentLanguage
     };
   }
@@ -26,7 +27,7 @@ class SettingsManager {
     // 先嘗試從 chrome.storage 讀取（優先）
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       try {
-        chrome.storage.local.get(['kemono_preview_settings'], (result) => {
+        chrome.storage.local.get(['kemono_preview_settings', 'kemono_logger_settings'], (result) => {
           if (result.kemono_preview_settings) {
             try {
               const saved = JSON.parse(result.kemono_preview_settings);
@@ -45,6 +46,12 @@ class SettingsManager {
             // 如果 chrome.storage 沒有，嘗試從 localStorage 讀取
             this.loadFromLocalStorage();
           }
+
+          if (result.kemono_logger_settings) {
+            this.applyLoggerLevelFromStorage(result.kemono_logger_settings);
+          } else if (this.settings.loggerLevel && window.KemonoLogger) {
+            window.KemonoLogger.setLogLevel(this.settings.loggerLevel);
+          }
         });
       } catch (error) {
         console.error('Error loading settings from chrome.storage:', error);
@@ -53,6 +60,20 @@ class SettingsManager {
     } else {
       // 如果沒有 chrome.storage，從 localStorage 讀取
       this.loadFromLocalStorage();
+    }
+  }
+
+  applyLoggerLevelFromStorage(raw) {
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (parsed && parsed.level) {
+        this.settings.loggerLevel = parsed.level;
+        if (window.KemonoLogger && typeof window.KemonoLogger.setLogLevel === 'function') {
+          window.KemonoLogger.setLogLevel(parsed.level);
+        }
+      }
+    } catch (e) {
+      // 忽略
     }
   }
   
@@ -69,8 +90,9 @@ class SettingsManager {
   
   saveSettings() {
     try {
-      // 同時儲存到 localStorage 和 chrome.storage
-      const settingsJson = JSON.stringify(this.settings);
+      // 日誌等級獨立儲存，不混入預覽設定
+      const { loggerLevel, ...previewSettings } = this.settings;
+      const settingsJson = JSON.stringify(previewSettings);
       localStorage.setItem('kemono_preview_settings', settingsJson);
       
       // 更新語言設定
@@ -82,6 +104,10 @@ class SettingsManager {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ kemono_preview_settings: settingsJson });
       }
+
+      if (loggerLevel && window.KemonoLogger && typeof window.KemonoLogger.setLogLevel === 'function') {
+        window.KemonoLogger.setLogLevel(loggerLevel);
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
     }
@@ -89,6 +115,15 @@ class SettingsManager {
   
   updateSetting(key, value) {
     this.settings[key] = value;
+    if (key === 'loggerLevel') {
+      if (window.KemonoLogger && typeof window.KemonoLogger.setLogLevel === 'function') {
+        window.KemonoLogger.setLogLevel(value);
+      }
+      window.dispatchEvent(new CustomEvent('kemonoSettingsChanged', {
+        detail: { key, value, settings: this.settings }
+      }));
+      return;
+    }
     this.saveSettings();
     
     // 觸發設定變更事件
@@ -209,6 +244,33 @@ class SettingsManager {
       </div>
       
       <div class="kemono-settings-section">
+        <label class="kemono-settings-label">${i18n.t('logger_level')}</label>
+        <div class="kemono-radio-group">
+          <label class="kemono-radio-label">
+            <input type="radio" name="loggerLevel" value="silent" class="kemono-radio" ${this.settings.loggerLevel === 'silent' ? 'checked' : ''}>
+            <span>${i18n.t('logger_level_silent')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="loggerLevel" value="error" class="kemono-radio" ${this.settings.loggerLevel === 'error' ? 'checked' : ''}>
+            <span>${i18n.t('logger_level_error')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="loggerLevel" value="warn" class="kemono-radio" ${this.settings.loggerLevel === 'warn' ? 'checked' : ''}>
+            <span>${i18n.t('logger_level_warn')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="loggerLevel" value="info" class="kemono-radio" ${!this.settings.loggerLevel || this.settings.loggerLevel === 'info' ? 'checked' : ''}>
+            <span>${i18n.t('logger_level_info')}</span>
+          </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="loggerLevel" value="debug" class="kemono-radio" ${this.settings.loggerLevel === 'debug' ? 'checked' : ''}>
+            <span>${i18n.t('logger_level_debug')}</span>
+          </label>
+        </div>
+        <div class="kemono-settings-help">${i18n.t('logger_level_help')}</div>
+      </div>
+      
+      <div class="kemono-settings-section">
         <label class="kemono-settings-label">${i18n.t('language')}</label>
         <select id="kemono-language" class="kemono-select">
           ${Object.entries(languages).map(([code, name]) => 
@@ -253,6 +315,15 @@ class SettingsManager {
       radio.addEventListener('change', (e) => {
         if (e.target.checked) {
           this.updateSetting('modifierKey', e.target.value);
+        }
+      });
+    });
+
+    // 日誌等級
+    document.querySelectorAll('input[name="loggerLevel"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          this.updateSetting('loggerLevel', e.target.value);
         }
       });
     });

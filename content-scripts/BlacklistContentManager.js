@@ -95,7 +95,7 @@ class BlacklistContentManager {
         
         // 檢查容器是否存在
         if (!container) {
-            this.logger.error('[BlacklistManager] 容器不存在，無法創建按鈕');
+            this.logger.warn('[BlacklistManager] 容器不存在，無法創建按鈕');
             return null;
         }
         
@@ -140,7 +140,7 @@ class BlacklistContentManager {
         try {
             const blacklistBtn = this.domManager.createButton(buttonOptions);
             if (!blacklistBtn) {
-                this.logger.error('[BlacklistManager] createButton 返回 null');
+                this.logger.warn('[BlacklistManager] createButton 返回 null');
                 return null;
             }
             

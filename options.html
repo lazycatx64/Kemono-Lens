@@ -1001,11 +1001,41 @@
                         限制 API 查詢和預覽圖預載的請求速率，避免過快發送請求。如果超過此速率，請求會自動排隊等待（1-100）
                     </div>
                 </div>
+
+                <div class="settings-group">
+                    <h3>🧾 日誌等級</h3>
+                    <div style="margin-left: 20px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="logger-level" value="silent" style="margin-right: 8px;">
+                            <span>關閉（silent）</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="logger-level" value="error" style="margin-right: 8px;">
+                            <span>僅錯誤（error）</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="logger-level" value="warn" style="margin-right: 8px;">
+                            <span>警告以上（warn）</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="logger-level" value="info" checked style="margin-right: 8px;">
+                            <span>一般資訊（info，預設）</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="logger-level" value="debug" style="margin-right: 8px;">
+                            <span>除錯（debug）</span>
+                        </label>
+                    </div>
+                    <div class="help-text">
+                        控制主控台輸出的詳細程度。等級越低輸出越少；變更後會立即套用到已開啟的網站分頁。
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- 載入所有 JavaScript 模組 -->
+    <script src="logger.js"></script>
     <script src="js/DomainConfig.js"></script>
     <script src="js/MessageManager.js"></script>
     <script src="js/StatisticsManager.js"></script>

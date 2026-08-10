@@ -83,7 +83,14 @@ const translations = {
     'modifier_alt': 'Alt',
     'modifier_ctrl': 'Ctrl',
     'modifier_shift': 'Shift',
-    'preview_modifier_key_help': '若選「懸停即預覽，按著快速鍵暫時停用」且切圖也用 Alt+滾輪，建議將此快速鍵改為 Ctrl 或 Shift，避免衝突'
+    'preview_modifier_key_help': '若選「懸停即預覽，按著快速鍵暫時停用」且切圖也用 Alt+滾輪，建議將此快速鍵改為 Ctrl 或 Shift，避免衝突',
+    'logger_level': '日誌等級',
+    'logger_level_silent': '關閉',
+    'logger_level_error': '僅錯誤',
+    'logger_level_warn': '警告以上',
+    'logger_level_info': '一般資訊（預設）',
+    'logger_level_debug': '除錯',
+    'logger_level_help': '控制主控台輸出的詳細程度，等級越低輸出越少'
   },
   
   'en': {

@@ -17,7 +17,9 @@ class SettingsManager {
             previewControlMode: 'hold_to_hide',
             previewModifierKey: 'alt',
             // 請求速率限制
-            requestRateLimit: 10
+            requestRateLimit: 10,
+            // 日誌等級
+            loggerLevel: 'info'
         };
         
         this.init();
@@ -144,6 +146,17 @@ class SettingsManager {
             });
         }
 
+        // 日誌等級
+        const loggerLevelRadios = document.querySelectorAll('input[name="logger-level"]');
+        loggerLevelRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.settings.loggerLevel = e.target.value;
+                    this.saveLoggerSettings();
+                }
+            });
+        });
+
         // 網站網域設定
         const saveDomainsBtn = document.getElementById('save-site-domains-btn');
         if (saveDomainsBtn) {
@@ -268,7 +281,7 @@ class SettingsManager {
     async loadSettings() {
         await this.loadSiteDomainsIntoUI();
         return new Promise((resolve) => {
-            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings'], (result) => {
+            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings', 'kemono_logger_settings'], (result) => {
                 if (result.visualSettings) {
                     this.settings = { ...this.settings, ...result.visualSettings };
                 }
@@ -340,6 +353,32 @@ class SettingsManager {
                         }
                     } catch (e) {
                         console.error('載入請求排隊設定失敗:', e);
+                    }
+                }
+                
+                // 載入日誌等級設定
+                if (result.kemono_logger_settings) {
+                    try {
+                        const loggerSettings = typeof result.kemono_logger_settings === 'string'
+                            ? JSON.parse(result.kemono_logger_settings)
+                            : result.kemono_logger_settings;
+                        if (loggerSettings && loggerSettings.level) {
+                            this.settings.loggerLevel = loggerSettings.level;
+                        }
+                    } catch (e) {
+                        console.error('載入日誌等級設定失敗:', e);
+                    }
+                } else {
+                    try {
+                        const localLoggerSettings = localStorage.getItem('kemono_logger_settings');
+                        if (localLoggerSettings) {
+                            const loggerSettings = JSON.parse(localLoggerSettings);
+                            if (loggerSettings && loggerSettings.level) {
+                                this.settings.loggerLevel = loggerSettings.level;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('載入日誌等級設定失敗:', e);
                     }
                 }
                 
@@ -431,6 +470,27 @@ class SettingsManager {
         if (requestRateLimitInput) {
             requestRateLimitInput.value = this.settings.requestRateLimit || 10;
         }
+
+        const loggerLevelRadios = document.querySelectorAll('input[name="logger-level"]');
+        loggerLevelRadios.forEach(radio => {
+            radio.checked = radio.value === (this.settings.loggerLevel || 'info');
+        });
+    }
+
+    saveLoggerSettings() {
+        const level = this.settings.loggerLevel || 'info';
+        if (window.KemonoLogger && typeof window.KemonoLogger.setLogLevel === 'function') {
+            window.KemonoLogger.setLogLevel(level);
+        } else {
+            const payload = JSON.stringify({ level });
+            chrome.storage.local.set({ kemono_logger_settings: payload });
+            try {
+                localStorage.setItem('kemono_logger_settings', payload);
+            } catch (e) {
+                console.warn('無法寫入 localStorage:', e);
+            }
+        }
+        this.messageManager.showSuccess('日誌等級已更新');
     }
 
     notifySettingsChanged(type, enabled) {

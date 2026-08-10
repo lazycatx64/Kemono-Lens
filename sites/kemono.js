@@ -169,7 +169,7 @@ const kemono = {
         const parsed = new URL(postUrl);
         apiUrl = `${parsed.origin}/api/v1${parsed.pathname}${parsed.search}`;
       } catch (e) {
-        kemonoLogger.warn('解析貼文 URL 失敗，使用原始 URL:', e);
+        kemonoLogger.log('解析貼文 URL 失敗，使用原始 URL:', e);
       }
       kemonoLogger.log('API URL:', apiUrl);
       

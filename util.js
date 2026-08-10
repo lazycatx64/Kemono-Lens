@@ -394,7 +394,7 @@ window.KemonoUtil = window.KemonoUtil || {
             }
             
             if (hasOriginalImages) {
-                window.KemonoLogger.warn(`API 載入完成，使用原圖 - 封面圖: ${coverImage ? 1 : 0} 張，內文圖片: ${contentImages.length} 張`);
+                window.KemonoLogger.log(`API 載入完成，使用原圖 - 封面圖: ${coverImage ? 1 : 0} 張，內文圖片: ${contentImages.length} 張`);
             } else {
                 window.KemonoLogger.log(`API 載入完成，封面圖: ${coverImage ? 1 : 0} 張，內文圖片: ${contentImages.length} 張`);
             }
@@ -643,7 +643,7 @@ window.KemonoUtil = window.KemonoUtil || {
             return fileName1 && fileName2 && fileName1 === fileName2;
         } catch (e) {
             // 如果比較過程中出錯，返回 false
-            window.KemonoLogger.log('比較圖片 URL 時出錯:', e, { url1, url2 });
+            window.KemonoLogger.warn('比較圖片 URL 時出錯:', e, { url1, url2 });
             return false;
         }
     },
@@ -1158,7 +1158,7 @@ window.KemonoUtil = window.KemonoUtil || {
                     })
                     .catch((error) => {
                         if (error.message !== 'Request aborted') {
-                            window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`, error);
+                            window.KemonoLogger.debug(`預載入圖片失敗: ${imageUrl}`, error);
                         }
                     });
             } else {
@@ -1169,7 +1169,7 @@ window.KemonoUtil = window.KemonoUtil || {
                     window.KemonoLogger.log(`預載入圖片完成: ${imageUrl}`);
                 };
                 img.onerror = () => {
-                    window.KemonoLogger.warn(`預載入圖片失敗: ${imageUrl}`);
+                    window.KemonoLogger.debug(`預載入圖片失敗: ${imageUrl}`);
                 };
                 img.src = imageUrl;
             }
@@ -1271,7 +1271,7 @@ window.KemonoUtil = window.KemonoUtil || {
         } else {
             // 格式二：扁平 file + attachments（無 previews）
             hasOriginalImages = true;
-            logger.warn?.('沒有找到預覽圖片，改用 file／attachments');
+            logger.log?.('沒有找到預覽圖片，改用 file／attachments');
 
             const candidates = [];
             if (file && file.path) {

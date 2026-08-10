@@ -170,7 +170,7 @@ const coomer = {
         const parsed = new URL(postUrl);
         apiUrl = `${parsed.origin}/api/v1${parsed.pathname}${parsed.search}`;
       } catch (e) {
-        coomerLogger.warn('解析貼文 URL 失敗，使用原始 URL:', e);
+        coomerLogger.log('解析貼文 URL 失敗，使用原始 URL:', e);
       }
       coomerLogger.log('API URL:', apiUrl);
       
