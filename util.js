@@ -17,7 +17,9 @@ window.KemonoUtil = window.KemonoUtil || {
     _lastMousePos: null, // 最後一次游標座標 { clientX, clientY }
     _placementQuadrant: null, // 整輪預覽鎖定的放置方向：bottom-right / bottom-left / top-right / top-left
     _knownPreviewSize: null, // 已知外框尺寸 { width, height }，切圖時優先使用
+    _lastFittedNatural: null, // 最近一次套用尺寸時的 naturalWidth/Height
     _positionRafId: null,
+    _imageApplyToken: 0, // 避免快速切圖時舊的 decode/load 回呼覆寫新圖
     
     getMaxPreviewSize: function() {
         let maxSize = 600;
@@ -98,6 +100,7 @@ window.KemonoUtil = window.KemonoUtil || {
     
     applyFittedImageSize: function(imgElement, naturalWidth, naturalHeight) {
         if (!this._activePreview || !imgElement) return null;
+        if (!naturalWidth || !naturalHeight) return null;
         
         // 先用目前資訊列高度估算
         let fitted = this.computeFittedImageSize(naturalWidth, naturalHeight, this._activePreview);
@@ -114,12 +117,88 @@ window.KemonoUtil = window.KemonoUtil || {
         this._activePreview.style.setProperty('max-height', `${fitted.containerHeight}px`, 'important');
         this._activePreview.style.setProperty('width', `${fitted.containerWidth}px`, 'important');
         
+        // 強制一次 layout，再用實際外框校正已知尺寸（避免計算值與渲染值不一致）
+        this._activePreview.offsetHeight;
+        const rect = this._activePreview.getBoundingClientRect();
+        const measuredWidth = rect.width > 0 ? rect.width : fitted.containerWidth;
+        const measuredHeight = rect.height > 0 ? rect.height : fitted.containerHeight;
+        
         this._knownPreviewSize = {
-            width: fitted.containerWidth,
-            height: fitted.containerHeight
+            width: measuredWidth,
+            height: measuredHeight
+        };
+        this._lastFittedNatural = {
+            width: naturalWidth,
+            height: naturalHeight
         };
         
         return fitted;
+    },
+    
+    /**
+     * 等顯示用 img 套用新 src 並完成 decode 後再量尺寸／定位
+     */
+    applyImageSourceAndPosition: function(imgElement, sourceUrl, naturalWidth, naturalHeight, statusText) {
+        if (!this._activePreview || !imgElement) return;
+        
+        const token = ++this._imageApplyToken;
+        const applyNow = () => {
+            if (token !== this._imageApplyToken || this._activePreview !== imgElement.closest('.kemono-preview-container')) {
+                return;
+            }
+            this._isLoadingSingleImage = false;
+            // 狀態文字先更新，再以呼叫端提供的 natural 尺寸套用（避免讀到舊 naturalWidth）
+            if (statusText !== undefined && statusText !== null) {
+                const statusDiv = this._activePreview.querySelector('.kemono-preview-status');
+                if (statusDiv) {
+                    statusDiv.textContent = statusText;
+                }
+            }
+            this.applyFittedImageSize(
+                imgElement,
+                naturalWidth || imgElement.naturalWidth,
+                naturalHeight || imgElement.naturalHeight
+            );
+            this.schedulePositionUpdate();
+        };
+        
+        const onReady = () => {
+            if (typeof imgElement.decode === 'function') {
+                imgElement.decode().then(applyNow).catch(applyNow);
+            } else {
+                applyNow();
+            }
+        };
+        
+        // 若 src 相同且已完成，直接套用
+        if (imgElement.getAttribute('src') === sourceUrl && imgElement.complete && imgElement.naturalWidth > 0) {
+            onReady();
+            return;
+        }
+        
+        const handleLoad = () => {
+            imgElement.removeEventListener('load', handleLoad);
+            imgElement.removeEventListener('error', handleError);
+            onReady();
+        };
+        const handleError = () => {
+            imgElement.removeEventListener('load', handleLoad);
+            imgElement.removeEventListener('error', handleError);
+            if (token !== this._imageApplyToken) return;
+            this._isLoadingSingleImage = false;
+            this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'), { skipRefit: true });
+        };
+        
+        imgElement.addEventListener('load', handleLoad);
+        imgElement.addEventListener('error', handleError);
+        imgElement.src = sourceUrl;
+        
+        // 快取命中時部分瀏覽器不會再觸發 load
+        if (imgElement.complete && imgElement.naturalWidth > 0) {
+            imgElement.removeEventListener('load', handleLoad);
+            imgElement.removeEventListener('error', handleError);
+            onReady();
+        }
     },
     
     saveMousePos: function(event) {
@@ -140,6 +219,17 @@ window.KemonoUtil = window.KemonoUtil || {
         this._positionRafId = requestAnimationFrame(() => {
             this._positionRafId = requestAnimationFrame(() => {
                 this._positionRafId = null;
+                // 定位前再校正一次實際外框，避免切圖後已知尺寸與渲染不一致
+                if (this._activePreview) {
+                    this._activePreview.offsetHeight;
+                    const rect = this._activePreview.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        this._knownPreviewSize = {
+                            width: rect.width,
+                            height: rect.height
+                        };
+                    }
+                }
                 this.positionPreviewAtCursor(this._lastMousePos);
             });
         });
@@ -189,6 +279,8 @@ window.KemonoUtil = window.KemonoUtil || {
         // 新預覽：重置放置方向
         this._placementQuadrant = null;
         this._knownPreviewSize = null;
+        this._lastFittedNatural = null;
+        this._imageApplyToken += 1;
         this.saveMousePos(mouseEvent);
         
         const maxSize = this.getMaxPreviewSize();
@@ -274,6 +366,8 @@ window.KemonoUtil = window.KemonoUtil || {
         this._activePreview = preview;
         this._placementQuadrant = null;
         this._knownPreviewSize = null;
+        this._lastFittedNatural = null;
+        this._imageApplyToken += 1;
         
         this.positionPreviewAtCursor(mouseEvent);
         
@@ -410,17 +504,26 @@ window.KemonoUtil = window.KemonoUtil || {
         }
     },
     
-    updatePreviewStatus: function(statusText) {
+    updatePreviewStatus: function(statusText, options = {}) {
         if (!this._activePreview) return;
         
         const statusDiv = this._activePreview.querySelector('.kemono-preview-status');
         if (statusDiv) {
             statusDiv.textContent = statusText;
-            // 狀態列高度可能因換行改變，重新套用尺寸
-            const img = this._activePreview.querySelector('img');
-            if (img && img.naturalWidth) {
-                this.applyFittedImageSize(img, img.naturalWidth, img.naturalHeight);
-                this.schedulePositionUpdate();
+            if (options.skipRefit) {
+                return;
+            }
+            // 只用「上次確認的 natural 尺寸」重算，避免切圖後讀到舊 naturalWidth
+            if (this._lastFittedNatural && this._lastFittedNatural.width && this._lastFittedNatural.height) {
+                const img = this._activePreview.querySelector('img');
+                if (img) {
+                    this.applyFittedImageSize(
+                        img,
+                        this._lastFittedNatural.width,
+                        this._lastFittedNatural.height
+                    );
+                    this.schedulePositionUpdate();
+                }
             }
         }
     },
@@ -808,25 +911,32 @@ window.KemonoUtil = window.KemonoUtil || {
     loadImageWithIndicator: function(imgElement, newSrc, statusText) {
         // 檢查是否有預載入的圖片
         const preloadedImg = this.getPreloadedImage(newSrc);
-        if (preloadedImg && preloadedImg.complete) {
-            // 使用預載入的圖片，直接更新
+        if (preloadedImg && preloadedImg.complete && preloadedImg.naturalWidth > 0) {
             window.KemonoLogger.log('使用預載入的圖片:', newSrc);
-            this.updateImageFromPreloaded(imgElement, preloadedImg, statusText);
-            // 繼續預載入接下來的圖片
+            this._isLoadingSingleImage = true;
+            this.applyImageSourceAndPosition(
+                imgElement,
+                preloadedImg.src || newSrc,
+                preloadedImg.naturalWidth,
+                preloadedImg.naturalHeight,
+                statusText
+            );
             this.preloadNextImages();
             return;
         }
         
         // 標記開始載入單個圖片
         this._isLoadingSingleImage = true;
-        this.updatePreviewStatus(window.KemonoI18n.t('loading'));
+        this.updatePreviewStatus(window.KemonoI18n.t('loading'), { skipRefit: true });
         
         const applyLoadedImage = (newImg) => {
-            this._isLoadingSingleImage = false;
-            imgElement.src = newSrc;
-            this.applyFittedImageSize(imgElement, newImg.naturalWidth, newImg.naturalHeight);
-            this.updatePreviewStatus(statusText);
-            this.schedulePositionUpdate();
+            this.applyImageSourceAndPosition(
+                imgElement,
+                newSrc,
+                newImg.naturalWidth,
+                newImg.naturalHeight,
+                statusText
+            );
             setTimeout(() => {
                 this.preloadNextImages();
             }, 100);
@@ -839,15 +949,13 @@ window.KemonoUtil = window.KemonoUtil || {
                     applyLoadedImage(newImg);
                 })
                 .catch((error) => {
-                    // 標記載入完成（即使失敗也要清除標記）
                     this._isLoadingSingleImage = false;
                     if (error.message !== 'Request aborted') {
-                        this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
+                        this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'), { skipRefit: true });
                         window.KemonoLogger.error('載入圖片失敗:', error);
                     }
                 });
         } else {
-            // 如果沒有請求排隊系統，使用傳統方式（向後相容）
             const newImg = new Image();
             
             newImg.onload = () => {
@@ -855,9 +963,8 @@ window.KemonoUtil = window.KemonoUtil || {
             };
             
             newImg.onerror = () => {
-                // 標記載入完成（即使失敗也要清除標記）
                 this._isLoadingSingleImage = false;
-                this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'));
+                this.updatePreviewStatus(window.KemonoI18n.t('image_failed_to_load'), { skipRefit: true });
             };
             
             newImg.src = newSrc;
@@ -866,10 +973,14 @@ window.KemonoUtil = window.KemonoUtil || {
     
     // 從預載入的圖片更新顯示
     updateImageFromPreloaded: function(imgElement, preloadedImg, statusText) {
-        imgElement.src = preloadedImg.src;
-        this.applyFittedImageSize(imgElement, preloadedImg.naturalWidth, preloadedImg.naturalHeight);
-        this.updatePreviewStatus(statusText);
-        this.schedulePositionUpdate();
+        this._isLoadingSingleImage = true;
+        this.applyImageSourceAndPosition(
+            imgElement,
+            preloadedImg.src,
+            preloadedImg.naturalWidth,
+            preloadedImg.naturalHeight,
+            statusText
+        );
     },
     
     positionPreviewAtCursor: function(event) {
@@ -904,7 +1015,7 @@ window.KemonoUtil = window.KemonoUtil || {
             previewWidth = this._knownPreviewSize.width;
             previewHeight = this._knownPreviewSize.height;
         } else {
-            preview.offsetHeight; // 強制重新計算佈局
+            preview.offsetHeight;
             const previewRect = preview.getBoundingClientRect();
             previewWidth = previewRect.width || 300;
             previewHeight = previewRect.height || 200;
@@ -927,37 +1038,31 @@ window.KemonoUtil = window.KemonoUtil || {
         };
         
         if (!this._placementQuadrant) {
-            // 僅在已知實際外框尺寸後鎖定象限，避免載入中占位尺寸誤鎖方向
+            // 僅在已知實際外框尺寸後鎖定象限
             if (this._knownPreviewSize) {
                 this._placementQuadrant = chooseQuadrant();
             }
         }
         
         const quadrant = this._placementQuadrant || chooseQuadrant();
+        const preferRight = quadrant === 'bottom-right' || quadrant === 'top-right';
+        const preferBelow = quadrant === 'bottom-right' || quadrant === 'bottom-left';
         
-        let left;
-        let top;
-        switch (quadrant) {
-            case 'top-left':
-                left = cursorX - previewWidth - horizontalOffset;
-                top = cursorY - previewHeight - verticalOffset;
-                break;
-            case 'bottom-left':
-                left = cursorX - previewWidth - horizontalOffset;
-                top = cursorY + verticalOffset;
-                break;
-            case 'top-right':
-                left = cursorX + horizontalOffset;
-                top = cursorY - previewHeight - verticalOffset;
-                break;
-            case 'bottom-right':
-            default:
-                left = cursorX + horizontalOffset;
-                top = cursorY + verticalOffset;
-                break;
-        }
+        const placeHorizontal = (onRight) => {
+            return onRight
+                ? cursorX + horizontalOffset
+                : cursorX - previewWidth - horizontalOffset;
+        };
+        const placeVertical = (below) => {
+            return below
+                ? cursorY + verticalOffset
+                : cursorY - previewHeight - verticalOffset;
+        };
         
-        // 最終邊界夾緊（不改象限、不改尺寸）
+        let left = placeHorizontal(preferRight);
+        let top = placeVertical(preferBelow);
+        
+        // 最終邊界夾緊（先夾，再檢查是否蓋住游標）
         if (left < margin) {
             left = margin;
         }
@@ -969,6 +1074,53 @@ window.KemonoUtil = window.KemonoUtil || {
         }
         if (top + previewHeight > viewport.height - margin) {
             top = Math.max(margin, viewport.height - previewHeight - margin);
+        }
+        
+        // 切到較大圖時，夾緊可能把預覽推到蓋住游標；保持左右偏好，改垂直側避開游標
+        const cursorInside = (
+            cursorX >= left &&
+            cursorX <= left + previewWidth &&
+            cursorY >= top &&
+            cursorY <= top + previewHeight
+        );
+        
+        if (cursorInside) {
+            const topBelow = placeVertical(true);
+            const topAbove = placeVertical(false);
+            const belowFits = topBelow >= margin && topBelow + previewHeight <= viewport.height - margin;
+            const aboveFits = topAbove >= margin && topAbove + previewHeight <= viewport.height - margin;
+            
+            if (preferBelow && belowFits) {
+                top = topBelow;
+            } else if (!preferBelow && aboveFits) {
+                top = topAbove;
+            } else if (belowFits) {
+                top = topBelow;
+            } else if (aboveFits) {
+                top = topAbove;
+            } else {
+                // 上下都放不下完整高度：優先把預覽放到游標另一側並再夾緊
+                top = preferBelow ? topAbove : topBelow;
+                if (top < margin) top = margin;
+                if (top + previewHeight > viewport.height - margin) {
+                    top = Math.max(margin, viewport.height - previewHeight - margin);
+                }
+            }
+            
+            // 水平同樣檢查；若仍覆蓋則改到另一側
+            left = placeHorizontal(preferRight);
+            if (left < margin) left = margin;
+            if (left + previewWidth > viewport.width - margin) {
+                left = Math.max(margin, viewport.width - previewWidth - margin);
+            }
+            const stillInsideX = cursorX >= left && cursorX <= left + previewWidth;
+            const stillInsideY = cursorY >= top && cursorY <= top + previewHeight;
+            if (stillInsideX && stillInsideY) {
+                const altLeft = placeHorizontal(!preferRight);
+                if (altLeft >= margin && altLeft + previewWidth <= viewport.width - margin) {
+                    left = altLeft;
+                }
+            }
         }
         
         preview.style.left = `${Math.round(left)}px`;
@@ -1008,6 +1160,8 @@ window.KemonoUtil = window.KemonoUtil || {
         
         this._placementQuadrant = null;
         this._knownPreviewSize = null;
+        this._lastFittedNatural = null;
+        this._imageApplyToken += 1;
         
         if (this._activePreview && this._activePreview.parentNode) {
             // 立即清空活動預覽參考，避免淡出期間被誤當成仍可重用，

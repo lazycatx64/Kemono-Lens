@@ -123,8 +123,6 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
 .kemono-preview-container img {
     max-width: 100% !important;
     max-height: none !important;
-    width: auto !important;
-    height: auto !important;
     min-width: 0;
     min-height: 0;
     object-fit: contain !important;
