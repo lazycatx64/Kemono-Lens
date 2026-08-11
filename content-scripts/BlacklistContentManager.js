@@ -111,8 +111,8 @@ class BlacklistContentManager {
             title: isAlreadyBlacklisted ? '從黑名單移除' : '加入黑名單',
             styles: `
                 position: absolute;
-                top: 6px;
-                right: 6px;
+                top: -12px;
+                right: -12px;
                 width: 28px;
                 height: 28px;
                 border-radius: 50%;

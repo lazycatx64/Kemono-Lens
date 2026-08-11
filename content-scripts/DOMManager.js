@@ -351,22 +351,15 @@ class DOMManager {
     }
 
     findIconContainer(element) {
-        // 檢查是否是文章卡片
+        // 按鈕掛在卡片外層右上角（略伸出），避免壓到標題；勿掛在 image-container（常有 overflow:hidden）
         if (element.classList.contains('post-card')) {
-            // 對於文章卡片，使用圖片容器或整個卡片
-            const imageContainer = element.querySelector('.post-card__image-container');
-            if (imageContainer) {
-                return imageContainer;
-            }
-            // 如果沒有圖片容器，直接使用整個文章卡片
             return element;
-        } else {
-            // 創作者卡片的原有邏輯：查找icon容器 - 通常是第一個圖片的父容器
-            const img = element.querySelector('img');
-            if (img) {
-                // 直接使用整個link作為參考容器，按鈕會放在element的右上角
-                return element;
-            }
+        }
+
+        // 創作者卡片：以整個連結作為定位容器
+        const img = element.querySelector('img');
+        if (img) {
+            return element;
         }
         return null;
     }
@@ -401,9 +394,33 @@ class DOMManager {
         if (getComputedStyle(container).position === 'static') {
             container.style.position = 'relative';
         }
-        
-        // 確保容器不會被按鈕推開
-        container.style.overflow = 'visible';
+
+        // 按鈕會略伸出卡片外，需讓容器與祖先層不裁切
+        this.ensureOverflowVisible(container, 6);
+    }
+
+    ensureOverflowVisible(startElement, maxDepth = 6) {
+        let el = startElement;
+        let depth = 0;
+        while (el && el !== document.documentElement && depth <= maxDepth) {
+            const style = getComputedStyle(el);
+            const clips = (value) => value === 'hidden' || value === 'clip';
+
+            // 只解除會裁切伸出按鈕的 hidden/clip，保留 auto/scroll 捲動行為
+            if (clips(style.overflow) || clips(style.overflowX) || clips(style.overflowY)) {
+                if (clips(style.overflow)) {
+                    el.style.overflow = 'visible';
+                }
+                if (clips(style.overflowX)) {
+                    el.style.overflowX = 'visible';
+                }
+                if (clips(style.overflowY)) {
+                    el.style.overflowY = 'visible';
+                }
+            }
+            el = el.parentElement;
+            depth += 1;
+        }
     }
 
     createButton(options) {
