@@ -10,6 +10,9 @@ const siteManager = window.KemonoSites;
 let currSite = window.location.href;
 let currentHoveredElement = null;
 let modifierKeyPressed = false;
+// 按下貼文連結後抑制重建，避免導航前 mousemove 又把預覽生回來
+let suppressPreviewUntilUrlChange = false;
+let suppressPreviewResetTimer = null;
 
 const SCROLL_KEYS = new Set([
     ' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -47,6 +50,7 @@ function getControlMode() {
 }
 
 function shouldCreatePreviewNow() {
+    if (suppressPreviewUntilUrlChange) return false;
     const settings = getPreviewSettings();
     if (!settings.enabled) return false;
     if (getControlMode() === 'hold_to_show') {
@@ -54,6 +58,26 @@ function shouldCreatePreviewNow() {
     }
     // hold_to_hide：按著修飾鍵時暫時停用
     return !modifierKeyPressed;
+}
+
+function beginSuppressPreviewOnPostOpen() {
+    suppressPreviewUntilUrlChange = true;
+    if (suppressPreviewResetTimer) {
+        clearTimeout(suppressPreviewResetTimer);
+    }
+    // 若未發生 URL 變更（例如取消導航），逾時後恢復預覽
+    suppressPreviewResetTimer = setTimeout(() => {
+        suppressPreviewResetTimer = null;
+        suppressPreviewUntilUrlChange = false;
+    }, 2000);
+}
+
+function endSuppressPreviewOnUrlChange() {
+    suppressPreviewUntilUrlChange = false;
+    if (suppressPreviewResetTimer) {
+        clearTimeout(suppressPreviewResetTimer);
+        suppressPreviewResetTimer = null;
+    }
 }
 
 function isFormFieldFocused(target) {
@@ -225,11 +249,16 @@ class KemonoFriends {
         const clearPreviewOnPostOpen = function(e) {
             const target = e.target;
             if (!target || !target.closest) return;
+            // 略過右鍵等非導航按鍵，避免單純開選單也抑制預覽
+            if (e.type === 'pointerdown' && typeof e.button === 'number' && e.button !== 0 && e.button !== 1) {
+                return;
+            }
             
             const postLink = target.closest('a[href*="/post/"]') ||
                 (target.closest('.post-card') && target.closest('.post-card').querySelector('a[href*="/post/"]'));
             
             if (postLink) {
+                beginSuppressPreviewOnPostOpen();
                 if (util && util.removeActivePreview) {
                     util.removeActivePreview();
                 }
@@ -756,6 +785,7 @@ const checkUrlChange = () => {
     if (window.location.href !== currentUrl) {
         currentUrl = window.location.href;
         currSite = currentUrl; // 更新懸停預覽的當前網站
+        endSuppressPreviewOnUrlChange();
         
         // 銷毀舊實例
         if (currentKemonoFriends) {

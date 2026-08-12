@@ -193,7 +193,10 @@ window.KemonoUtil = window.KemonoUtil || {
      * 等顯示用 img 套用新 src 並完成 decode 後再量尺寸／定位
      */
     applyImageSourceAndPosition: function(imgElement, sourceUrl, naturalWidth, naturalHeight, statusText) {
-        if (!this._activePreview || !imgElement) return;
+        if (!this._activePreview || !imgElement) {
+            this._isLoadingSingleImage = false;
+            return;
+        }
         
         const token = ++this._imageApplyToken;
         const oldSize = this._knownPreviewSize
