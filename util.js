@@ -20,6 +20,7 @@ window.KemonoUtil = window.KemonoUtil || {
     _lastFittedNatural: null, // 最近一次套用尺寸時的 naturalWidth/Height
     _positionRafId: null,
     _imageApplyToken: 0, // 避免快速切圖時舊的 decode/load 回呼覆寫新圖
+    _previewLoadTimeout: null, // createImagePreview 的載入逾時顯示
     
     getMaxPreviewSize: function() {
         let maxSize = 600;
@@ -180,6 +181,9 @@ window.KemonoUtil = window.KemonoUtil || {
             top = Math.max(margin, viewport.height - newSize.height - margin);
         }
         
+        // 定位計算期間可能已被 removeActivePreview 清掉，勿把殘留節點寫回可見
+        if (this._activePreview !== preview) return;
+        
         preview.style.left = `${Math.round(left)}px`;
         preview.style.top = `${Math.round(top)}px`;
         preview.style.opacity = '1';
@@ -198,8 +202,12 @@ window.KemonoUtil = window.KemonoUtil || {
         const hadScreenPosition = !!(this._activePreview.style.left && this._activePreview.style.top);
         
         const applyNow = () => {
-            if (token !== this._imageApplyToken) return;
+            // token 過期表示有更新的切圖／已 remove，載入鎖由新操作或 remove 負責
+            if (token !== this._imageApplyToken) {
+                return;
+            }
             if (!this._activePreview || this._activePreview !== imgElement.closest('.kemono-preview-container')) {
+                this._isLoadingSingleImage = false;
                 return;
             }
             
@@ -216,6 +224,15 @@ window.KemonoUtil = window.KemonoUtil || {
                 naturalWidth || imgElement.naturalWidth,
                 naturalHeight || imgElement.naturalHeight
             );
+            
+            // 套用尺寸期間可能已被點擊清除
+            if (token !== this._imageApplyToken) {
+                return;
+            }
+            if (this._activePreview !== imgElement.closest('.kemono-preview-container')) {
+                this._isLoadingSingleImage = false;
+                return;
+            }
             
             if (hadScreenPosition && oldSize && newSize && this._placementQuadrant) {
                 // 已在畫面上的預覽：錨定角固定，不依游標重算（切圖不跳動）
@@ -361,6 +378,8 @@ window.KemonoUtil = window.KemonoUtil || {
         img.style.setProperty('object-fit', 'contain', 'important');
         
         img.onload = () => {
+            // 預覽可能已在載入完成前被點擊清除
+            if (preview !== this._activePreview) return;
             this.applyFittedImageSize(img, img.naturalWidth, img.naturalHeight);
             this.schedulePositionUpdate(mouseEvent);
             preview.style.visibility = 'visible';
@@ -368,6 +387,7 @@ window.KemonoUtil = window.KemonoUtil || {
         };
         
         img.onerror = () => {
+            if (preview !== this._activePreview) return;
             window.KemonoLogger.error('Failed to load image:', imageSrc);
             const errorMsg = document.createElement('div');
             errorMsg.className = 'kemono-error-message';
@@ -378,7 +398,12 @@ window.KemonoUtil = window.KemonoUtil || {
             this._previewReady = true;
         };
         
-        const loadTimeout = setTimeout(() => {
+        if (this._previewLoadTimeout) {
+            clearTimeout(this._previewLoadTimeout);
+            this._previewLoadTimeout = null;
+        }
+        this._previewLoadTimeout = setTimeout(() => {
+            this._previewLoadTimeout = null;
             if (!this._previewReady && preview === this._activePreview) {
                 preview.style.visibility = 'visible';
                 const loadingMsg = document.createElement('div');
@@ -1144,6 +1169,9 @@ window.KemonoUtil = window.KemonoUtil || {
             top = Math.max(margin, viewport.height - previewHeight - margin);
         }
         
+        // 計算期間可能已被清除，勿把殘留節點寫回可見
+        if (this._activePreview !== preview) return;
+        
         preview.style.left = `${Math.round(left)}px`;
         preview.style.top = `${Math.round(top)}px`;
         preview.style.opacity = '1';
@@ -1166,6 +1194,11 @@ window.KemonoUtil = window.KemonoUtil || {
             this._pendingPreview = null;
         }
         
+        if (this._previewLoadTimeout) {
+            clearTimeout(this._previewLoadTimeout);
+            this._previewLoadTimeout = null;
+        }
+        
         if (this._positionRafId) {
             cancelAnimationFrame(this._positionRafId);
             this._positionRafId = null;
@@ -1183,26 +1216,17 @@ window.KemonoUtil = window.KemonoUtil || {
         this._knownPreviewSize = null;
         this._lastFittedNatural = null;
         this._imageApplyToken += 1;
+        this._isLoadingSingleImage = false;
+        this._isLoadingImages = false;
+        this._activePreview = null;
+        this._previewReady = false;
         
-        if (this._activePreview && this._activePreview.parentNode) {
-            // 立即清空活動預覽參考，避免淡出期間被誤當成仍可重用，
-            // 導致 100ms 後的移除把剛重建的預覽刪掉
-            const preview = this._activePreview;
-            this._activePreview = null;
-            this._previewReady = false;
-            
-            preview.style.transition = 'opacity 0.1s ease';
-            preview.style.opacity = '0';
-            
-            setTimeout(() => {
-                if (preview.parentNode) {
-                    preview.parentNode.removeChild(preview);
-                }
-            }, 100);
-        } else {
-            this._activePreview = null;
-            this._previewReady = false;
-        }
+        // 立即移除所有預覽節點（含淡出殘留），避免定位回呼把 opacity 寫回後卡在畫面上
+        document.querySelectorAll('.kemono-preview-container').forEach((el) => {
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        });
     },
     
     isMouseOverPreview: function(event) {
