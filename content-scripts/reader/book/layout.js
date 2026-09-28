@@ -1,5 +1,6 @@
 /**
  * 書本跨頁槽位幾何
+ * 座標系以「舞台（stage）」為準，不含頂欄
  */
 (function () {
   /**
@@ -8,8 +9,8 @@
    *   viewportHeight: number,
    *   pagesPerScreen: number,
    *   bookDirection: 'rtl'|'ltr',
-   *   topBarHeight?: number,
-   *   aspects?: number[]  // height/width，缺省用 1.45
+   *   aspects?: number[],  // height/width，缺省用 1.45
+   *   pad?: number
    * }} opts
    */
   function computeSpreadLayout(opts) {
@@ -18,13 +19,12 @@
       viewportHeight,
       pagesPerScreen,
       bookDirection,
-      topBarHeight = 44,
-      aspects = []
+      aspects = [],
+      pad = 8
     } = opts;
 
     const pps = Math.max(1, pagesPerScreen);
-    const pad = 12;
-    const availableH = Math.max(100, viewportHeight - topBarHeight - pad * 2);
+    const availableH = Math.max(100, viewportHeight - pad * 2);
     const availableW = Math.max(100, viewportWidth - pad * 2);
 
     let maxAspect = 1.45;
@@ -35,7 +35,7 @@
       }
     }
 
-    // 先以高度塞滿，再檢查寬度
+    // 先以高度塞滿，寬度不夠再改以寬度為準
     let pageHeight = availableH;
     let pageWidth = pageHeight / maxAspect;
     if (pageWidth * pps > availableW) {
@@ -45,7 +45,8 @@
 
     const totalWidth = pageWidth * pps;
     const leftOffset = (viewportWidth - totalWidth) / 2;
-    const top = topBarHeight + (availableH - pageHeight) / 2 + pad;
+    // 靠上對齊，多餘空白留在下方（避免頂欄下方出現大片空隙）
+    const top = pad;
 
     const slots = [];
     for (let i = 0; i < pps; i++) {

@@ -154,12 +154,14 @@
         return this.aspectMap[idx] || PLACEHOLDER_ASPECT;
       });
 
+      const stageW = this.stageEl.clientWidth || this.root.clientWidth || window.innerWidth;
+      const stageH = this.stageEl.clientHeight || Math.max(100, (this.root.clientHeight || window.innerHeight) - 44);
+
       const layout = window.KemonoBookLayout.computeSpreadLayout({
-        viewportWidth: this.root.clientWidth || window.innerWidth,
-        viewportHeight: this.root.clientHeight || window.innerHeight,
+        viewportWidth: stageW,
+        viewportHeight: stageH,
         pagesPerScreen: Math.max(spread.length, 1),
         bookDirection: direction,
-        topBarHeight: 44,
         aspects
       });
 
@@ -214,7 +216,13 @@
           }
           img.addEventListener('load', () => {
             if (img.naturalWidth > 0) {
-              this.aspectMap[pageIndex] = img.naturalHeight / img.naturalWidth;
+              const nextAspect = img.naturalHeight / img.naturalWidth;
+              const prev = this.aspectMap[pageIndex];
+              this.aspectMap[pageIndex] = nextAspect;
+              // 實際比例與版面假設差太多時重算，避免槽位過高留下空白
+              if (!prev || Math.abs(prev - nextAspect) > 0.02) {
+                this.render();
+              }
             }
           });
           img.addEventListener('error', () => {
