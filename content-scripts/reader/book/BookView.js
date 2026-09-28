@@ -202,9 +202,13 @@
         } else {
           const page = this.album.pages[pageIndex];
           const url = this.getDisplayUrl(page);
+          const forceUpscale = this.settings.forceUpscale !== false;
+          if (forceUpscale) {
+            pageEl.classList.add('kf-reader-page--upscale');
+          }
           const img = document.createElement('img');
           img.className = 'kf-reader-img';
-          if (this.settings.forceUpscale !== false) {
+          if (forceUpscale) {
             img.classList.add('kf-reader-img--upscale');
           }
           img.alt = page.name || `page ${pageIndex + 1}`;
@@ -218,7 +222,7 @@
               const nextAspect = img.naturalHeight / img.naturalWidth;
               const prev = this.aspectMap[pageIndex];
               this.aspectMap[pageIndex] = nextAspect;
-              // 實際比例與版面假設差太多時重算，避免槽位過高留下空白
+              // 實際比例與版面假設差太多時重算（橫圖／直圖切換）
               if (!prev || Math.abs(prev - nextAspect) > 0.02) {
                 this.render();
               }

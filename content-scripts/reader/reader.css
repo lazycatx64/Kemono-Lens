@@ -148,8 +148,14 @@
   -webkit-user-drag: none;
 }
 
-/* 強制低解析度圖放大以符合頁面槽位 */
+/* 強制低解析度圖放大以符合頁面槽位（絕對定位，不受 flex 限制） */
+.kf-reader-page--upscale .kf-reader-img,
 .kf-reader-img--upscale {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
   max-width: none;
