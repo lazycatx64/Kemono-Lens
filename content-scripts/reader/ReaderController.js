@@ -14,10 +14,15 @@
       this.isOpen = false;
       this._prevOverflow = '';
       this._onSettingsChanged = null;
+      this._initGen = 0;
+      this._destroyed = false;
     }
 
     async init() {
-      await this.destroy();
+      const gen = ++this._initGen;
+      await this.destroy({ keepGeneration: true });
+      this._destroyed = false;
+      if (gen !== this._initGen) return;
 
       const url = window.location.href;
       if (!window.KemonoAlbumService || !window.KemonoAlbumService.isPostPage(url)) {
@@ -34,24 +39,40 @@
       const settingsApi = window.KemonoReaderSettings;
       if (settingsApi) {
         await settingsApi.whenReady();
+        if (gen !== this._initGen || this._destroyed) return;
         if (!settingsApi.get().readerEnabled) {
           logger.log?.('閱讀器已停用');
           return;
         }
       }
 
+      let album = null;
       try {
-        this.album = await window.KemonoAlbumService.fetchAlbum(url);
+        album = await window.KemonoAlbumService.fetchAlbum(url);
       } catch (e) {
         logger.warn?.('閱讀器載入作品失敗:', e);
-        return;
+      }
+      if (gen !== this._initGen || this._destroyed) return;
+
+      // API 尚無結果時稍候再試 DOM（SPA 內容可能尚未掛上）
+      if (!album || !album.pages || album.pages.length === 0) {
+        await new Promise((r) => setTimeout(r, 400));
+        if (gen !== this._initGen || this._destroyed) return;
+        try {
+          album = window.KemonoAlbumService.parseAlbumFromDom(url, siteHandler);
+        } catch (e) {
+          logger.warn?.('閱讀器 DOM 備援失敗:', e);
+        }
       }
 
-      if (!this.album || !this.album.pages || this.album.pages.length === 0) {
+      if (gen !== this._initGen || this._destroyed) return;
+
+      if (!album || !album.pages || album.pages.length === 0) {
         logger.log?.('作品頁無圖片，不啟用閱讀器');
         return;
       }
 
+      this.album = album;
       this._createSwitch();
       this._onSettingsChanged = (e) => {
         const s = e.detail && e.detail.settings;
@@ -191,7 +212,11 @@
       }
     }
 
-    async destroy() {
+    async destroy(options = {}) {
+      if (!options.keepGeneration) {
+        this._destroyed = true;
+        this._initGen += 1;
+      }
       this.close();
       if (this._onSettingsChanged) {
         window.removeEventListener('kemonoReaderSettingsChanged', this._onSettingsChanged);

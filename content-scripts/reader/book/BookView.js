@@ -37,11 +37,13 @@
       this.stageEl = null;
       this.topBarEl = null;
       this.pageInfoEl = null;
+      this._mounted = false;
     }
 
     mount() {
       this.root.innerHTML = '';
       this.root.classList.add('kf-reader-open');
+      this._mounted = true;
 
       this.topBarEl = this._buildTopBar();
       this.root.appendChild(this.topBarEl);
@@ -64,11 +66,21 @@
     }
 
     destroy() {
-      document.removeEventListener('keydown', this._boundKey, true);
-      window.removeEventListener('resize', this._boundResize);
+      if (this._boundKey) {
+        document.removeEventListener('keydown', this._boundKey, true);
+      }
+      if (this._boundResize) {
+        window.removeEventListener('resize', this._boundResize);
+      }
+      if (this._boundWheel && this.root) {
+        this.root.removeEventListener('wheel', this._boundWheel);
+      }
       if (this.wheelTimer) clearTimeout(this.wheelTimer);
-      this.root.classList.remove('kf-reader-open');
-      this.root.innerHTML = '';
+      this._mounted = false;
+      if (this.root) {
+        this.root.classList.remove('kf-reader-open');
+        this.root.innerHTML = '';
+      }
       this.stageEl = null;
       this.topBarEl = null;
     }
@@ -350,8 +362,9 @@
     }
 
     _onKey(e) {
-      if (!this.root.classList.contains('kf-reader-open') && this.root.style.display === 'none') return;
-      if (this.root.offsetParent === null && this.root.style.display === 'none') return;
+      if (!this._mounted || !this.root || !this.root.classList.contains('kf-reader-open')) return;
+      const app = this.root.closest('#kf-reader-app');
+      if (app && app.style.display === 'none') return;
 
       const tag = e.target && e.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {

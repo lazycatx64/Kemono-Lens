@@ -116,6 +116,10 @@
           name: merged.name || null
         });
       });
+
+      // 補上 attachments／file 中尚未出現在 previews 的圖片
+      if (file) pushItem(file);
+      attachments.forEach(pushItem);
     } else {
       if (file) pushItem(file);
       attachments.forEach(pushItem);
