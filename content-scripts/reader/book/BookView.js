@@ -414,17 +414,23 @@
     }
 
     _onClick(e) {
-      // 點擊頂欄不翻頁
+      // 點擊頂欄／縮圖列不翻頁
       if (e.target.closest('.kf-reader-topbar')) return;
       if (e.target.closest('.kf-reader-thumbs')) return;
 
       const rect = this.stageEl.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const ratio = y / rect.height;
-      if (ratio < 0.3) {
-        this.turnSpread(-1);
-      } else if (ratio > 0.7) {
-        this.turnSpread(1);
+      const x = e.clientX - rect.left;
+      const ratio = x / Math.max(1, rect.width);
+      // 左右各 30%，中間不翻頁
+      if (ratio >= 0.3 && ratio <= 0.7) return;
+
+      const clickedLeft = ratio < 0.3;
+      const isRtl = this.settings.bookDirection !== 'ltr';
+      // 日式 RTL：左側＝下一跨頁、右側＝上一跨頁；西式 LTR 相反
+      if (isRtl) {
+        this.turnSpread(clickedLeft ? 1 : -1);
+      } else {
+        this.turnSpread(clickedLeft ? -1 : 1);
       }
     }
 
