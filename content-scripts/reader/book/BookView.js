@@ -25,7 +25,7 @@
       this.onPageChange = options.onPageChange || (() => {});
 
       this.pageCount = this.album.pages.length;
-      this.curPageIndex = -1; // 從封面開始
+      this.curPageIndex = 0; // 從第一張圖片開始（無純文字封面）
       this.aspectMap = {}; // pageIndex -> height/width
       this.wheelAcc = 0;
       this.wheelTimer = null;
@@ -94,7 +94,7 @@
     setAlbum(album) {
       this.album = album;
       this.pageCount = album.pages.length;
-      this.curPageIndex = -1;
+      this.curPageIndex = 0;
       this.render();
     }
 
@@ -191,12 +191,8 @@
         pageEl.style.height = `${slot.height}px`;
 
         if (pageIndex === -1) {
-          pageEl.classList.add('kf-reader-page--cover');
-          pageEl.innerHTML = `
-            <div class="kf-reader-cover-inner">
-              <div class="kf-reader-cover-title">${this._escape(this.album.title || '')}</div>
-              <div class="kf-reader-cover-meta">${this._t('reader_cover')}</div>
-            </div>`;
+          // 奇偶對齊用的空白頁（非純文字封面）
+          pageEl.classList.add('kf-reader-page--blank');
         } else if (pageIndex >= this.pageCount) {
           pageEl.classList.add('kf-reader-page--end');
           pageEl.innerHTML = `
@@ -357,7 +353,7 @@
       const real = this.curPageIndex;
       let label;
       if (real < 0) {
-        label = this._t('reader_cover');
+        label = this._t('reader_blank_page');
       } else if (real >= this.pageCount) {
         label = this._t('reader_end');
       } else {

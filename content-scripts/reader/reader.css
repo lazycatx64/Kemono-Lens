@@ -148,7 +148,10 @@
   -webkit-user-drag: none;
 }
 
-.kf-reader-page--cover,
+.kf-reader-page--blank {
+  background: #121212;
+}
+
 .kf-reader-page--end {
   background: linear-gradient(160deg, #1b4332 0%, #081c15 100%);
 }
