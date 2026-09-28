@@ -204,6 +204,9 @@
           const url = this.getDisplayUrl(page);
           const img = document.createElement('img');
           img.className = 'kf-reader-img';
+          if (this.settings.forceUpscale !== false) {
+            img.classList.add('kf-reader-img--upscale');
+          }
           img.alt = page.name || `page ${pageIndex + 1}`;
           img.decoding = 'async';
           img.dataset.pageIndex = String(pageIndex);
@@ -274,6 +277,10 @@
             <input type="checkbox" data-action="loadOriginals" ${this.settings.loadOriginals ? 'checked' : ''}>
             <span>${t('reader_load_originals')}</span>
           </label>
+          <label class="kf-reader-toggle">
+            <input type="checkbox" data-action="forceUpscale" ${this.settings.forceUpscale !== false ? 'checked' : ''}>
+            <span>${t('reader_force_upscale')}</span>
+          </label>
           <label class="kf-reader-inline">
             <span>${t('reader_pages_per_screen')}</span>
             <select data-action="pagesPerScreen">
@@ -315,6 +322,8 @@
         if (!action) return;
         if (action === 'loadOriginals') {
           this.onSettingsChange({ loadOriginals: !!el.checked });
+        } else if (action === 'forceUpscale') {
+          this.onSettingsChange({ forceUpscale: !!el.checked });
         } else if (action === 'pagesPerScreen') {
           const v = el.value === 'auto' ? 0 : parseInt(el.value, 10);
           this.onSettingsChange({ pagesPerScreen: v });
@@ -335,6 +344,8 @@
       if (!this.topBarEl) return;
       const load = this.topBarEl.querySelector('[data-action="loadOriginals"]');
       if (load) load.checked = !!this.settings.loadOriginals;
+      const upscale = this.topBarEl.querySelector('[data-action="forceUpscale"]');
+      if (upscale) upscale.checked = this.settings.forceUpscale !== false;
       const pps = this.topBarEl.querySelector('[data-action="pagesPerScreen"]');
       if (pps) {
         const v = this.settings.pagesPerScreen;

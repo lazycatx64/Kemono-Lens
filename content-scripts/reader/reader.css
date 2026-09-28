@@ -148,6 +148,15 @@
   -webkit-user-drag: none;
 }
 
+/* 強制低解析度圖放大以符合頁面槽位 */
+.kf-reader-img--upscale {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
+
 .kf-reader-page--blank {
   background: #121212;
 }

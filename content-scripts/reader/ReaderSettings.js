@@ -12,7 +12,8 @@
       pagesPerScreen: 0, // 0 = 依視窗寬度自動（>=768 → 2，否則 1）
       bookDirection: 'rtl', // 'rtl' 日式｜'ltr'
       isChangeOddEven: false,
-      showBookThumbs: true
+      showBookThumbs: true,
+      forceUpscale: true // 強制低解析度圖放大以符合槽位
     };
   }
 

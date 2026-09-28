@@ -95,6 +95,7 @@ const translations = {
     // 書本模式閱讀器
     'reader_open': '閱讀器',
     'reader_load_originals': '載入原圖',
+    'reader_force_upscale': '強制放大',
     'reader_pages_per_screen': '每螢幕頁數',
     'reader_pages_auto': '自動',
     'reader_direction': '閱讀方向',
