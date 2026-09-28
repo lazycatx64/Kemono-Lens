@@ -37,10 +37,20 @@
         'content-scripts/DOMManager.js',
         'content-scripts/BlacklistContentManager.js',
         'content-scripts/FavoritesContentManager.js',
+        'content-scripts/reader/ReaderSettings.js',
+        'content-scripts/reader/AlbumService.js',
+        'content-scripts/reader/book/spreads.js',
+        'content-scripts/reader/book/layout.js',
+        'content-scripts/reader/book/BookView.js',
+        'content-scripts/reader/book/BookThumbs.js',
+        'content-scripts/reader/ReaderController.js',
         'content.js'
     ];
 
-    const CONTENT_SCRIPT_CSS = ['styles.css'];
+    const CONTENT_SCRIPT_CSS = [
+        'styles.css',
+        'content-scripts/reader/reader.css'
+    ];
 
     let cachedDomains = { ...DEFAULT_DOMAINS };
 
@@ -184,7 +194,14 @@
 
     function buildImgThumbnailUrl(site, path) {
         const domain = getDomain(site || 'kemono');
-        return `https://img.${domain}/thumbnail/data/${path}`;
+        const clean = String(path || '').replace(/^\/+/, '');
+        return `https://img.${domain}/thumbnail/data/${clean}`;
+    }
+
+    function buildImgOriginalUrl(site, path) {
+        const domain = getDomain(site || 'kemono');
+        const clean = String(path || '').replace(/^\/+/, '');
+        return `https://file.${domain}/data/${clean}`;
     }
 
     function getTabQueryUrls() {
@@ -285,6 +302,7 @@
         buildIconUrl,
         buildApiUrl,
         buildImgThumbnailUrl,
+        buildImgOriginalUrl,
         getTabQueryUrls,
         rewriteIconUrlHost,
         migrateBlacklistIconUrls

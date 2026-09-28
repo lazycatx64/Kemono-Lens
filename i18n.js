@@ -90,7 +90,22 @@ const translations = {
     'logger_level_warn': '警告以上',
     'logger_level_info': '一般資訊（預設）',
     'logger_level_debug': '除錯',
-    'logger_level_help': '控制主控台輸出的詳細程度，等級越低輸出越少'
+    'logger_level_help': '控制主控台輸出的詳細程度，等級越低輸出越少',
+
+    // 書本模式閱讀器
+    'reader_open': '閱讀器',
+    'reader_load_originals': '載入原圖',
+    'reader_pages_per_screen': '每屏頁數',
+    'reader_pages_auto': '自動',
+    'reader_direction': '閱讀方向',
+    'reader_direction_rtl': '日式（右開）',
+    'reader_direction_ltr': '西式（左開）',
+    'reader_odd_even': '奇偶對齊',
+    'reader_show_thumbs': '縮圖列',
+    'reader_cover': '封面',
+    'reader_end': '結束',
+    'reader_page_of': '第 {current} 頁／共 {total} 頁',
+    'reader_enabled': '啟用作品頁閱讀器'
   },
   
   'en': {

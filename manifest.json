@@ -45,11 +45,21 @@
         "sites/coomer.js",
         "sites/index.js",
         "content-scripts/DOMManager.js",
-        "content-scripts/BlacklistContentManager.js", 
+        "content-scripts/BlacklistContentManager.js",
         "content-scripts/FavoritesContentManager.js",
+        "content-scripts/reader/ReaderSettings.js",
+        "content-scripts/reader/AlbumService.js",
+        "content-scripts/reader/book/spreads.js",
+        "content-scripts/reader/book/layout.js",
+        "content-scripts/reader/book/BookView.js",
+        "content-scripts/reader/book/BookThumbs.js",
+        "content-scripts/reader/ReaderController.js",
         "content.js"
       ],
-      "css": ["styles.css"],
+      "css": [
+        "styles.css",
+        "content-scripts/reader/reader.css"
+      ],
       "run_at": "document_end"
     }
   ],

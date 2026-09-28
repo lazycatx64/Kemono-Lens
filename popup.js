@@ -9,6 +9,7 @@ class PopupSettingsManager {
             favoritesVisualEffects: true,
             hideBlacklistedPosts: false,
             previewEnabled: true,
+            readerEnabled: true,
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
             preloadImageCount: 5,
@@ -73,6 +74,16 @@ class PopupSettingsManager {
                 this.settings.previewEnabled = e.target.checked;
                 this.saveSettings();
                 this.notifyPreviewSettingsChanged();
+            });
+        }
+
+        // 作品頁閱讀器開關
+        const readerEnabledToggle = document.getElementById('reader-enabled');
+        if (readerEnabledToggle) {
+            readerEnabledToggle.addEventListener('change', (e) => {
+                this.settings.readerEnabled = e.target.checked;
+                this.saveReaderSettings();
+                this.notifyReaderSettingsChanged();
             });
         }
 
@@ -147,7 +158,7 @@ class PopupSettingsManager {
 
     async loadSettings() {
         return new Promise((resolve) => {
-            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings'], (result) => {
+            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_reader_settings'], (result) => {
                 if (result.visualSettings) {
                     this.settings = { ...this.settings, ...result.visualSettings };
                 }
@@ -159,6 +170,19 @@ class PopupSettingsManager {
                         this.applyPreviewSettings(previewSettings);
                     } catch (e) {
                         console.error('載入預覽設定失敗:', e);
+                    }
+                }
+
+                if (result.kemono_reader_settings) {
+                    try {
+                        const readerSettings = typeof result.kemono_reader_settings === 'string'
+                            ? JSON.parse(result.kemono_reader_settings)
+                            : result.kemono_reader_settings;
+                        if (readerSettings.readerEnabled !== undefined) {
+                            this.settings.readerEnabled = !!readerSettings.readerEnabled;
+                        }
+                    } catch (e) {
+                        console.error('載入閱讀器設定失敗:', e);
                     }
                 }
                 
@@ -204,11 +228,32 @@ class PopupSettingsManager {
         });
     }
 
+    saveReaderSettings() {
+        chrome.storage.local.get(['kemono_reader_settings'], (result) => {
+            let existing = {};
+            if (result.kemono_reader_settings) {
+                try {
+                    existing = typeof result.kemono_reader_settings === 'string'
+                        ? JSON.parse(result.kemono_reader_settings)
+                        : result.kemono_reader_settings;
+                } catch (e) {
+                    existing = {};
+                }
+            }
+            const next = {
+                ...existing,
+                readerEnabled: this.settings.readerEnabled !== false
+            };
+            chrome.storage.local.set({ kemono_reader_settings: JSON.stringify(next) });
+        });
+    }
+
     updateUI() {
         const blacklistToggle = document.getElementById('blacklist-visual-effects');
         const favoritesToggle = document.getElementById('favorites-visual-effects');
         const hideBlacklistedPostsToggle = document.getElementById('hide-blacklisted-posts');
         const previewEnabledToggle = document.getElementById('preview-enabled');
+        const readerEnabledToggle = document.getElementById('reader-enabled');
         const previewMaxSizeInput = document.getElementById('preview-max-size');
         
         if (blacklistToggle) {
@@ -225,6 +270,10 @@ class PopupSettingsManager {
 
         if (previewEnabledToggle) {
             previewEnabledToggle.checked = this.settings.previewEnabled;
+        }
+
+        if (readerEnabledToggle) {
+            readerEnabledToggle.checked = this.settings.readerEnabled !== false;
         }
 
         // 設定預覽切換模式
@@ -278,6 +327,19 @@ class PopupSettingsManager {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updatePreviewSettings',
                     settings: previewPayload
+                }).catch(() => {
+                    // 忽略無法發送訊息的標籤頁
+                });
+            });
+        });
+    }
+
+    notifyReaderSettingsChanged() {
+        chrome.tabs.query({url: this.getTabQueryUrls()}, (tabs) => {
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'updateReaderSettings',
+                    settings: { readerEnabled: this.settings.readerEnabled !== false }
                 }).catch(() => {
                     // 忽略無法發送訊息的標籤頁
                 });

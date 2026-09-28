@@ -125,6 +125,7 @@ class KemonoFriends {
         this.domManager = new DOMManager();
         this.blacklistManager = new BlacklistContentManager(this.domManager);
         this.favoritesManager = new FavoritesContentManager(this.domManager);
+        this.readerController = null;
         this.init();
     }
 
@@ -133,6 +134,12 @@ class KemonoFriends {
         if (window.KemonoDomainConfig) {
             await window.KemonoDomainConfig.loadDomains();
         }
+
+        // 作品頁閱讀器（與黑名單／預覽獨立）
+        await this.initReader();
+
+        // 閱讀器設定訊息（作品頁也需要，不依賴黑名單頁面）
+        this.setupReaderMessageListener();
 
         // 檢查是否應該在當前頁面運行（黑名單/收藏功能）
         if (!this.domManager.shouldRunOnCurrentPage()) {
@@ -158,6 +165,48 @@ class KemonoFriends {
         
         // 初始化懸停預覽功能
         this.initHoverPreview();
+    }
+
+    async initReader() {
+        if (!window.KemonoReaderController) {
+            return;
+        }
+        try {
+            if (this.readerController) {
+                await this.readerController.destroy();
+                this.readerController = null;
+            }
+            this.readerController = new window.KemonoReaderController();
+            await this.readerController.init();
+        } catch (e) {
+            logger.warn?.('閱讀器初始化失敗:', e);
+            this.readerController = null;
+        }
+    }
+
+    setupReaderMessageListener() {
+        if (window.__kfReaderMessageBound) return;
+        window.__kfReaderMessageBound = true;
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (message.action !== 'updateReaderSettings') return;
+            const inst = currentKemonoFriends;
+            if (inst && typeof inst.handleReaderSettingsUpdate === 'function') {
+                inst.handleReaderSettingsUpdate(message.settings);
+            } else if (window.KemonoReaderSettings) {
+                window.KemonoReaderSettings.update(message.settings || {});
+            }
+            sendResponse({ success: true });
+            return true;
+        });
+    }
+
+    async handleReaderSettingsUpdate(partial) {
+        if (!window.KemonoReaderSettings) return;
+        window.KemonoReaderSettings.update(partial || {});
+        // readerEnabled 變更需重新掛載／卸載浮出按鈕
+        if (partial && Object.prototype.hasOwnProperty.call(partial, 'readerEnabled')) {
+            await this.initReader();
+        }
     }
 
     initHoverPreview() {
@@ -728,6 +777,10 @@ class KemonoFriends {
 
     destroy() {
         this.isActive = false;
+        if (this.readerController) {
+            this.readerController.destroy();
+            this.readerController = null;
+        }
         this.domManager.destroy();
         // 清除所有按鈕和樣式
         this.domManager.clearButtons('.kemono-blacklist-btn');

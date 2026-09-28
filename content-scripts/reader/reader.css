@@ -1,0 +1,249 @@
+/* 書本模式閱讀器樣式 */
+
+.kf-reader-switch {
+  position: fixed;
+  right: 0;
+  top: 40%;
+  z-index: 2147483000;
+  writing-mode: vertical-rl;
+  padding: 16px 8px;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  background: #2d6a4f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s ease, padding 0.15s ease;
+}
+
+.kf-reader-switch:hover {
+  background: #1b4332;
+  padding-right: 12px;
+}
+
+.kf-reader-app {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: none;
+  flex-direction: row;
+  background: #121212;
+  color: #f0f0f0;
+  font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+.kf-reader-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.kf-reader-topbar {
+  flex: 0 0 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  background: rgba(20, 20, 20, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.kf-reader-topbar-left,
+.kf-reader-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.kf-reader-topbar-right {
+  justify-content: flex-end;
+}
+
+.kf-reader-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #333;
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.kf-reader-btn:hover {
+  background: #444;
+}
+
+.kf-reader-pageinfo {
+  font-size: 13px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.kf-reader-toggle,
+.kf-reader-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.kf-reader-inline select {
+  background: #2a2a2a;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.kf-reader-stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  cursor: default;
+}
+
+.kf-reader-spread {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.kf-reader-page {
+  position: absolute;
+  box-sizing: border-box;
+  background: #1a1a1a;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.kf-reader-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.kf-reader-page--cover,
+.kf-reader-page--end {
+  background: linear-gradient(160deg, #1b4332 0%, #081c15 100%);
+}
+
+.kf-reader-cover-inner {
+  padding: 24px;
+  text-align: center;
+  max-width: 90%;
+}
+
+.kf-reader-cover-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.kf-reader-cover-meta {
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.kf-reader-page--error {
+  outline: 1px solid #c1121f;
+}
+
+.kf-reader-thumbs {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0d0d0d;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+.kf-reader-thumb {
+  position: relative;
+  appearance: none;
+  border: 2px solid transparent;
+  background: #222;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.kf-reader-thumb img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+.kf-reader-thumb-label {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.kf-reader-thumb.is-active {
+  border-color: #52b788;
+}
+
+.kf-reader-thumb:hover {
+  border-color: rgba(82, 183, 136, 0.6);
+}
+
+@media (max-width: 720px) {
+  .kf-reader-thumbs {
+    flex-basis: 72px;
+    width: 72px;
+  }
+
+  .kf-reader-topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+
+  .kf-reader-topbar-right {
+    gap: 6px;
+  }
+}
