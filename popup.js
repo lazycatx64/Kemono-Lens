@@ -2,6 +2,20 @@
  * Popup 頁面腳本 - 設定管理
  */
 
+const DEFAULT_TOGGLE_READER_SHORTCUT = '`';
+
+function formatShortcutDisplay(key) {
+    if (key === ' ') return 'Space';
+    if (key === 'ArrowLeft') return '←';
+    if (key === 'ArrowRight') return '→';
+    if (key === 'ArrowUp') return '↑';
+    if (key === 'ArrowDown') return '↓';
+    if (key === 'Escape') return 'Esc';
+    if (key === 'Enter') return 'Enter';
+    if (key === 'Tab') return 'Tab';
+    return key || DEFAULT_TOGGLE_READER_SHORTCUT;
+}
+
 class PopupSettingsManager {
     constructor() {
         this.settings = {
@@ -10,12 +24,15 @@ class PopupSettingsManager {
             hideBlacklistedPosts: false,
             previewEnabled: true,
             readerEnabled: true,
+            toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUT,
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
             preloadImageCount: 5,
             previewControlMode: 'hold_to_hide',
             previewModifierKey: 'alt'
         };
+        this._shortcutRecording = null;
+        this._shortcutRecordHandler = null;
         
         this.init();
     }
@@ -84,6 +101,24 @@ class PopupSettingsManager {
                 this.settings.readerEnabled = e.target.checked;
                 this.saveReaderSettings();
                 this.notifyReaderSettingsChanged();
+            });
+        }
+
+        // 開關閱讀器快速鍵
+        const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
+        if (toggleReaderBtn) {
+            toggleReaderBtn.addEventListener('click', () => {
+                this.startShortcutRecording('toggleReaderShortcut', toggleReaderBtn);
+            });
+        }
+        const toggleReaderResetBtn = document.getElementById('shortcut-toggle-reader-reset');
+        if (toggleReaderResetBtn) {
+            toggleReaderResetBtn.addEventListener('click', () => {
+                this.cancelShortcutRecording();
+                this.settings.toggleReaderShortcut = DEFAULT_TOGGLE_READER_SHORTCUT;
+                this.saveReaderSettings();
+                this.notifyReaderSettingsChanged();
+                this.updateShortcutUI();
             });
         }
 
@@ -181,6 +216,9 @@ class PopupSettingsManager {
                         if (readerSettings.readerEnabled !== undefined) {
                             this.settings.readerEnabled = !!readerSettings.readerEnabled;
                         }
+                        if (readerSettings.toggleReaderShortcut) {
+                            this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
+                        }
                     } catch (e) {
                         console.error('載入閱讀器設定失敗:', e);
                     }
@@ -242,10 +280,70 @@ class PopupSettingsManager {
             }
             const next = {
                 ...existing,
-                readerEnabled: this.settings.readerEnabled !== false
+                readerEnabled: this.settings.readerEnabled !== false,
+                toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
             };
-            chrome.storage.local.set({ kemono_reader_settings: JSON.stringify(next) });
+            const json = JSON.stringify(next);
+            chrome.storage.local.set({ kemono_reader_settings: json });
+            try {
+                localStorage.setItem('kemono_reader_settings', json);
+            } catch (e) {
+                // 忽略
+            }
         });
+    }
+
+    startShortcutRecording(settingKey, buttonEl) {
+        this.cancelShortcutRecording();
+        this._shortcutRecording = { settingKey, buttonEl };
+        buttonEl.classList.add('recording');
+        buttonEl.textContent = '請按鍵…';
+
+        this._shortcutRecordHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (e.key === 'Escape') {
+                this.cancelShortcutRecording();
+                this.updateShortcutUI();
+                return;
+            }
+
+            if (e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' || e.key === 'Meta') {
+                return;
+            }
+
+            const key = e.key;
+            if (!key) return;
+
+            this.settings[settingKey] = key;
+            this.cancelShortcutRecording();
+            this.saveReaderSettings();
+            this.notifyReaderSettingsChanged();
+            this.updateShortcutUI();
+        };
+
+        document.addEventListener('keydown', this._shortcutRecordHandler, true);
+    }
+
+    cancelShortcutRecording() {
+        if (this._shortcutRecordHandler) {
+            document.removeEventListener('keydown', this._shortcutRecordHandler, true);
+            this._shortcutRecordHandler = null;
+        }
+        if (this._shortcutRecording && this._shortcutRecording.buttonEl) {
+            this._shortcutRecording.buttonEl.classList.remove('recording');
+        }
+        this._shortcutRecording = null;
+    }
+
+    updateShortcutUI() {
+        const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
+        if (toggleReaderBtn && !toggleReaderBtn.classList.contains('recording')) {
+            toggleReaderBtn.textContent = formatShortcutDisplay(
+                this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+            );
+        }
     }
 
     updateUI() {
@@ -275,6 +373,8 @@ class PopupSettingsManager {
         if (readerEnabledToggle) {
             readerEnabledToggle.checked = this.settings.readerEnabled !== false;
         }
+
+        this.updateShortcutUI();
 
         // 設定預覽切換模式
         const previewSwitchRadios = document.querySelectorAll('input[name="preview-switch-mode"]');
@@ -339,7 +439,10 @@ class PopupSettingsManager {
             tabs.forEach(tab => {
                 chrome.tabs.sendMessage(tab.id, {
                     action: 'updateReaderSettings',
-                    settings: { readerEnabled: this.settings.readerEnabled !== false }
+                    settings: {
+                        readerEnabled: this.settings.readerEnabled !== false,
+                        toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+                    }
                 }).catch(() => {
                     // 忽略無法發送訊息的標籤頁
                 });

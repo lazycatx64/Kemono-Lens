@@ -631,6 +631,52 @@
             font-weight: 500;
             color: #333;
         }
+
+        .shortcut-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        .shortcut-row .shortcut-label {
+            min-width: 140px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .shortcut-capture {
+            min-width: 140px;
+            padding: 8px 14px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: #fff;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .shortcut-capture.recording {
+            border-color: #007cba;
+            background: #e7f3ff;
+            color: #005a87;
+        }
+
+        .shortcut-reset-btn {
+            padding: 8px 14px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .shortcut-reset-btn:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -642,6 +688,7 @@
             <button class="tab-button active" data-tab="blacklist">🚫 黑名單管理</button>
             <button class="tab-button" data-tab="favorites">⭐ 收藏管理</button>
             <button class="tab-button" data-tab="preview">🖼️ 預覽設定</button>
+            <button class="tab-button" data-tab="shortcuts">⌨️ 快速鍵</button>
             <button class="tab-button" data-tab="settings">⚙️ 顯示設定</button>
         </div>
 
@@ -823,6 +870,26 @@
                     <button id="clear-favorites-btn" class="danger-btn">🗑️ 清除所有收藏標記</button>
                     <div class="help-text" style="margin-top: 8px;">
                         ⚠️ 此操作只會清除擴充功能中的收藏標記，不會影響 Kemono 網站上的實際收藏
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速鍵管理頁籤 -->
+        <div class="tab-content" data-tab="shortcuts">
+            <div class="section">
+                <h2>快速鍵管理</h2>
+                <p class="help-text">點擊按鍵欄位後按下新快速鍵即可綁定。輸入框內不會觸發這些快速鍵。</p>
+
+                <div class="settings-group">
+                    <h3>📖 閱讀器</h3>
+                    <div class="shortcut-row">
+                        <span class="shortcut-label">開關閱讀器</span>
+                        <button type="button" id="shortcut-toggle-reader" class="shortcut-capture" title="點擊後按下新快速鍵">`</button>
+                        <button type="button" id="shortcut-toggle-reader-reset" class="shortcut-reset-btn">還原預設</button>
+                    </div>
+                    <div class="help-text">
+                        預設為 <code>`</code>（鍵盤左上角波浪鍵）。在作品頁可快速開啟或關閉書本閱讀器。
                     </div>
                 </div>
             </div>

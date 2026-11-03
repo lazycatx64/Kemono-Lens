@@ -2,6 +2,20 @@
 
 console.log('[KemonoFriends] SettingsManager 加載');
 
+const DEFAULT_TOGGLE_READER_SHORTCUT = '`';
+
+function formatShortcutDisplay(key) {
+    if (key === ' ') return 'Space';
+    if (key === 'ArrowLeft') return '←';
+    if (key === 'ArrowRight') return '→';
+    if (key === 'ArrowUp') return '↑';
+    if (key === 'ArrowDown') return '↓';
+    if (key === 'Escape') return 'Esc';
+    if (key === 'Enter') return 'Enter';
+    if (key === 'Tab') return 'Tab';
+    return key || DEFAULT_TOGGLE_READER_SHORTCUT;
+}
+
 class SettingsManager {
     constructor(messageManager) {
         this.messageManager = messageManager;
@@ -16,11 +30,15 @@ class SettingsManager {
             preloadImageCount: 5,
             previewControlMode: 'hold_to_hide',
             previewModifierKey: 'alt',
+            // 閱讀器快速鍵
+            toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUT,
             // 請求速率限制
             requestRateLimit: 10,
             // 日誌等級
             loggerLevel: 'info'
         };
+        this._shortcutRecording = null;
+        this._shortcutRecordHandler = null;
         
         this.init();
     }
@@ -162,6 +180,119 @@ class SettingsManager {
         if (saveDomainsBtn) {
             saveDomainsBtn.addEventListener('click', () => this.saveSiteDomains());
         }
+
+        // 快速鍵錄製
+        const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
+        if (toggleReaderBtn) {
+            toggleReaderBtn.addEventListener('click', () => {
+                this.startShortcutRecording('toggleReaderShortcut', toggleReaderBtn);
+            });
+        }
+        const toggleReaderResetBtn = document.getElementById('shortcut-toggle-reader-reset');
+        if (toggleReaderResetBtn) {
+            toggleReaderResetBtn.addEventListener('click', () => {
+                this.cancelShortcutRecording();
+                this.settings.toggleReaderShortcut = DEFAULT_TOGGLE_READER_SHORTCUT;
+                this.saveReaderShortcutSettings();
+                this.notifyReaderSettingsChanged();
+                this.updateShortcutUI();
+                this.messageManager.showSuccess('已還原為預設快速鍵');
+            });
+        }
+    }
+
+    startShortcutRecording(settingKey, buttonEl) {
+        this.cancelShortcutRecording();
+        this._shortcutRecording = { settingKey, buttonEl };
+        buttonEl.classList.add('recording');
+        buttonEl.textContent = '請按下新快速鍵…';
+
+        this._shortcutRecordHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (e.key === 'Escape') {
+                this.cancelShortcutRecording();
+                this.updateShortcutUI();
+                return;
+            }
+
+            if (e.key === 'Control' || e.key === 'Shift' || e.key === 'Alt' || e.key === 'Meta') {
+                return;
+            }
+
+            const key = e.key;
+            if (!key) return;
+
+            this.settings[settingKey] = key;
+            this.cancelShortcutRecording();
+            this.saveReaderShortcutSettings();
+            this.notifyReaderSettingsChanged();
+            this.updateShortcutUI();
+            this.messageManager.showSuccess('快速鍵已更新');
+        };
+
+        document.addEventListener('keydown', this._shortcutRecordHandler, true);
+    }
+
+    cancelShortcutRecording() {
+        if (this._shortcutRecordHandler) {
+            document.removeEventListener('keydown', this._shortcutRecordHandler, true);
+            this._shortcutRecordHandler = null;
+        }
+        if (this._shortcutRecording && this._shortcutRecording.buttonEl) {
+            this._shortcutRecording.buttonEl.classList.remove('recording');
+        }
+        this._shortcutRecording = null;
+    }
+
+    updateShortcutUI() {
+        const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
+        if (toggleReaderBtn && !toggleReaderBtn.classList.contains('recording')) {
+            toggleReaderBtn.textContent = formatShortcutDisplay(
+                this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+            );
+        }
+    }
+
+    saveReaderShortcutSettings() {
+        chrome.storage.local.get(['kemono_reader_settings'], (result) => {
+            let existing = {};
+            if (result.kemono_reader_settings) {
+                try {
+                    existing = typeof result.kemono_reader_settings === 'string'
+                        ? JSON.parse(result.kemono_reader_settings)
+                        : result.kemono_reader_settings;
+                } catch (e) {
+                    existing = {};
+                }
+            }
+            const next = {
+                ...existing,
+                toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+            };
+            const json = JSON.stringify(next);
+            chrome.storage.local.set({ kemono_reader_settings: json });
+            try {
+                localStorage.setItem('kemono_reader_settings', json);
+            } catch (e) {
+                console.warn('無法寫入 localStorage:', e);
+            }
+        });
+    }
+
+    notifyReaderSettingsChanged() {
+        const payload = {
+            toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+        };
+        chrome.tabs.query({ url: this.getTabQueryUrls() }, (tabs) => {
+            tabs.forEach((tab) => {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'updateReaderSettings',
+                    settings: payload
+                }).catch(() => {});
+            });
+        });
     }
 
     getTabQueryUrls() {
@@ -281,9 +412,34 @@ class SettingsManager {
     async loadSettings() {
         await this.loadSiteDomainsIntoUI();
         return new Promise((resolve) => {
-            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings', 'kemono_logger_settings'], (result) => {
+            chrome.storage.local.get(['visualSettings', 'kemono_preview_settings', 'kemono_request_queue_settings', 'kemono_logger_settings', 'kemono_reader_settings'], (result) => {
                 if (result.visualSettings) {
                     this.settings = { ...this.settings, ...result.visualSettings };
+                }
+
+                if (result.kemono_reader_settings) {
+                    try {
+                        const readerSettings = typeof result.kemono_reader_settings === 'string'
+                            ? JSON.parse(result.kemono_reader_settings)
+                            : result.kemono_reader_settings;
+                        if (readerSettings.toggleReaderShortcut) {
+                            this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
+                        }
+                    } catch (e) {
+                        console.error('載入閱讀器快速鍵設定失敗:', e);
+                    }
+                } else {
+                    try {
+                        const localReader = localStorage.getItem('kemono_reader_settings');
+                        if (localReader) {
+                            const readerSettings = JSON.parse(localReader);
+                            if (readerSettings.toggleReaderShortcut) {
+                                this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('載入閱讀器快速鍵設定失敗:', e);
+                    }
                 }
                 
                 // 載入預覽設定（從 localStorage 或 chrome.storage）
@@ -475,6 +631,8 @@ class SettingsManager {
         loggerLevelRadios.forEach(radio => {
             radio.checked = radio.value === (this.settings.loggerLevel || 'info');
         });
+
+        this.updateShortcutUI();
     }
 
     saveLoggerSettings() {

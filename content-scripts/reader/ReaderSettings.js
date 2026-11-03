@@ -13,7 +13,8 @@
       bookDirection: 'rtl', // 'rtl' 日式｜'ltr'
       isChangeOddEven: false,
       showBookThumbs: true,
-      forceUpscale: true // 強制低解析度圖放大以符合槽位
+      forceUpscale: true, // 強制低解析度圖放大以符合槽位
+      toggleReaderShortcut: '`' // 開關閱讀器快速鍵（KeyboardEvent.key）
     };
   }
 

@@ -165,6 +165,46 @@
         .footer a:hover {
             text-decoration: underline;
         }
+
+        .shortcut-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .shortcut-capture {
+            min-width: 72px;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .shortcut-capture.recording {
+            border-color: #007cba;
+            background: #e7f3ff;
+            color: #005a87;
+        }
+
+        .shortcut-reset-btn {
+            padding: 6px 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .shortcut-reset-btn:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -225,6 +265,12 @@
                 <span class="switch-label">啟用作品頁閱讀器</span>
             </label>
             <div class="help-text">在作品頁顯示右側浮出按鈕，點擊後以書本模式閱讀圖片</div>
+            <div class="help-text" style="margin-top: 10px; margin-bottom: 4px;">開關閱讀器快速鍵：</div>
+            <div class="shortcut-row">
+                <button type="button" id="shortcut-toggle-reader" class="shortcut-capture" title="點擊後按下新快速鍵">`</button>
+                <button type="button" id="shortcut-toggle-reader-reset" class="shortcut-reset-btn">還原預設</button>
+            </div>
+            <div class="help-text">預設為 ` ；點擊欄位後按下新鍵即可修改</div>
         </div>
 
         <div class="settings-group">

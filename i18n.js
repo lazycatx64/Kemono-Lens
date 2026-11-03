@@ -107,7 +107,8 @@ const translations = {
     'reader_blank_page': '空白頁',
     'reader_end': '結束',
     'reader_page_of': '第 {current} 頁／共 {total} 頁',
-    'reader_enabled': '啟用作品頁閱讀器'
+    'reader_enabled': '啟用作品頁閱讀器',
+    'shortcut_toggle_reader_hint': '{key}'
   },
   
   'en': {

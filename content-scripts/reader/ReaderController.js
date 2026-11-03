@@ -3,6 +3,17 @@
  */
 (function () {
   const logger = window.KemonoLogger || console;
+  const DEFAULT_TOGGLE_SHORTCUT = '`';
+
+  function formatShortcutLabel(key) {
+    if (key === ' ') return 'Space';
+    if (key === 'ArrowLeft') return '←';
+    if (key === 'ArrowRight') return '→';
+    if (key === 'ArrowUp') return '↑';
+    if (key === 'ArrowDown') return '↓';
+    if (key === 'Escape') return 'Esc';
+    return key || DEFAULT_TOGGLE_SHORTCUT;
+  }
 
   class ReaderController {
     constructor() {
@@ -14,6 +25,8 @@
       this.isOpen = false;
       this._prevOverflow = '';
       this._onSettingsChanged = null;
+      this._boundToggleKey = null;
+      this._toggleShortcut = DEFAULT_TOGGLE_SHORTCUT;
       this._initGen = 0;
       this._destroyed = false;
     }
@@ -73,7 +86,11 @@
       }
 
       this.album = album;
+      this._syncToggleShortcutFromSettings(
+        settingsApi ? settingsApi.get() : null
+      );
       this._createSwitch();
+      this._bindToggleShortcut();
       this._onSettingsChanged = (e) => {
         const s = e.detail && e.detail.settings;
         if (!s) return;
@@ -81,6 +98,8 @@
           this.destroy();
           return;
         }
+        this._syncToggleShortcutFromSettings(s);
+        this._updateSwitchTitle();
         if (this.bookView) {
           this.bookView.updateSettings(s);
         }
@@ -90,6 +109,61 @@
       };
       window.addEventListener('kemonoReaderSettingsChanged', this._onSettingsChanged);
       logger.log?.(`閱讀器就緒，共 ${this.album.pages.length} 張`);
+    }
+
+    _syncToggleShortcutFromSettings(settings) {
+      const key = settings && settings.toggleReaderShortcut;
+      this._toggleShortcut = (typeof key === 'string' && key.length > 0)
+        ? key
+        : DEFAULT_TOGGLE_SHORTCUT;
+    }
+
+    _matchesToggleShortcut(e) {
+      const shortcut = this._toggleShortcut || DEFAULT_TOGGLE_SHORTCUT;
+      if (e.key === shortcut) return true;
+      if (shortcut === '`' && e.code === 'Backquote') return true;
+      return false;
+    }
+
+    _isTypingTarget(target) {
+      if (!target) return false;
+      const tag = target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (target.isContentEditable) return true;
+      return false;
+    }
+
+    _bindToggleShortcut() {
+      this._unbindToggleShortcut();
+      this._boundToggleKey = (e) => {
+        if (this._destroyed || !this.album) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (this._isTypingTarget(e.target)) return;
+        if (!this._matchesToggleShortcut(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggle();
+      };
+      document.addEventListener('keydown', this._boundToggleKey, true);
+    }
+
+    _unbindToggleShortcut() {
+      if (this._boundToggleKey) {
+        document.removeEventListener('keydown', this._boundToggleKey, true);
+        this._boundToggleKey = null;
+      }
+    }
+
+    _updateSwitchTitle() {
+      if (!this.switchEl) return;
+      const label = (window.KemonoI18n && window.KemonoI18n.t)
+        ? window.KemonoI18n.t('reader_open')
+        : '閱讀器';
+      const keyLabel = formatShortcutLabel(this._toggleShortcut);
+      const hint = (window.KemonoI18n && window.KemonoI18n.t)
+        ? window.KemonoI18n.t('shortcut_toggle_reader_hint', { key: keyLabel })
+        : keyLabel;
+      this.switchEl.title = `${label}（${hint}）`;
     }
 
     _createSwitch() {
@@ -102,14 +176,14 @@
         ? window.KemonoI18n.t('reader_open')
         : '閱讀器';
       btn.textContent = label;
-      btn.title = label;
+      this.switchEl = btn;
+      this._updateSwitchTitle();
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.open();
       });
       document.body.appendChild(btn);
-      this.switchEl = btn;
     }
 
     _removeSwitch() {
@@ -133,6 +207,14 @@
       }
       this.appEl = el;
       return el;
+    }
+
+    toggle() {
+      if (this.isOpen) {
+        this.close();
+      } else {
+        this.open();
+      }
     }
 
     open() {
@@ -218,6 +300,7 @@
         this._initGen += 1;
       }
       this.close();
+      this._unbindToggleShortcut();
       if (this._onSettingsChanged) {
         window.removeEventListener('kemonoReaderSettingsChanged', this._onSettingsChanged);
         this._onSettingsChanged = null;
