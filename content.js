@@ -867,21 +867,44 @@ const checkUrlChange = () => {
     }
 };
 
-// 監聽popstate事件（瀏覽器前進後退）
-window.addEventListener('popstate', checkUrlChange);
+// SPA 導航偵測
+// content script 處於隔離世界，頁面端（如 HTMX）呼叫的 history.pushState
+// 不會經過下方的 monkey-patch，因此需併用 Navigation API／HTMX 事件／輪詢。
+const scheduleUrlCheck = () => setTimeout(checkUrlChange, 50);
 
-// 監聽pushstate和replacestate（程序化導航）
+window.addEventListener('popstate', scheduleUrlCheck);
+
+if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+    window.navigation.addEventListener('navigate', scheduleUrlCheck);
+}
+
+[
+    'htmx:afterSwap',
+    'htmx:pushedIntoHistory',
+    'htmx:replacedInHistory',
+    'htmx:historyRestore',
+    'htmx:after:swap',
+    'htmx:after:history:push',
+    'htmx:after:history:replace',
+    'htmx:before:history:restore'
+].forEach((eventName) => {
+    document.addEventListener(eventName, scheduleUrlCheck, true);
+});
+
+setInterval(checkUrlChange, 500);
+
+// 同世界內的 history 變更（備援）
 const originalPushState = history.pushState;
 const originalReplaceState = history.replaceState;
 
 history.pushState = function(...args) {
     originalPushState.apply(history, args);
-    setTimeout(checkUrlChange, 100);
+    scheduleUrlCheck();
 };
 
 history.replaceState = function(...args) {
     originalReplaceState.apply(history, args);
-    setTimeout(checkUrlChange, 100);
+    scheduleUrlCheck();
 };
 
 // 初始化

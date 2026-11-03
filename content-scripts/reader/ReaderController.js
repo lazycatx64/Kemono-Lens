@@ -1,9 +1,23 @@
 /**
  * 作品頁閱讀器控制器：浮出按鈕、overlay、SPA 生命週期
+ *
+ * 注意：content script 處於隔離世界，無法攔截頁面端的 history.pushState
+ *（例如 Pawchive 的 HTMX 換頁）。必須以 Navigation API／HTMX 事件／輪詢偵測 URL。
  */
 (function () {
   const logger = window.KemonoLogger || console;
   const DEFAULT_TOGGLE_SHORTCUT = '`';
+  const SPA_POLL_MS = 500;
+  const HTMX_NAV_EVENTS = [
+    'htmx:afterSwap',
+    'htmx:pushedIntoHistory',
+    'htmx:replacedInHistory',
+    'htmx:historyRestore',
+    'htmx:after:swap',
+    'htmx:after:history:push',
+    'htmx:after:history:replace',
+    'htmx:before:history:restore'
+  ];
 
   function formatShortcutLabel(key) {
     if (key === ' ') return 'Space';
@@ -13,6 +27,15 @@
     if (key === 'ArrowDown') return '↓';
     if (key === 'Escape') return 'Esc';
     return key || DEFAULT_TOGGLE_SHORTCUT;
+  }
+
+  function postPageKey(url) {
+    try {
+      const parsed = new URL(url);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch (e) {
+      return String(url || '');
+    }
   }
 
   class ReaderController {
@@ -29,12 +52,20 @@
       this._toggleShortcut = DEFAULT_TOGGLE_SHORTCUT;
       this._initGen = 0;
       this._destroyed = false;
+      this._watchedUrl = window.location.href;
+      this._spaBound = false;
+      this._onSpaNav = null;
+      this._onNavigate = null;
+      this._spaPollTimer = null;
+      this._opening = false;
     }
 
     async init() {
       const gen = ++this._initGen;
       await this.destroy({ keepGeneration: true });
       this._destroyed = false;
+      this._bindSpaWatch();
+      this._watchedUrl = window.location.href;
       if (gen !== this._initGen) return;
 
       const url = window.location.href;
@@ -80,12 +111,18 @@
 
       if (gen !== this._initGen || this._destroyed) return;
 
+      // 非同步載入期間若已換到另一篇，放棄本次結果
+      if (postPageKey(window.location.href) !== postPageKey(url)) {
+        return;
+      }
+
       if (!album || !album.pages || album.pages.length === 0) {
         logger.log?.('作品頁無圖片，不啟用閱讀器');
         return;
       }
 
       this.album = album;
+      this._watchedUrl = window.location.href;
       this._syncToggleShortcutFromSettings(
         settingsApi ? settingsApi.get() : null
       );
@@ -109,6 +146,82 @@
       };
       window.addEventListener('kemonoReaderSettingsChanged', this._onSettingsChanged);
       logger.log?.(`閱讀器就緒，共 ${this.album.pages.length} 張`);
+    }
+
+    _bindSpaWatch() {
+      if (this._spaBound) return;
+      this._spaBound = true;
+
+      this._onSpaNav = () => {
+        setTimeout(() => this._handleSpaNavigation(), 50);
+      };
+
+      window.addEventListener('popstate', this._onSpaNav);
+
+      HTMX_NAV_EVENTS.forEach((name) => {
+        document.addEventListener(name, this._onSpaNav, true);
+      });
+
+      if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+        this._onNavigate = () => {
+          setTimeout(() => this._handleSpaNavigation(), 0);
+        };
+        window.navigation.addEventListener('navigate', this._onNavigate);
+      }
+
+      this._spaPollTimer = setInterval(() => {
+        this._handleSpaNavigation();
+      }, SPA_POLL_MS);
+    }
+
+    _unbindSpaWatch() {
+      if (!this._spaBound) return;
+      this._spaBound = false;
+
+      if (this._onSpaNav) {
+        window.removeEventListener('popstate', this._onSpaNav);
+        HTMX_NAV_EVENTS.forEach((name) => {
+          document.removeEventListener(name, this._onSpaNav, true);
+        });
+        this._onSpaNav = null;
+      }
+
+      if (this._onNavigate && window.navigation) {
+        window.navigation.removeEventListener('navigate', this._onNavigate);
+        this._onNavigate = null;
+      }
+
+      if (this._spaPollTimer) {
+        clearInterval(this._spaPollTimer);
+        this._spaPollTimer = null;
+      }
+    }
+
+    _handleSpaNavigation() {
+      if (this._destroyed) return;
+
+      const url = window.location.href;
+      if (url === this._watchedUrl) {
+        // HTMX 可能以 body.innerHTML 換頁，浮出按鈕會被清掉但 URL 尚未更新或已由他處處理
+        if (this.album && (!this.switchEl || !document.body.contains(this.switchEl))) {
+          this._createSwitch();
+        }
+        return;
+      }
+
+      // 先鎖住目前 URL，避免輪詢在 init 完成前重複觸發
+      this._watchedUrl = url;
+      logger.log?.('閱讀器偵測到 SPA 換頁，重新載入作品');
+      this.init();
+    }
+
+    _albumMatchesCurrentPage() {
+      if (!this.album) return false;
+      const current = postPageKey(window.location.href);
+      if (this.album.postUrl) {
+        return postPageKey(this.album.postUrl) === current;
+      }
+      return postPageKey(this._watchedUrl) === current;
     }
 
     _syncToggleShortcutFromSettings(settings) {
@@ -136,7 +249,7 @@
     _bindToggleShortcut() {
       this._unbindToggleShortcut();
       this._boundToggleKey = (e) => {
-        if (this._destroyed || !this.album) return;
+        if (this._destroyed) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         if (this._isTypingTarget(e.target)) return;
         if (!this._matchesToggleShortcut(e)) return;
@@ -168,6 +281,7 @@
 
     _createSwitch() {
       this._removeSwitch();
+      if (!document.body) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.id = 'kf-reader-switch';
@@ -181,7 +295,7 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.open();
+        void this.open();
       });
       document.body.appendChild(btn);
     }
@@ -213,12 +327,26 @@
       if (this.isOpen) {
         this.close();
       } else {
-        this.open();
+        void this.open();
       }
     }
 
-    open() {
-      if (this.isOpen || !this.album) return;
+    async open() {
+      if (this.isOpen || this._opening || this._destroyed) return;
+
+      // SPA 換篇後若相簿仍是舊文，先重載再開啟
+      if (!this._albumMatchesCurrentPage()) {
+        this._opening = true;
+        try {
+          await this.init();
+        } finally {
+          this._opening = false;
+        }
+        if (this._destroyed || !this.album || this.isOpen) return;
+      }
+
+      if (!this.album) return;
+
       const settings = window.KemonoReaderSettings
         ? window.KemonoReaderSettings.get()
         : {
@@ -289,8 +417,10 @@
       }
       document.body.style.overflow = this._prevOverflow || '';
       this.isOpen = false;
-      if (this.switchEl) {
+      if (this.switchEl && document.body.contains(this.switchEl)) {
         this.switchEl.style.display = '';
+      } else if (this.album) {
+        this._createSwitch();
       }
     }
 
@@ -298,6 +428,7 @@
       if (!options.keepGeneration) {
         this._destroyed = true;
         this._initGen += 1;
+        this._unbindSpaWatch();
       }
       this.close();
       this._unbindToggleShortcut();
