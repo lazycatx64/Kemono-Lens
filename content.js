@@ -833,38 +833,56 @@ function createPreview(target, siteHandler, event) {
 // 全域實例管理
 let currentKemonoFriends = null;
 let currentUrl = window.location.href;
+let urlChangeGen = 0;
+let urlChangeTimer = null;
+let urlChangeProfileTimer = null;
 
 const checkUrlChange = () => {
-    if (window.location.href !== currentUrl) {
-        currentUrl = window.location.href;
-        currSite = currentUrl; // 更新懸停預覽的當前網站
-        endSuppressPreviewOnUrlChange();
-        
-        // 銷毀舊實例
-        if (currentKemonoFriends) {
-            currentKemonoFriends.destroy();
-            currentKemonoFriends = null;
-        }
-        
-        // 清除懸停預覽
-        if (util && util.removeActivePreview) {
-            util.removeActivePreview();
-        }
-        currentHoveredElement = null;
-        
-        // 重新初始化 - 增加延遲以確保頁面完全載入
-        setTimeout(() => {
-            currentKemonoFriends = new KemonoFriends();
-            
-            // 對於個人頁面，額外再檢查一次
-            setTimeout(() => {
-                if (currentKemonoFriends && currentKemonoFriends.isActive && 
-                    currentKemonoFriends.domManager.isUserProfilePage()) {
-                    currentKemonoFriends.processUserCards();
-                }
-            }, 1500);
-        }, 800);
+    if (window.location.href === currentUrl) {
+        return;
     }
+
+    currentUrl = window.location.href;
+    currSite = currentUrl; // 更新懸停預覽的當前網站
+    endSuppressPreviewOnUrlChange();
+
+    // 銷毀舊實例
+    if (currentKemonoFriends) {
+        currentKemonoFriends.destroy();
+        currentKemonoFriends = null;
+    }
+
+    // 清除懸停預覽
+    if (util && util.removeActivePreview) {
+        util.removeActivePreview();
+    }
+    currentHoveredElement = null;
+
+    // 快速連續換頁時取消尚未執行的重建，避免多實例並存
+    const gen = ++urlChangeGen;
+    if (urlChangeTimer) {
+        clearTimeout(urlChangeTimer);
+        urlChangeTimer = null;
+    }
+    if (urlChangeProfileTimer) {
+        clearTimeout(urlChangeProfileTimer);
+        urlChangeProfileTimer = null;
+    }
+
+    // 貼文頁可較快重建閱讀器；其他頁面多留時間等 SPA 內容掛載
+    const reinitDelay = currentUrl.includes('/post/') ? 200 : 800;
+    urlChangeTimer = setTimeout(() => {
+        if (gen !== urlChangeGen) return;
+        currentKemonoFriends = new KemonoFriends();
+
+        urlChangeProfileTimer = setTimeout(() => {
+            if (gen !== urlChangeGen) return;
+            if (currentKemonoFriends && currentKemonoFriends.isActive &&
+                currentKemonoFriends.domManager.isUserProfilePage()) {
+                currentKemonoFriends.processUserCards();
+            }
+        }, 1500);
+    }, reinitDelay);
 };
 
 // SPA 導航偵測

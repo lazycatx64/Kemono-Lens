@@ -92,20 +92,27 @@
 
       let album = null;
       try {
-        album = await window.KemonoAlbumService.fetchAlbum(url);
+        // SPA 換頁當下 DOM 可能仍是舊文；先只走 API，避免誤用舊圖片
+        album = await window.KemonoAlbumService.fetchAlbum(url, { allowDomFallback: false });
       } catch (e) {
         logger.warn?.('閱讀器載入作品失敗:', e);
       }
       if (gen !== this._initGen || this._destroyed) return;
 
-      // API 尚無結果時稍候再試 DOM（SPA 內容可能尚未掛上）
+      // API 尚無結果時稍候再試（等 HTMX 把新文掛上）
       if (!album || !album.pages || album.pages.length === 0) {
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 600));
         if (gen !== this._initGen || this._destroyed) return;
+        if (postPageKey(window.location.href) !== postPageKey(url)) return;
         try {
-          album = window.KemonoAlbumService.parseAlbumFromDom(url, siteHandler);
+          album = await window.KemonoAlbumService.fetchAlbum(url);
         } catch (e) {
-          logger.warn?.('閱讀器 DOM 備援失敗:', e);
+          logger.warn?.('閱讀器延遲載入失敗:', e);
+          try {
+            album = window.KemonoAlbumService.parseAlbumFromDom(url, siteHandler);
+          } catch (domErr) {
+            logger.warn?.('閱讀器 DOM 備援失敗:', domErr);
+          }
         }
       }
 
@@ -197,12 +204,31 @@
       }
     }
 
+    _resetDetachedUi() {
+      // HTMX 以 body.innerHTML 換頁時會清掉 overlay，但 JS 狀態可能仍認為開啟中
+      if (this.bookView) {
+        try { this.bookView.destroy(); } catch (e) { /* ignore */ }
+        this.bookView = null;
+      }
+      if (this.thumbs) {
+        try { this.thumbs.destroy(); } catch (e) { /* ignore */ }
+        this.thumbs = null;
+      }
+      this.appEl = null;
+      this.isOpen = false;
+      document.body.style.overflow = this._prevOverflow || '';
+    }
+
     _handleSpaNavigation() {
       if (this._destroyed) return;
 
       const url = window.location.href;
       if (url === this._watchedUrl) {
-        // HTMX 可能以 body.innerHTML 換頁，浮出按鈕會被清掉但 URL 尚未更新或已由他處處理
+        const appDetached = this.isOpen && this.appEl && !document.body.contains(this.appEl);
+        if (appDetached) {
+          this._resetDetachedUi();
+        }
+        // HTMX 可能清掉浮出按鈕；URL 未變時重建即可
         if (this.album && (!this.switchEl || !document.body.contains(this.switchEl))) {
           this._createSwitch();
         }

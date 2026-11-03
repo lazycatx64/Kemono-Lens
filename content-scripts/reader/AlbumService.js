@@ -181,7 +181,8 @@
     return { title, pages, postUrl };
   }
 
-  async function fetchAlbum(postUrl) {
+  async function fetchAlbum(postUrl, options = {}) {
+    const allowDomFallback = options.allowDomFallback !== false;
     const siteHandler = window.KemonoSites && window.KemonoSites.getHandler
       ? window.KemonoSites.getHandler(postUrl)
       : null;
@@ -222,6 +223,10 @@
       logger.log?.('AlbumService API 無圖片，改用 DOM');
     } catch (e) {
       logger.warn?.('AlbumService API 失敗，改用 DOM:', e);
+    }
+
+    if (!allowDomFallback) {
+      return { title: '', pages: [], postUrl };
     }
 
     return parseAlbumFromDom(postUrl, siteHandler);
