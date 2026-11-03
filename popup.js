@@ -99,8 +99,9 @@ class PopupSettingsManager {
         if (readerEnabledToggle) {
             readerEnabledToggle.addEventListener('change', (e) => {
                 this.settings.readerEnabled = e.target.checked;
-                this.saveReaderSettings();
-                this.notifyReaderSettingsChanged();
+                this.saveReaderSettings(() => {
+                    this.notifyReaderSettingsChanged();
+                });
             });
         }
 
@@ -116,8 +117,9 @@ class PopupSettingsManager {
             toggleReaderResetBtn.addEventListener('click', () => {
                 this.cancelShortcutRecording();
                 this.settings.toggleReaderShortcut = DEFAULT_TOGGLE_READER_SHORTCUT;
-                this.saveReaderSettings();
-                this.notifyReaderSettingsChanged();
+                this.saveReaderSettings(() => {
+                    this.notifyReaderSettingsChanged();
+                });
                 this.updateShortcutUI();
             });
         }
@@ -266,7 +268,7 @@ class PopupSettingsManager {
         });
     }
 
-    saveReaderSettings() {
+    saveReaderSettings(onDone) {
         chrome.storage.local.get(['kemono_reader_settings'], (result) => {
             let existing = {};
             if (result.kemono_reader_settings) {
@@ -284,12 +286,14 @@ class PopupSettingsManager {
                 toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
             };
             const json = JSON.stringify(next);
-            chrome.storage.local.set({ kemono_reader_settings: json });
             try {
                 localStorage.setItem('kemono_reader_settings', json);
             } catch (e) {
                 // 忽略
             }
+            chrome.storage.local.set({ kemono_reader_settings: json }, () => {
+                if (typeof onDone === 'function') onDone();
+            });
         });
     }
 
@@ -297,7 +301,7 @@ class PopupSettingsManager {
         this.cancelShortcutRecording();
         this._shortcutRecording = { settingKey, buttonEl };
         buttonEl.classList.add('recording');
-        buttonEl.textContent = '請按鍵…';
+        buttonEl.textContent = '請按下新快速鍵…';
 
         this._shortcutRecordHandler = (e) => {
             e.preventDefault();
@@ -318,8 +322,9 @@ class PopupSettingsManager {
 
             this.settings[settingKey] = key;
             this.cancelShortcutRecording();
-            this.saveReaderSettings();
-            this.notifyReaderSettingsChanged();
+            this.saveReaderSettings(() => {
+                this.notifyReaderSettingsChanged();
+            });
             this.updateShortcutUI();
         };
 

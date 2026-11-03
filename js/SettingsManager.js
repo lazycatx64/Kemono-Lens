@@ -193,8 +193,9 @@ class SettingsManager {
             toggleReaderResetBtn.addEventListener('click', () => {
                 this.cancelShortcutRecording();
                 this.settings.toggleReaderShortcut = DEFAULT_TOGGLE_READER_SHORTCUT;
-                this.saveReaderShortcutSettings();
-                this.notifyReaderSettingsChanged();
+                this.saveReaderShortcutSettings(() => {
+                    this.notifyReaderSettingsChanged();
+                });
                 this.updateShortcutUI();
                 this.messageManager.showSuccess('已還原為預設快速鍵');
             });
@@ -226,8 +227,9 @@ class SettingsManager {
 
             this.settings[settingKey] = key;
             this.cancelShortcutRecording();
-            this.saveReaderShortcutSettings();
-            this.notifyReaderSettingsChanged();
+            this.saveReaderShortcutSettings(() => {
+                this.notifyReaderSettingsChanged();
+            });
             this.updateShortcutUI();
             this.messageManager.showSuccess('快速鍵已更新');
         };
@@ -255,7 +257,7 @@ class SettingsManager {
         }
     }
 
-    saveReaderShortcutSettings() {
+    saveReaderShortcutSettings(onDone) {
         chrome.storage.local.get(['kemono_reader_settings'], (result) => {
             let existing = {};
             if (result.kemono_reader_settings) {
@@ -272,12 +274,14 @@ class SettingsManager {
                 toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
             };
             const json = JSON.stringify(next);
-            chrome.storage.local.set({ kemono_reader_settings: json });
             try {
                 localStorage.setItem('kemono_reader_settings', json);
             } catch (e) {
                 console.warn('無法寫入 localStorage:', e);
             }
+            chrome.storage.local.set({ kemono_reader_settings: json }, () => {
+                if (typeof onDone === 'function') onDone();
+            });
         });
     }
 
