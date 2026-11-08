@@ -39,17 +39,8 @@ const kemono = {
       return false;
     }
 
-    // Check for post cards on main page
-    if (element.classList.contains('post-card__image')) {
-      return true;
-    }
-    
-    // Additional checks for directory page thumbnails
-    if (element.closest('.post-card')) {
-      return true;
-    }
-    
-    return false;
+    // 只接受貼文縮圖；排除 footer 平台 icon（/static/small_icons/...）等其他圖片
+    return element.classList.contains('post-card__image');
   },
   
   // 將原圖／資料路徑 URL 轉換為 thumbnail URL
