@@ -289,17 +289,25 @@
     }
   }
 
+  function stopOtherListeners(event) {
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+  }
+
   function onPointerDownCapture(event) {
     if (isExtensionUiNode(event.target)) {
       return;
     }
 
-    // 中鍵：先拆陷阱並啟動「禁止原分頁被腳本帶走」視窗
+    // 中鍵：先拆陷阱、擋後續腳本（廣告／頁面常在 mousedown 就導向），保留瀏覽器預設開新分頁
     if (event.button === 1) {
       armDocumentNavSuppress(MIDDLE_NAV_SUPPRESS_MS);
       if (neutralizeTrapsAtPoint(event.clientX, event.clientY)) {
         reportHit('click_hijack', { tag: 'MIDDLE_DOWN', className: 'pointerdown-trap' });
       }
+      stopOtherListeners(event);
       return;
     }
 
@@ -335,7 +343,13 @@
       el = el.parentElement;
     }
 
-    // 無陷阱的中鍵：仍靠 location 防護即可（瀏覽器開新分頁，擋腳本改 location）
+    // 中鍵點在真實連結上：讓瀏覽器開新分頁，但擋住頁面／廣告腳本再處理同一事件
+    if (isMiddle && !trap) {
+      stopOtherListeners(event);
+      // 不 preventDefault，保留中鍵開新分頁的瀏覽器預設行為
+      return;
+    }
+
     if (!trap) {
       return;
     }
@@ -344,18 +358,15 @@
     neutralizeTrap(trap);
     neutralizeTrapsAtPoint(event.clientX, event.clientY);
 
-    event.stopPropagation();
+    stopOtherListeners(event);
     event.preventDefault();
-    if (typeof event.stopImmediatePropagation === 'function') {
-      event.stopImmediatePropagation();
-    }
 
     const below = findUnderlyingElement(event.clientX, event.clientY);
     if (!below || below === trap) {
       return;
     }
 
-    // 中鍵：用 window.open 開新分頁，避免合成事件或 .click() 帶走原分頁
+    // 中鍵點到陷阱：自行開新分頁，避免合成事件帶走原分頁
     if (isMiddle) {
       const anchor = findAnchorFromNode(below);
       const href = anchor && anchor.href;
@@ -477,6 +488,33 @@
       };
       htmlProto.click.__kemonoClickGuard = true;
     }
+
+    // Navigation API：即使 location 包裝失敗也能擋腳本導向
+    try {
+      if (window.navigation && typeof window.navigation.addEventListener === 'function'
+          && !window.navigation.__kemonoClickGuard) {
+        window.navigation.addEventListener('navigate', (event) => {
+          if (!shouldSuppressDocumentNavigation()) {
+            return;
+          }
+          if (event.hashChange || event.downloadRequest) {
+            return;
+          }
+          // 使用者信任的中鍵開新分頁不會在「目前」document 觸發 navigate；此處多半是腳本推導向
+          if (event.cancelable) {
+            event.preventDefault();
+            console.info(LOG_PREFIX, '已擋下 Navigation API 導向:', event.destination && event.destination.url);
+            reportHit('forced_navigation', {
+              blockedUrl: String((event.destination && event.destination.url) || '').slice(0, 500),
+              openTarget: 'navigation'
+            });
+          }
+        });
+        window.navigation.__kemonoClickGuard = true;
+      }
+    } catch (error) {
+      console.warn(LOG_PREFIX, '無法掛載 Navigation API 防護', error);
+    }
   }
 
   function isAllowedOpenUrl(url) {
@@ -517,6 +555,8 @@
 
     function guardedOpen(url, target, features) {
       if (!isAllowedOpenUrl(url)) {
+        // 擋下惡意開窗後，廣告常改推 location／.click() 帶走原分頁
+        armDocumentNavSuppress(MIDDLE_NAV_SUPPRESS_MS);
         console.info(LOG_PREFIX, '已擋下跨來源 window.open:', url);
         reportHit('window_open', {
           blockedUrl: String(url == null ? '' : url).slice(0, 500),
