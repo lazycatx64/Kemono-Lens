@@ -34,14 +34,8 @@
         'content-scripts/ClickGuardBridge.js'
     ];
 
-    const CONTENT_SCRIPT_PATHS = [
-        '/artists*',
-        '/artists/updated*',
-        '/*/user/*',
-        '/account/favorites/artists*',
-        '/posts*'
-    ];
-
+    // 必須涵蓋全站：網站為 SPA，從首頁／其他未列路徑切換時
+    // Chrome 不會自動補注入 content script，否則黑名單／預覽等功能會缺席
     const CONTENT_SCRIPT_JS = [
         'logger.js',
         'i18n.js',
@@ -104,15 +98,8 @@
     }
 
     function buildMatchesForDomain(domain) {
-        const normalized = normalizeDomain(domain);
-        if (!normalized) {
-            return [];
-        }
-        // 同時涵蓋 apex 與 www，與 isMatch 行為一致
-        return CONTENT_SCRIPT_PATHS.flatMap((path) => [
-            `https://${normalized}${path}`,
-            `https://www.${normalized}${path}`
-        ]);
+        // 與 ClickGuard 相同：註冊整站，功能啟停改由 shouldRunOnCurrentPage 等判斷
+        return getOriginPatterns(domain);
     }
 
     function isDefaultDomain(site, domain) {

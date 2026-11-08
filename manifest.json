@@ -53,16 +53,10 @@
     },
     {
       "matches": [
-        "https://kemono.cr/artists*",
-        "https://kemono.cr/artists/updated*",
-        "https://kemono.cr/*/user/*",
-        "https://kemono.cr/account/favorites/artists*",
-        "https://kemono.cr/posts*",
-        "https://coomer.st/artists*",
-        "https://coomer.st/artists/updated*",
-        "https://coomer.st/*/user/*",
-        "https://coomer.st/account/favorites/artists*",
-        "https://coomer.st/posts*"
+        "https://kemono.cr/*",
+        "https://*.kemono.cr/*",
+        "https://coomer.st/*",
+        "https://*.coomer.st/*"
       ],
       "js": [
         "logger.js",

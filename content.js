@@ -321,6 +321,12 @@ class KemonoLens {
     }
 
     initHoverPreview() {
+        // SPA 換頁會重建 KemonoLens；事件委派只需綁一次，避免重複監聽
+        if (window.__kfHoverPreviewBound) {
+            return;
+        }
+        window.__kfHoverPreviewBound = true;
+
         logger.log('初始化懸停預覽功能');
         
         // 監聽設定變更
@@ -982,6 +988,7 @@ const checkUrlChange = () => {
     currentUrl = window.location.href;
     currSite = currentUrl; // 更新懸停預覽的當前網站
     endSuppressPreviewOnUrlChange();
+    clearPreviewShowDelay();
 
     // 銷毀舊實例
     if (currentKemonoLens) {
