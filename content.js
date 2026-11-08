@@ -413,6 +413,11 @@ class KemonoLens {
             if (e.type === 'pointerdown' && typeof e.button === 'number' && e.button !== 0 && e.button !== 1) {
                 return;
             }
+            // 黑名單等擴充功能按鈕在 post-card 內，capture 階段會誤判成開啟貼文，
+            // 進而觸發約 2 秒的預覽抑制；此處明確略過
+            if (target.closest('.kemono-blacklist-btn')) {
+                return;
+            }
             
             const postLink = target.closest('a[href*="/post/"]') ||
                 (target.closest('.post-card') && target.closest('.post-card').querySelector('a[href*="/post/"]'));
