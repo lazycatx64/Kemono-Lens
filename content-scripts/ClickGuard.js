@@ -11,13 +11,16 @@
   const HIGH_Z_INDEX = 1000;
   const markedAttr = 'data-kemono-clickguard';
 
-  function isKemonoUiNode(node) {
+  function isExtensionUiNode(node) {
     if (!node || node.nodeType !== 1) {
       return false;
     }
     if (typeof node.closest === 'function') {
       try {
-        if (node.closest('[class*="kemono-"], [id^="kemono-"]')) {
+        // kemono-*：預覽／設定等；kf-reader-*／kf-*：書本閱讀器
+        if (node.closest(
+          '[class*="kemono-"], [id^="kemono-"], [class*="kf-reader-"], [id^="kf-reader-"], [class*="kf-"], [id^="kf-"]'
+        )) {
           return true;
         }
       } catch (_) {
@@ -25,13 +28,13 @@
       }
     }
     const id = node.id || '';
-    if (id.startsWith('kemono-')) {
+    if (id.startsWith('kemono-') || id.startsWith('kf-reader-') || id.startsWith('kf-')) {
       return true;
     }
     const className = typeof node.className === 'string'
       ? node.className
       : (node.className && node.className.baseVal) || '';
-    if (/(?:^|\s)kemono-/.test(className)) {
+    if (/(?:^|\s)(?:kemono-|kf-reader-|kf-)/.test(className)) {
       return true;
     }
     return false;
@@ -74,7 +77,7 @@
   }
 
   function isFullViewportTrap(el) {
-    if (!el || el.nodeType !== 1 || isKemonoUiNode(el)) {
+    if (!el || el.nodeType !== 1 || isExtensionUiNode(el)) {
       return false;
     }
     if (el.getAttribute(markedAttr) === 'disabled') {
@@ -137,7 +140,7 @@
   }
 
   function neutralizeTrap(el) {
-    if (!el || el.nodeType !== 1 || isKemonoUiNode(el)) {
+    if (!el || el.nodeType !== 1 || isExtensionUiNode(el)) {
       return;
     }
     if (el.getAttribute(markedAttr) === 'disabled') {
@@ -186,22 +189,87 @@
   }
 
   function onClickCapture(event) {
-    const target = event.target;
-    if (!target || isKemonoUiNode(target)) {
+    if (event.__kemonoClickGuardRetarget) {
       return;
     }
 
+    const target = event.target;
+    if (!target || isExtensionUiNode(target)) {
+      return;
+    }
+
+    let trap = null;
     let el = target;
     while (el && el !== document.documentElement) {
       if (el.nodeType === 1 && (el.getAttribute(markedAttr) === 'disabled' || isFullViewportTrap(el))) {
-        if (el.getAttribute(markedAttr) !== 'disabled') {
-          neutralizeTrap(el);
-        }
-        event.stopPropagation();
-        event.preventDefault();
-        return;
+        trap = el;
+        break;
       }
       el = el.parentElement;
+    }
+
+    if (!trap) {
+      return;
+    }
+
+    // 先禁用當下與同座標堆疊的陷阱，讓後續 elementsFromPoint 能穿透
+    neutralizeTrap(trap);
+    try {
+      const stacked = document.elementsFromPoint(event.clientX, event.clientY) || [];
+      for (const node of stacked) {
+        if (node && node.nodeType === 1 && isFullViewportTrap(node)) {
+          neutralizeTrap(node);
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    event.stopPropagation();
+    event.preventDefault();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+
+    // 把點擊轉給陷阱底下的真實目標（恢復可點連結／按鈕）
+    let below = null;
+    try {
+      const stack = document.elementsFromPoint(event.clientX, event.clientY) || [];
+      below = stack.find((node) => (
+        node
+        && node.nodeType === 1
+        && node.getAttribute(markedAttr) !== 'disabled'
+        && !isFullViewportTrap(node)
+      )) || null;
+    } catch (_) {
+      below = null;
+    }
+
+    if (!below || below === trap) {
+      return;
+    }
+
+    try {
+      const retarget = new MouseEvent(event.type, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        detail: event.detail,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        metaKey: event.metaKey,
+        button: event.button,
+        buttons: event.buttons
+      });
+      retarget.__kemonoClickGuardRetarget = true;
+      below.dispatchEvent(retarget);
+    } catch (error) {
+      console.warn(LOG_PREFIX, '轉送點擊失敗', error);
     }
   }
 
