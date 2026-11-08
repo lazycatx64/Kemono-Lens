@@ -37,6 +37,8 @@
       this.stageEl = null;
       this.topBarEl = null;
       this.pageInfoEl = null;
+      this.topBarHintEl = null;
+      this._topBarHidden = false;
       this._mounted = false;
     }
 
@@ -83,11 +85,15 @@
       }
       this.stageEl = null;
       this.topBarEl = null;
+      this.pageInfoEl = null;
+      this.topBarHintEl = null;
     }
 
     updateSettings(settings) {
       this.settings = settings;
       this._syncTopBarControls();
+      this._updateTopBarHint();
+      this._setTopBarVisible(!this._topBarHidden);
       this.render();
     }
 
@@ -275,6 +281,7 @@
         <div class="kf-reader-topbar-left">
           <button type="button" class="kf-reader-btn" data-action="close" title="${t('close')}">${t('close')}</button>
           <span class="kf-reader-pageinfo" data-role="pageinfo"></span>
+          <span class="kf-reader-shortcut-hint" data-role="topbar-hint"></span>
         </div>
         <div class="kf-reader-topbar-right">
           <label class="kf-reader-toggle">
@@ -341,7 +348,52 @@
       });
 
       this.pageInfoEl = bar.querySelector('[data-role="pageinfo"]');
+      this.topBarHintEl = bar.querySelector('[data-role="topbar-hint"]');
+      this._updateTopBarHint();
       return bar;
+    }
+
+    _formatShortcutLabel(key) {
+      if (key === ' ') return 'Space';
+      if (key === 'ArrowLeft') return '←';
+      if (key === 'ArrowRight') return '→';
+      if (key === 'ArrowUp') return '↑';
+      if (key === 'ArrowDown') return '↓';
+      if (key === 'Escape') return 'Esc';
+      if (key === 'Enter') return 'Enter';
+      if (key === 'Tab') return 'Tab';
+      return key || 'Esc';
+    }
+
+    _normalizeMatchKey(key) {
+      if (typeof key !== 'string' || !key) return '';
+      return key.length === 1 ? key.toLowerCase() : key;
+    }
+
+    _getShortcutList(settingKey, fallback) {
+      const list = this.settings && this.settings[settingKey];
+      if (Array.isArray(list) && list.length > 0) {
+        return list.map((k) => this._normalizeMatchKey(k)).filter(Boolean);
+      }
+      return fallback.slice();
+    }
+
+    _listIncludesKey(list, key) {
+      const normalized = this._normalizeMatchKey(key);
+      return list.includes(normalized) || list.includes(key);
+    }
+
+    _updateTopBarHint() {
+      if (!this.topBarHintEl) return;
+      const raw = (this.settings && this.settings.toggleTopBarShortcut) || 'Escape';
+      const label = this._formatShortcutLabel(raw);
+      this.topBarHintEl.textContent = this._t('shortcut_toggle_topbar_hint', { key: label });
+    }
+
+    _setTopBarVisible(visible) {
+      this._topBarHidden = !visible;
+      if (!this.topBarEl) return;
+      this.topBarEl.classList.toggle('is-hidden', this._topBarHidden);
     }
 
     _syncTopBarControls() {
@@ -392,21 +444,23 @@
       if (e.metaKey || e.ctrlKey) return;
 
       const key = e.key;
-      if (key === 'Escape') {
+      const topBarShortcut = (this.settings && this.settings.toggleTopBarShortcut) || 'Escape';
+      if (this._normalizeMatchKey(key) === this._normalizeMatchKey(topBarShortcut)
+        || (topBarShortcut === 'Escape' && key === 'Escape')) {
         e.preventDefault();
         e.stopPropagation();
-        this.onClose();
+        this._setTopBarVisible(this._topBarHidden);
         return;
       }
 
-      const nextKeys = ['d', 'D', 'ArrowRight', 'ArrowDown'];
-      const prevKeys = ['a', 'A', 'ArrowLeft', 'ArrowUp'];
+      const nextKeys = this._getShortcutList('readerNextShortcuts', ['d', 'ArrowRight', 'ArrowDown']);
+      const prevKeys = this._getShortcutList('readerPrevShortcuts', ['a', 'ArrowLeft', 'ArrowUp']);
 
-      if (nextKeys.includes(key)) {
+      if (this._listIncludesKey(nextKeys, key)) {
         e.preventDefault();
         e.stopPropagation();
         this.turnSpread(1);
-      } else if (prevKeys.includes(key)) {
+      } else if (this._listIncludesKey(prevKeys, key)) {
         e.preventDefault();
         e.stopPropagation();
         this.turnSpread(-1);

@@ -108,7 +108,8 @@ const translations = {
     'reader_end': '結束',
     'reader_page_of': '第 {current} 頁／共 {total} 頁',
     'reader_enabled': '啟用作品頁閱讀器',
-    'shortcut_toggle_reader_hint': '{key}'
+    'shortcut_toggle_reader_hint': '{key}',
+    'shortcut_toggle_topbar_hint': '{key} 隱藏控制列'
   },
   
   'en': {

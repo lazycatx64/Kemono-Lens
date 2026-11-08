@@ -3,6 +3,9 @@
 console.log('[KemonoLens] SettingsManager 加載');
 
 const DEFAULT_TOGGLE_READER_SHORTCUT = '`';
+const DEFAULT_TOGGLE_TOPBAR_SHORTCUT = 'Escape';
+const DEFAULT_READER_PREV_SHORTCUTS = ['a', 'ArrowLeft', 'ArrowUp'];
+const DEFAULT_READER_NEXT_SHORTCUTS = ['d', 'ArrowRight', 'ArrowDown'];
 
 function formatShortcutDisplay(key) {
     if (key === ' ') return 'Space';
@@ -14,6 +17,25 @@ function formatShortcutDisplay(key) {
     if (key === 'Enter') return 'Enter';
     if (key === 'Tab') return 'Tab';
     return key || DEFAULT_TOGGLE_READER_SHORTCUT;
+}
+
+function normalizeShortcutKey(key) {
+    if (typeof key !== 'string' || key.length === 0) return null;
+    if (key.length === 1) return key.toLowerCase();
+    return key;
+}
+
+function normalizeShortcutList(list, fallback) {
+    if (!Array.isArray(list)) return fallback.slice();
+    const seen = new Set();
+    const out = [];
+    list.forEach((item) => {
+        const key = normalizeShortcutKey(item);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        out.push(key);
+    });
+    return out.length > 0 ? out : fallback.slice();
 }
 
 class SettingsManager {
@@ -32,6 +54,9 @@ class SettingsManager {
             previewModifierKey: 'alt',
             // 閱讀器快速鍵
             toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUT,
+            readerPrevShortcuts: DEFAULT_READER_PREV_SHORTCUTS.slice(),
+            readerNextShortcuts: DEFAULT_READER_NEXT_SHORTCUTS.slice(),
+            toggleTopBarShortcut: DEFAULT_TOGGLE_TOPBAR_SHORTCUT,
             // 請求速率限制
             requestRateLimit: 10,
             // 日誌等級
@@ -185,7 +210,11 @@ class SettingsManager {
         const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
         if (toggleReaderBtn) {
             toggleReaderBtn.addEventListener('click', () => {
-                this.startShortcutRecording('toggleReaderShortcut', toggleReaderBtn);
+                this.startShortcutRecording({
+                    settingKey: 'toggleReaderShortcut',
+                    buttonEl: toggleReaderBtn,
+                    mode: 'single'
+                });
             });
         }
         const toggleReaderResetBtn = document.getElementById('shortcut-toggle-reader-reset');
@@ -193,20 +222,160 @@ class SettingsManager {
             toggleReaderResetBtn.addEventListener('click', () => {
                 this.cancelShortcutRecording();
                 this.settings.toggleReaderShortcut = DEFAULT_TOGGLE_READER_SHORTCUT;
-                this.saveReaderShortcutSettings(() => {
-                    this.notifyReaderSettingsChanged();
+                this.persistReaderShortcuts('已還原為預設快速鍵');
+            });
+        }
+
+        const toggleTopBarBtn = document.getElementById('shortcut-toggle-topbar');
+        if (toggleTopBarBtn) {
+            toggleTopBarBtn.addEventListener('click', () => {
+                this.startShortcutRecording({
+                    settingKey: 'toggleTopBarShortcut',
+                    buttonEl: toggleTopBarBtn,
+                    mode: 'single'
                 });
-                this.updateShortcutUI();
-                this.messageManager.showSuccess('已還原為預設快速鍵');
+            });
+        }
+        const toggleTopBarResetBtn = document.getElementById('shortcut-toggle-topbar-reset');
+        if (toggleTopBarResetBtn) {
+            toggleTopBarResetBtn.addEventListener('click', () => {
+                this.cancelShortcutRecording();
+                this.settings.toggleTopBarShortcut = DEFAULT_TOGGLE_TOPBAR_SHORTCUT;
+                this.persistReaderShortcuts('已還原為預設快速鍵');
+            });
+        }
+
+        const prevAddBtn = document.getElementById('shortcut-prev-add');
+        if (prevAddBtn) {
+            prevAddBtn.addEventListener('click', () => {
+                this.startShortcutRecording({
+                    settingKey: 'readerPrevShortcuts',
+                    buttonEl: prevAddBtn,
+                    mode: 'append-list'
+                });
+            });
+        }
+        const prevResetBtn = document.getElementById('shortcut-prev-reset');
+        if (prevResetBtn) {
+            prevResetBtn.addEventListener('click', () => {
+                this.cancelShortcutRecording();
+                this.settings.readerPrevShortcuts = DEFAULT_READER_PREV_SHORTCUTS.slice();
+                this.persistReaderShortcuts('已還原為預設快速鍵');
+            });
+        }
+
+        const nextAddBtn = document.getElementById('shortcut-next-add');
+        if (nextAddBtn) {
+            nextAddBtn.addEventListener('click', () => {
+                this.startShortcutRecording({
+                    settingKey: 'readerNextShortcuts',
+                    buttonEl: nextAddBtn,
+                    mode: 'append-list'
+                });
+            });
+        }
+        const nextResetBtn = document.getElementById('shortcut-next-reset');
+        if (nextResetBtn) {
+            nextResetBtn.addEventListener('click', () => {
+                this.cancelShortcutRecording();
+                this.settings.readerNextShortcuts = DEFAULT_READER_NEXT_SHORTCUTS.slice();
+                this.persistReaderShortcuts('已還原為預設快速鍵');
             });
         }
     }
 
-    startShortcutRecording(settingKey, buttonEl) {
+    getReaderShortcutPayload() {
+        return {
+            toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT,
+            readerPrevShortcuts: normalizeShortcutList(
+                this.settings.readerPrevShortcuts,
+                DEFAULT_READER_PREV_SHORTCUTS
+            ),
+            readerNextShortcuts: normalizeShortcutList(
+                this.settings.readerNextShortcuts,
+                DEFAULT_READER_NEXT_SHORTCUTS
+            ),
+            toggleTopBarShortcut: normalizeShortcutKey(this.settings.toggleTopBarShortcut)
+                || DEFAULT_TOGGLE_TOPBAR_SHORTCUT
+        };
+    }
+
+    applyReaderShortcutSettings(readerSettings) {
+        if (!readerSettings || typeof readerSettings !== 'object') return;
+        if (readerSettings.toggleReaderShortcut) {
+            this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
+        }
+        this.settings.readerPrevShortcuts = normalizeShortcutList(
+            readerSettings.readerPrevShortcuts,
+            DEFAULT_READER_PREV_SHORTCUTS
+        );
+        this.settings.readerNextShortcuts = normalizeShortcutList(
+            readerSettings.readerNextShortcuts,
+            DEFAULT_READER_NEXT_SHORTCUTS
+        );
+        this.settings.toggleTopBarShortcut = normalizeShortcutKey(readerSettings.toggleTopBarShortcut)
+            || DEFAULT_TOGGLE_TOPBAR_SHORTCUT;
+    }
+
+    collectBoundShortcutKeys(excludeSettingKey) {
+        const bound = new Map(); // key -> label
+        const add = (key, label) => {
+            const normalized = normalizeShortcutKey(key);
+            if (!normalized) return;
+            if (!bound.has(normalized)) bound.set(normalized, label);
+        };
+
+        if (excludeSettingKey !== 'toggleReaderShortcut') {
+            add(this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT, '開關閱讀器');
+        }
+        if (excludeSettingKey !== 'toggleTopBarShortcut') {
+            add(this.settings.toggleTopBarShortcut || DEFAULT_TOGGLE_TOPBAR_SHORTCUT, '顯示／隱藏控制列');
+        }
+        if (excludeSettingKey !== 'readerPrevShortcuts') {
+            (this.settings.readerPrevShortcuts || []).forEach((k) => add(k, '上一跨頁'));
+        }
+        if (excludeSettingKey !== 'readerNextShortcuts') {
+            (this.settings.readerNextShortcuts || []).forEach((k) => add(k, '下一跨頁'));
+        }
+        return bound;
+    }
+
+    persistReaderShortcuts(successMessage) {
+        this.saveReaderShortcutSettings(() => {
+            this.notifyReaderSettingsChanged();
+        });
+        this.updateShortcutUI();
+        if (successMessage) {
+            this.messageManager.showSuccess(successMessage);
+        }
+    }
+
+    removeShortcutFromList(settingKey, keyToRemove) {
         this.cancelShortcutRecording();
-        this._shortcutRecording = { settingKey, buttonEl };
+        const fallback = settingKey === 'readerPrevShortcuts'
+            ? DEFAULT_READER_PREV_SHORTCUTS
+            : DEFAULT_READER_NEXT_SHORTCUTS;
+        const current = normalizeShortcutList(this.settings[settingKey], fallback);
+        const normalizedRemove = normalizeShortcutKey(keyToRemove);
+        const next = current.filter((k) => k !== normalizedRemove);
+        if (next.length === 0) {
+            this.messageManager.showError('至少需保留一個翻頁快速鍵');
+            return;
+        }
+        this.settings[settingKey] = next;
+        this.persistReaderShortcuts('快速鍵已更新');
+    }
+
+    startShortcutRecording({ settingKey, buttonEl, mode }) {
+        this.cancelShortcutRecording();
+        this._shortcutRecording = { settingKey, buttonEl, mode };
         buttonEl.classList.add('recording');
-        buttonEl.textContent = '請按下新快速鍵…';
+        if (mode === 'append-list') {
+            buttonEl.textContent = '…';
+            buttonEl.title = '請按下新快速鍵（Esc 取消）';
+        } else {
+            buttonEl.textContent = '請按下新快速鍵…';
+        }
 
         this._shortcutRecordHandler = (e) => {
             e.preventDefault();
@@ -222,16 +391,45 @@ class SettingsManager {
                 return;
             }
 
-            const key = e.key;
+            const key = normalizeShortcutKey(e.key);
             if (!key) return;
 
-            this.settings[settingKey] = key;
+            const bound = this.collectBoundShortcutKeys(settingKey);
+            if (mode === 'append-list') {
+                const current = normalizeShortcutList(
+                    this.settings[settingKey],
+                    settingKey === 'readerPrevShortcuts'
+                        ? DEFAULT_READER_PREV_SHORTCUTS
+                        : DEFAULT_READER_NEXT_SHORTCUTS
+                );
+                if (current.includes(key)) {
+                    this.cancelShortcutRecording();
+                    this.updateShortcutUI();
+                    this.messageManager.showError('此快速鍵已在列表中');
+                    return;
+                }
+            }
+
+            if (bound.has(key)) {
+                this.cancelShortcutRecording();
+                this.updateShortcutUI();
+                this.messageManager.showError(`此快速鍵已用於「${bound.get(key)}」`);
+                return;
+            }
+
+            if (mode === 'append-list') {
+                const fallback = settingKey === 'readerPrevShortcuts'
+                    ? DEFAULT_READER_PREV_SHORTCUTS
+                    : DEFAULT_READER_NEXT_SHORTCUTS;
+                const current = normalizeShortcutList(this.settings[settingKey], fallback);
+                current.push(key);
+                this.settings[settingKey] = current;
+            } else {
+                this.settings[settingKey] = key;
+            }
+
             this.cancelShortcutRecording();
-            this.saveReaderShortcutSettings(() => {
-                this.notifyReaderSettingsChanged();
-            });
-            this.updateShortcutUI();
-            this.messageManager.showSuccess('快速鍵已更新');
+            this.persistReaderShortcuts('快速鍵已更新');
         };
 
         document.addEventListener('keydown', this._shortcutRecordHandler, true);
@@ -248,6 +446,34 @@ class SettingsManager {
         this._shortcutRecording = null;
     }
 
+    renderShortcutChips(containerId, settingKey) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const fallback = settingKey === 'readerPrevShortcuts'
+            ? DEFAULT_READER_PREV_SHORTCUTS
+            : DEFAULT_READER_NEXT_SHORTCUTS;
+        const keys = normalizeShortcutList(this.settings[settingKey], fallback);
+        this.settings[settingKey] = keys;
+        container.innerHTML = '';
+        keys.forEach((key) => {
+            const chip = document.createElement('span');
+            chip.className = 'shortcut-chip';
+            const label = document.createElement('span');
+            label.textContent = formatShortcutDisplay(key);
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'shortcut-chip-remove';
+            removeBtn.title = '移除此快速鍵';
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', () => {
+                this.removeShortcutFromList(settingKey, key);
+            });
+            chip.appendChild(label);
+            chip.appendChild(removeBtn);
+            container.appendChild(chip);
+        });
+    }
+
     updateShortcutUI() {
         const toggleReaderBtn = document.getElementById('shortcut-toggle-reader');
         if (toggleReaderBtn && !toggleReaderBtn.classList.contains('recording')) {
@@ -255,9 +481,36 @@ class SettingsManager {
                 this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
             );
         }
+
+        const toggleTopBarBtn = document.getElementById('shortcut-toggle-topbar');
+        if (toggleTopBarBtn && !toggleTopBarBtn.classList.contains('recording')) {
+            toggleTopBarBtn.textContent = formatShortcutDisplay(
+                this.settings.toggleTopBarShortcut || DEFAULT_TOGGLE_TOPBAR_SHORTCUT
+            );
+        }
+
+        const prevAddBtn = document.getElementById('shortcut-prev-add');
+        if (prevAddBtn && !prevAddBtn.classList.contains('recording')) {
+            prevAddBtn.textContent = '＋';
+            prevAddBtn.title = '新增快速鍵';
+        }
+        const nextAddBtn = document.getElementById('shortcut-next-add');
+        if (nextAddBtn && !nextAddBtn.classList.contains('recording')) {
+            nextAddBtn.textContent = '＋';
+            nextAddBtn.title = '新增快速鍵';
+        }
+
+        this.renderShortcutChips('shortcut-prev-chips', 'readerPrevShortcuts');
+        this.renderShortcutChips('shortcut-next-chips', 'readerNextShortcuts');
     }
 
     saveReaderShortcutSettings(onDone) {
+        const payload = this.getReaderShortcutPayload();
+        this.settings.toggleReaderShortcut = payload.toggleReaderShortcut;
+        this.settings.readerPrevShortcuts = payload.readerPrevShortcuts;
+        this.settings.readerNextShortcuts = payload.readerNextShortcuts;
+        this.settings.toggleTopBarShortcut = payload.toggleTopBarShortcut;
+
         chrome.storage.local.get(['kemono_reader_settings'], (result) => {
             let existing = {};
             if (result.kemono_reader_settings) {
@@ -271,7 +524,7 @@ class SettingsManager {
             }
             const next = {
                 ...existing,
-                toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
+                ...payload
             };
             const json = JSON.stringify(next);
             try {
@@ -286,9 +539,7 @@ class SettingsManager {
     }
 
     notifyReaderSettingsChanged() {
-        const payload = {
-            toggleReaderShortcut: this.settings.toggleReaderShortcut || DEFAULT_TOGGLE_READER_SHORTCUT
-        };
+        const payload = this.getReaderShortcutPayload();
         chrome.tabs.query({ url: this.getTabQueryUrls() }, (tabs) => {
             tabs.forEach((tab) => {
                 chrome.tabs.sendMessage(tab.id, {
@@ -426,9 +677,7 @@ class SettingsManager {
                         const readerSettings = typeof result.kemono_reader_settings === 'string'
                             ? JSON.parse(result.kemono_reader_settings)
                             : result.kemono_reader_settings;
-                        if (readerSettings.toggleReaderShortcut) {
-                            this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
-                        }
+                        this.applyReaderShortcutSettings(readerSettings);
                     } catch (e) {
                         console.error('載入閱讀器快速鍵設定失敗:', e);
                     }
@@ -437,9 +686,7 @@ class SettingsManager {
                         const localReader = localStorage.getItem('kemono_reader_settings');
                         if (localReader) {
                             const readerSettings = JSON.parse(localReader);
-                            if (readerSettings.toggleReaderShortcut) {
-                                this.settings.toggleReaderShortcut = readerSettings.toggleReaderShortcut;
-                            }
+                            this.applyReaderShortcutSettings(readerSettings);
                         }
                     } catch (e) {
                         console.error('載入閱讀器快速鍵設定失敗:', e);
