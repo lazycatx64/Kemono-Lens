@@ -13,6 +13,9 @@ let modifierKeyPressed = false;
 // 按下貼文連結後抑制重建，避免導航前 mousemove 又把預覽生回來
 let suppressPreviewUntilUrlChange = false;
 let suppressPreviewResetTimer = null;
+// delay_show：懸停延遲顯示計時器
+let previewShowDelayTimer = null;
+let pendingPreviewTarget = null;
 
 const SCROLL_KEYS = new Set([
     ' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -46,7 +49,28 @@ function isKeyboardModifierMatch(e) {
 
 function getControlMode() {
     const mode = getPreviewSettings().controlMode;
-    return mode === 'hold_to_show' ? 'hold_to_show' : 'hold_to_hide';
+    if (mode === 'hold_to_show') return 'hold_to_show';
+    if (mode === 'delay_show') return 'delay_show';
+    return 'hold_to_hide';
+}
+
+function isModifierSuppressMode() {
+    const mode = getControlMode();
+    return mode === 'hold_to_hide' || mode === 'delay_show';
+}
+
+function getShowDelayMs() {
+    const delay = parseInt(getPreviewSettings().showDelay, 10);
+    if (!isNaN(delay) && delay >= 0) return delay;
+    return 200;
+}
+
+function clearPreviewShowDelay() {
+    if (previewShowDelayTimer) {
+        clearTimeout(previewShowDelayTimer);
+        previewShowDelayTimer = null;
+    }
+    pendingPreviewTarget = null;
 }
 
 function shouldCreatePreviewNow() {
@@ -56,7 +80,7 @@ function shouldCreatePreviewNow() {
     if (getControlMode() === 'hold_to_show') {
         return modifierKeyPressed;
     }
-    // hold_to_hide：按著修飾鍵時暫時停用
+    // hold_to_hide / delay_show：按著修飾鍵時暫時停用
     return !modifierKeyPressed;
 }
 
@@ -105,14 +129,48 @@ function syncHoverTargetFromEvent(e, siteHandler) {
     return target;
 }
 
+function requestPreviewCreate(target, siteHandler, e) {
+    if (!target || !siteHandler || !shouldCreatePreviewNow()) return;
+
+    if (getControlMode() !== 'delay_show') {
+        clearPreviewShowDelay();
+        createPreview(target, siteHandler, e);
+        return;
+    }
+
+    // 已在等待同一目標時不重設計時器
+    if (pendingPreviewTarget === target && previewShowDelayTimer) return;
+
+    clearPreviewShowDelay();
+    pendingPreviewTarget = target;
+    const delay = getShowDelayMs();
+    const clientX = e && e.clientX !== undefined ? e.clientX : 0;
+    const clientY = e && e.clientY !== undefined ? e.clientY : 0;
+
+    if (delay <= 0) {
+        pendingPreviewTarget = null;
+        createPreview(target, siteHandler, { clientX, clientY });
+        return;
+    }
+
+    previewShowDelayTimer = setTimeout(() => {
+        previewShowDelayTimer = null;
+        pendingPreviewTarget = null;
+        if (currentHoveredElement === target && shouldCreatePreviewNow()) {
+            createPreview(target, siteHandler, { clientX, clientY });
+        }
+    }, delay);
+}
+
 function tryCreatePreviewForCurrentHover(e) {
     if (!currentHoveredElement || !shouldCreatePreviewNow()) return;
     const siteHandler = siteManager.getHandler(currSite);
     if (!siteHandler) return;
-    createPreview(currentHoveredElement, siteHandler, e);
+    requestPreviewCreate(currentHoveredElement, siteHandler, e);
 }
 
 function dismissPreviewForControlMode() {
+    clearPreviewShowDelay();
     if (util && util.removeActivePreview) {
         util.removeActivePreview();
     }
@@ -235,7 +293,7 @@ class KemonoLens {
                 if (!wasPressed) {
                     if (getControlMode() === 'hold_to_show') {
                         tryCreatePreviewForCurrentHover(e);
-                    } else if (getControlMode() === 'hold_to_hide') {
+                    } else if (isModifierSuppressMode()) {
                         dismissPreviewForControlMode();
                     }
                 }
@@ -274,7 +332,7 @@ class KemonoLens {
                 
                 if (getControlMode() === 'hold_to_show') {
                     dismissPreviewForControlMode();
-                } else if (getControlMode() === 'hold_to_hide') {
+                } else if (isModifierSuppressMode()) {
                     tryCreatePreviewForCurrentHover(e);
                 }
             }
@@ -287,7 +345,7 @@ class KemonoLens {
             if (wasPressed) {
                 if (getControlMode() === 'hold_to_show') {
                     dismissPreviewForControlMode();
-                } else if (getControlMode() === 'hold_to_hide' && currentHoveredElement) {
+                } else if (isModifierSuppressMode() && currentHoveredElement) {
                     const pos = util && util._lastMousePos ? util._lastMousePos : null;
                     tryCreatePreviewForCurrentHover(pos || { clientX: 0, clientY: 0 });
                 }
@@ -308,6 +366,7 @@ class KemonoLens {
             
             if (postLink) {
                 beginSuppressPreviewOnPostOpen();
+                clearPreviewShowDelay();
                 if (util && util.removeActivePreview) {
                     util.removeActivePreview();
                 }
@@ -320,6 +379,7 @@ class KemonoLens {
 
         // 監聽頁面卸載事件，確保在頁面切換時清除預覽圖
         window.addEventListener('beforeunload', function() {
+            clearPreviewShowDelay();
             if (util && util.removeActivePreview) {
                 util.removeActivePreview();
             }
@@ -329,6 +389,7 @@ class KemonoLens {
         // 監聽頁面可見性變化，當頁面隱藏時清除預覽圖
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
+                clearPreviewShowDelay();
                 if (util && util.removeActivePreview) {
                     util.removeActivePreview();
                 }
@@ -349,6 +410,7 @@ class KemonoLens {
             
             // 只在目錄頁面工作；離開目錄時清掉殘留預覽
             if (!siteHandler.isPostsDirectory || !siteHandler.isPostsDirectory(currSite)) {
+                clearPreviewShowDelay();
                 if (util && util.getActivePreview && util.getActivePreview()) {
                     util.removeActivePreview();
                 }
@@ -363,7 +425,7 @@ class KemonoLens {
             if (siteHandler.isTargetElement(target)) {
                 currentHoveredElement = target;
                 if (shouldCreatePreviewNow()) {
-                    createPreview(target, siteHandler, e);
+                    requestPreviewCreate(target, siteHandler, e);
                 }
             }
         });
@@ -434,6 +496,7 @@ class KemonoLens {
             const siteHandler = siteManager.getHandler(currSite);
             if (!siteHandler || !siteHandler.isPostsDirectory || !siteHandler.isPostsDirectory(currSite)) {
                 // SPA 進入貼文頁後若仍有殘留預覽，在此清掉
+                clearPreviewShowDelay();
                 if (util && util.getActivePreview && util.getActivePreview()) {
                     util.removeActivePreview();
                 }
@@ -462,16 +525,21 @@ class KemonoLens {
             if (target) {
                 if (shouldCreatePreviewNow()) {
                     if (!activePreview || target !== previousHovered) {
-                        createPreview(target, siteHandler, e);
+                        // 切換目標時先清掉舊預覽，再依模式（含延遲）建立
+                        if (activePreview && target !== previousHovered) {
+                            clearPreviewShowDelay();
+                            if (util && util.removeActivePreview) {
+                                util.removeActivePreview();
+                            }
+                        }
+                        requestPreviewCreate(target, siteHandler, e);
                     }
-                } else if (activePreview) {
+                } else {
                     dismissPreviewForControlMode();
                 }
             } else {
                 currentHoveredElement = null;
-                if (activePreview) {
-                    dismissPreviewForControlMode();
-                }
+                dismissPreviewForControlMode();
             }
         });
     }
@@ -750,11 +818,17 @@ class KemonoLens {
             if (newSettings.controlMode !== undefined) {
                 window.KemonoSettings.settings.controlMode = newSettings.controlMode;
             }
+            if (newSettings.showDelay !== undefined) {
+                window.KemonoSettings.settings.showDelay = newSettings.showDelay;
+            }
             if (newSettings.modifierKey !== undefined) {
                 window.KemonoSettings.settings.modifierKey = newSettings.modifierKey;
             }
             window.KemonoSettings.saveSettings();
         }
+
+        // 控制模式或延遲變更時取消待顯示的計時器
+        clearPreviewShowDelay();
         
         // 如果預覽被停用，移除當前預覽
         if (!newSettings.enabled && util && util.removeActivePreview) {

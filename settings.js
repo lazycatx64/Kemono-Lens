@@ -16,7 +16,8 @@ class SettingsManager {
       switchMode: 'alt_scroll', // 'scroll', 'alt_scroll', 'keyboard'
       maxPreviewSize: 600,
       preloadImageCount: 5, // 預載入接下來的圖片數量
-      controlMode: 'hold_to_hide', // 'hold_to_show' | 'hold_to_hide'
+      controlMode: 'hold_to_hide', // 'hold_to_show' | 'hold_to_hide' | 'delay_show'
+      showDelay: 200, // delay_show 模式的延遲毫秒數
       modifierKey: 'alt', // 'alt' | 'ctrl' | 'shift'
       loggerLevel: 'info', // 'silent' | 'error' | 'warn' | 'info' | 'debug'
       language: window.KemonoI18n.currentLanguage
@@ -182,14 +183,24 @@ class SettingsManager {
         <label class="kemono-settings-label">${i18n.t('preview_control_mode')}</label>
         <div class="kemono-radio-group">
           <label class="kemono-radio-label">
-            <input type="radio" name="controlMode" value="hold_to_hide" class="kemono-radio" ${this.settings.controlMode !== 'hold_to_show' ? 'checked' : ''}>
+            <input type="radio" name="controlMode" value="hold_to_hide" class="kemono-radio" ${(this.settings.controlMode || 'hold_to_hide') === 'hold_to_hide' ? 'checked' : ''}>
             <span>${i18n.t('control_hold_to_hide')}</span>
           </label>
           <label class="kemono-radio-label">
             <input type="radio" name="controlMode" value="hold_to_show" class="kemono-radio" ${this.settings.controlMode === 'hold_to_show' ? 'checked' : ''}>
             <span>${i18n.t('control_hold_to_show')}</span>
           </label>
+          <label class="kemono-radio-label">
+            <input type="radio" name="controlMode" value="delay_show" class="kemono-radio" ${this.settings.controlMode === 'delay_show' ? 'checked' : ''}>
+            <span>${i18n.t('control_delay_show')}</span>
+          </label>
         </div>
+        <div class="kemono-settings-row" style="margin-top: 8px;">
+          <label class="kemono-settings-label" for="kemono-show-delay">${i18n.t('preview_show_delay')}</label>
+          <input type="number" id="kemono-show-delay" class="kemono-input" value="${this.settings.showDelay !== undefined ? this.settings.showDelay : 200}"
+                 min="0" max="5000" step="50">
+        </div>
+        <div class="kemono-settings-help">${i18n.t('preview_show_delay_help')}</div>
         <div class="kemono-settings-help">${i18n.t('preview_control_mode_help')}</div>
       </div>
       
@@ -309,6 +320,17 @@ class SettingsManager {
         }
       });
     });
+
+    // 延遲顯示毫秒數
+    const showDelayInput = document.getElementById('kemono-show-delay');
+    if (showDelayInput) {
+      showDelayInput.addEventListener('change', (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value) && value >= 0 && value <= 5000) {
+          this.updateSetting('showDelay', value);
+        }
+      });
+    }
     
     // 修飾鍵
     document.querySelectorAll('input[name="modifierKey"]').forEach(radio => {

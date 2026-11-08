@@ -1181,9 +1181,19 @@
                             <input type="radio" name="preview-control-mode" value="hold_to_show" style="margin-right: 8px;">
                             <span>按著快速鍵並懸停縮圖時才預覽</span>
                         </label>
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="preview-control-mode" value="delay_show" style="margin-right: 8px;">
+                            <span>懸停延遲後顯示</span>
+                        </label>
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: inline-flex; align-items: center; gap: 8px;">
+                                <span>延遲時間 (ms):</span>
+                                <input type="number" id="preview-show-delay" value="200" min="0" max="5000" step="50" style="padding: 5px; width: 100px;">
+                            </label>
+                        </div>
                     </div>
                     <div class="help-text">
-                        與下方「切換模式」分開；切換圖片的 Alt+滾輪仍固定使用 Alt
+                        懸停延遲後顯示：懸停後等待指定毫秒才顯示預覽，可減少快速滑過時誤觸。與下方「切換模式」分開；切換圖片的 Alt+滾輪仍固定使用 Alt
                     </div>
                 </div>
 

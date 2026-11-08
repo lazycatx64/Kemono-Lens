@@ -51,6 +51,7 @@ class SettingsManager {
             previewMaxSize: 600,
             preloadImageCount: 5,
             previewControlMode: 'hold_to_hide',
+            previewShowDelay: 200,
             previewModifierKey: 'alt',
             // 閱讀器快速鍵
             toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUT,
@@ -137,6 +138,19 @@ class SettingsManager {
                 }
             });
         });
+
+        // 延遲顯示毫秒數
+        const previewShowDelayInput = document.getElementById('preview-show-delay');
+        if (previewShowDelayInput) {
+            previewShowDelayInput.addEventListener('change', (e) => {
+                const value = parseInt(e.target.value, 10);
+                if (!isNaN(value) && value >= 0 && value <= 5000) {
+                    this.settings.previewShowDelay = value;
+                    this.saveSettings();
+                    this.notifyPreviewSettingsChanged();
+                }
+            });
+        }
 
         // 預覽控制快速鍵
         const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
@@ -703,6 +717,7 @@ class SettingsManager {
                         this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                         this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                         this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                        this.settings.previewShowDelay = previewSettings.showDelay !== undefined ? previewSettings.showDelay : this.settings.previewShowDelay;
                         this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                     } catch (e) {
                         // 如果解析失敗，嘗試從 localStorage 讀取
@@ -715,6 +730,7 @@ class SettingsManager {
                                 this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                                 this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                                 this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                                this.settings.previewShowDelay = previewSettings.showDelay !== undefined ? previewSettings.showDelay : this.settings.previewShowDelay;
                                 this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                             }
                         } catch (e2) {
@@ -732,6 +748,7 @@ class SettingsManager {
                             this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
                             this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
                             this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+                            this.settings.previewShowDelay = previewSettings.showDelay !== undefined ? previewSettings.showDelay : this.settings.previewShowDelay;
                             this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
                         }
                     } catch (e) {
@@ -813,6 +830,7 @@ class SettingsManager {
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
             controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };
         chrome.storage.local.set({ kemono_preview_settings: JSON.stringify(previewSettings) });
@@ -858,6 +876,13 @@ class SettingsManager {
         previewControlRadios.forEach(radio => {
             radio.checked = radio.value === (this.settings.previewControlMode || 'hold_to_hide');
         });
+
+        const previewShowDelayInput = document.getElementById('preview-show-delay');
+        if (previewShowDelayInput) {
+            previewShowDelayInput.value = this.settings.previewShowDelay !== undefined
+                ? this.settings.previewShowDelay
+                : 200;
+        }
 
         const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
         previewModifierRadios.forEach(radio => {
@@ -925,6 +950,7 @@ class SettingsManager {
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
             controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };
 

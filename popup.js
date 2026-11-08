@@ -29,6 +29,7 @@ class PopupSettingsManager {
             previewMaxSize: 600,
             preloadImageCount: 5,
             previewControlMode: 'hold_to_hide',
+            previewShowDelay: 200,
             previewModifierKey: 'alt'
         };
         this._shortcutRecording = null;
@@ -148,6 +149,19 @@ class PopupSettingsManager {
             });
         });
 
+        // 延遲顯示毫秒數
+        const previewShowDelayInput = document.getElementById('preview-show-delay');
+        if (previewShowDelayInput) {
+            previewShowDelayInput.addEventListener('change', (e) => {
+                const value = parseInt(e.target.value, 10);
+                if (!isNaN(value) && value >= 0 && value <= 5000) {
+                    this.settings.previewShowDelay = value;
+                    this.saveSettings();
+                    this.notifyPreviewSettingsChanged();
+                }
+            });
+        }
+
         // 預覽控制快速鍵
         const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
         previewModifierRadios.forEach(radio => {
@@ -190,6 +204,9 @@ class PopupSettingsManager {
         this.settings.previewMaxSize = previewSettings.maxPreviewSize || this.settings.previewMaxSize;
         this.settings.preloadImageCount = previewSettings.preloadImageCount !== undefined ? previewSettings.preloadImageCount : this.settings.preloadImageCount;
         this.settings.previewControlMode = previewSettings.controlMode || this.settings.previewControlMode;
+        this.settings.previewShowDelay = previewSettings.showDelay !== undefined
+            ? previewSettings.showDelay
+            : this.settings.previewShowDelay;
         this.settings.previewModifierKey = previewSettings.modifierKey || this.settings.previewModifierKey;
     }
 
@@ -262,6 +279,7 @@ class PopupSettingsManager {
                     ? this.settings.preloadImageCount
                     : (existing.preloadImageCount !== undefined ? existing.preloadImageCount : 5),
                 controlMode: this.settings.previewControlMode || 'hold_to_hide',
+                showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
                 modifierKey: this.settings.previewModifierKey || 'alt'
             };
             chrome.storage.local.set({ kemono_preview_settings: JSON.stringify(previewSettings) });
@@ -392,6 +410,13 @@ class PopupSettingsManager {
             radio.checked = radio.value === (this.settings.previewControlMode || 'hold_to_hide');
         });
 
+        const previewShowDelayInput = document.getElementById('preview-show-delay');
+        if (previewShowDelayInput) {
+            previewShowDelayInput.value = this.settings.previewShowDelay !== undefined
+                ? this.settings.previewShowDelay
+                : 200;
+        }
+
         const previewModifierRadios = document.querySelectorAll('input[name="preview-modifier-key"]');
         previewModifierRadios.forEach(radio => {
             radio.checked = radio.value === (this.settings.previewModifierKey || 'alt');
@@ -423,6 +448,7 @@ class PopupSettingsManager {
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
             controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };
 
