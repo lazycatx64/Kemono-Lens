@@ -252,14 +252,21 @@
 
     _syncToggleShortcutFromSettings(settings) {
       const key = settings && settings.toggleReaderShortcut;
-      this._toggleShortcut = (typeof key === 'string' && key.length > 0)
-        ? key
-        : DEFAULT_TOGGLE_SHORTCUT;
+      if (typeof key === 'string' && key.length > 0) {
+        this._toggleShortcut = key.length === 1 ? key.toLowerCase() : key;
+      } else {
+        this._toggleShortcut = DEFAULT_TOGGLE_SHORTCUT;
+      }
     }
 
     _matchesToggleShortcut(e) {
       const shortcut = this._toggleShortcut || DEFAULT_TOGGLE_SHORTCUT;
-      if (e.key === shortcut) return true;
+      const pressed = e.key;
+      if (pressed === shortcut) return true;
+      if (shortcut.length === 1 && typeof pressed === 'string' && pressed.length === 1
+        && pressed.toLowerCase() === shortcut) {
+        return true;
+      }
       if (shortcut === '`' && e.code === 'Backquote') return true;
       return false;
     }
