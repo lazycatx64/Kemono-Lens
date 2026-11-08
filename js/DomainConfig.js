@@ -192,15 +192,47 @@
         return `https://${domain}${normalizedPath}`;
     }
 
+    /**
+     * 將 API／CDN 路徑正規化為縮圖用的 hash 路徑：aa/bb/{hash}{ext}
+     * 相容：
+     * - 標準兩碼目錄：/de/49/de497e....jpeg
+     * - 鏡像站 shard 前綴：/1de/49/de497e....jpeg（第一段多一個數字）
+     * - 完整 URL、/data/、/thumbnail/data/ 前綴
+     */
+    function normalizeImgDataPath(pathOrUrl) {
+        if (!pathOrUrl) {
+            return '';
+        }
+
+        const raw = String(pathOrUrl).split('#')[0].split('?')[0];
+        const hashMatch = raw.match(/([a-f0-9]{64}|[a-f0-9]{40}|[a-f0-9]{32})(\.[a-z0-9]+)?$/i);
+        if (hashMatch) {
+            const hash = hashMatch[1].toLowerCase();
+            const ext = (hashMatch[2] || '').toLowerCase();
+            return `${hash.slice(0, 2)}/${hash.slice(2, 4)}/${hash}${ext}`;
+        }
+
+        let path = raw.replace(/^https?:\/\/[^/]+/i, '');
+        path = path.replace(/^\/+/, '');
+        path = path.replace(/^(?:thumbnail\/)?data\//i, '');
+        // 去掉第一段目錄開頭的 shard 數字（例如 1de → de）
+        path = path.replace(/^(\d)([a-f0-9]{2}\/[a-f0-9]{2}\/)/i, '$2');
+        return path;
+    }
+
     function buildImgThumbnailUrl(site, path) {
         const domain = getDomain(site || 'kemono');
-        const clean = String(path || '').replace(/^\/+/, '');
+        const clean = normalizeImgDataPath(path);
         return `https://img.${domain}/thumbnail/data/${clean}`;
     }
 
     function buildImgOriginalUrl(site, path) {
         const domain = getDomain(site || 'kemono');
-        const clean = String(path || '').replace(/^\/+/, '');
+        // 原圖需保留 API 原始 path（可能含 shard 前綴），不可改寫成純 hash 路徑
+        const clean = String(path || '')
+            .replace(/^https?:\/\/[^/]+/i, '')
+            .replace(/^\/+/, '')
+            .replace(/^(?:thumbnail\/)?data\//i, '');
         return `https://file.${domain}/data/${clean}`;
     }
 
@@ -301,6 +333,7 @@
         buildUserUrl,
         buildIconUrl,
         buildApiUrl,
+        normalizeImgDataPath,
         buildImgThumbnailUrl,
         buildImgOriginalUrl,
         getTabQueryUrls,

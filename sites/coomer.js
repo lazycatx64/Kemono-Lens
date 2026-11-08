@@ -53,21 +53,23 @@ const coomer = {
     return false;
   },
   
-  // 將原圖 URL 轉換為 thumbnail URL
+  // 將原圖／資料路徑 URL 轉換為 thumbnail URL
   convertToThumbnailUrl: (url) => {
     if (!url) return url;
     
     try {
       const domainPattern = getCoomerDomainPattern();
-      // 匹配 apex／www／CDN 子網域上的資料路徑
+      // 匹配 apex／www／CDN 子網域（含 n1、img 等），並相容 shard 前綴路徑（/1de/49/...）
       const coomerPattern = new RegExp(
-        `(https?:\\/\\/)?(?:[\\w-]+\\.)?${domainPattern}\\/(?:(?:thumbnail\\/)?data\\/)?([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
+        `(https?:\\/\\/)?(?:[\\w-]+\\.)?${domainPattern}\\/(?:(?:thumbnail\\/)?data\\/)?(?:\\d)?([a-f0-9]{2})\\/([a-f0-9]{2})\\/([a-f0-9]+[^\\/\\s?#]*)`,
         'i'
       );
       const match = url.match(coomerPattern);
       
       if (match) {
-        const path = `${match[2]}/${match[3]}/${match[4]}`;
+        const path = window.KemonoDomainConfig && window.KemonoDomainConfig.normalizeImgDataPath
+          ? window.KemonoDomainConfig.normalizeImgDataPath(url)
+          : `${match[2]}/${match[3]}/${match[4]}`;
         const thumbnailUrl = window.KemonoDomainConfig
           ? window.KemonoDomainConfig.buildImgThumbnailUrl('coomer', path)
           : `https://img.coomer.st/thumbnail/data/${path}`;

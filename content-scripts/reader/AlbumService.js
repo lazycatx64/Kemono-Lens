@@ -44,7 +44,13 @@
   function buildOriginalUrl(site, item, baseOrigin) {
     if (!item || !item.path) return null;
     if (item.server) {
-      return `${String(item.server).replace(/\/$/, '')}${item.path.startsWith('/') ? item.path : `/${item.path}`}`;
+      const server = String(item.server).replace(/\/$/, '');
+      let path = item.path.startsWith('/') ? item.path : `/${item.path}`;
+      // CDN 原圖需 /data 前綴；API path 可能已含或不含
+      if (!/^\/data\//i.test(path)) {
+        path = `/data${path}`;
+      }
+      return `${server}${path}`;
     }
     const clean = normalizePath(item.path);
     if (window.KemonoDomainConfig && window.KemonoDomainConfig.buildImgOriginalUrl) {
