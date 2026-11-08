@@ -17,7 +17,11 @@ class TabManager {
     setupEventListeners() {
         this.elements.tabButtons.forEach(button => {
             button.addEventListener('click', (e) => {
-                const tabId = e.target.getAttribute('data-tab');
+                const tabButton = e.currentTarget || e.target.closest('.tab-button');
+                const tabId = tabButton && tabButton.getAttribute('data-tab');
+                if (!tabId) {
+                    return;
+                }
                 this.showTab(tabId);
             });
         });

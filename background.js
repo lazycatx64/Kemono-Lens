@@ -60,19 +60,20 @@ async function doSyncContentScripts() {
 
         const clickGuardMatches = DomainConfig.getOriginPatterns(domain);
         if (clickGuardMatches.length > 0) {
+            // Bridge 先註冊／注入，避免漏接 MAIN world 早期回報
+            toRegister.push({
+                id: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_IDS[site],
+                matches: clickGuardMatches,
+                js: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_JS,
+                runAt: 'document_start',
+                persistAcrossSessions: true
+            });
             toRegister.push({
                 id: DomainConfig.CLICKGUARD_SCRIPT_IDS[site],
                 matches: clickGuardMatches,
                 js: DomainConfig.CLICKGUARD_SCRIPT_JS,
                 runAt: 'document_start',
                 world: 'MAIN',
-                persistAcrossSessions: true
-            });
-            toRegister.push({
-                id: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_IDS[site],
-                matches: clickGuardMatches,
-                js: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_JS,
-                runAt: 'document_start',
                 persistAcrossSessions: true
             });
         }

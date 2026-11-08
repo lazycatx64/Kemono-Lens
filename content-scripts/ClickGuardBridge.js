@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const EVENT_NAME = 'kemono-clickguard-log';
+  const REPORT_SOURCE = 'kemono-clickguard';
   const STORAGE_KEY = 'clickGuardLogs';
   const MAX_LOGS = 200;
   const DEDUPE_MS = 5000;
@@ -33,7 +33,6 @@
     }
     recentKeys.set(key, now);
 
-    // 清理過期去重鍵
     if (recentKeys.size > 100) {
       for (const [k, t] of recentKeys) {
         if (now - t > DEDUPE_MS) {
@@ -77,7 +76,17 @@
     })).catch(() => {});
   }
 
-  window.addEventListener(EVENT_NAME, (event) => {
-    appendLog(event && event.detail);
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) {
+      return;
+    }
+    if (event.origin && event.origin !== window.location.origin) {
+      return;
+    }
+    const data = event.data;
+    if (!data || data.source !== REPORT_SOURCE || !data.type) {
+      return;
+    }
+    appendLog(data);
   });
 })();

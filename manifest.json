@@ -34,10 +34,9 @@
         "https://*.coomer.st/*"
       ],
       "js": [
-        "content-scripts/ClickGuard.js"
+        "content-scripts/ClickGuardBridge.js"
       ],
-      "run_at": "document_start",
-      "world": "MAIN"
+      "run_at": "document_start"
     },
     {
       "matches": [
@@ -47,9 +46,10 @@
         "https://*.coomer.st/*"
       ],
       "js": [
-        "content-scripts/ClickGuardBridge.js"
+        "content-scripts/ClickGuard.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "world": "MAIN"
     },
     {
       "matches": [

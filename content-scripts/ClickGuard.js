@@ -10,7 +10,7 @@
   const AREA_RATIO_THRESHOLD = 0.7;
   const HIGH_Z_INDEX = 1000;
   const markedAttr = 'data-kemono-clickguard';
-  const REPORT_EVENT = 'kemono-clickguard-log';
+  const REPORT_SOURCE = 'kemono-clickguard';
 
   function summarizeElement(el) {
     if (!el || el.nodeType !== 1) {
@@ -40,14 +40,14 @@
 
   function reportHit(type, extra) {
     try {
-      window.dispatchEvent(new CustomEvent(REPORT_EVENT, {
-        detail: Object.assign({
-          type,
-          time: Date.now(),
-          pageUrl: String(location.href || '').slice(0, 500),
-          pageHost: location.hostname || ''
-        }, extra || {})
-      }));
+      // 使用 postMessage：跨 MAIN／isolated world 比 CustomEvent.detail 更可靠
+      window.postMessage(Object.assign({
+        source: REPORT_SOURCE,
+        type,
+        time: Date.now(),
+        pageUrl: String(location.href || '').slice(0, 500),
+        pageHost: location.hostname || ''
+      }, extra || {}), window.location.origin);
     } catch (_) {
       // ignore
     }
