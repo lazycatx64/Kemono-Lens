@@ -109,19 +109,19 @@ async function cleanupUnusedPermissions(previousDomains, currentDomains) {
     try {
         await chrome.permissions.remove({ origins: originsToRemove });
     } catch (error) {
-        console.warn('[KemonoFriends] 移除舊網域權限失敗:', error);
+        console.warn('[KemonoLens] 移除舊網域權限失敗:', error);
     }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
     syncContentScripts().catch((error) => {
-        console.error('[KemonoFriends] onInstalled 同步 content scripts 失敗:', error);
+        console.error('[KemonoLens] onInstalled 同步 content scripts 失敗:', error);
     });
 });
 
 chrome.runtime.onStartup.addListener(() => {
     syncContentScripts().catch((error) => {
-        console.error('[KemonoFriends] onStartup 同步 content scripts 失敗:', error);
+        console.error('[KemonoLens] onStartup 同步 content scripts 失敗:', error);
     });
 });
 
@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const result = await syncContentScripts();
                 sendResponse({ ok: true, ...result });
             } catch (error) {
-                console.error('[KemonoFriends] SYNC_CONTENT_SCRIPTS 失敗:', error);
+                console.error('[KemonoLens] SYNC_CONTENT_SCRIPTS 失敗:', error);
                 sendResponse({ ok: false, error: error.message || String(error) });
             }
         })();
@@ -152,5 +152,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Service worker 啟動時也嘗試同步一次（補強 onInstalled 時機）
 syncContentScripts().catch((error) => {
-    console.warn('[KemonoFriends] 啟動時同步 content scripts 失敗:', error);
+    console.warn('[KemonoLens] 啟動時同步 content scripts 失敗:', error);
 });

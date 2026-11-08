@@ -1,6 +1,6 @@
 // 設定管理器 - 處理顯示設定選項
 
-console.log('[KemonoFriends] SettingsManager 加載');
+console.log('[KemonoLens] SettingsManager 加載');
 
 const DEFAULT_TOGGLE_READER_SHORTCUT = '`';
 

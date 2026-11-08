@@ -222,7 +222,7 @@ class BlacklistContentManager {
             }
             
         } catch (error) {
-            console.error('[KemonoFriends] 黑名單操作失敗:', error);
+            console.error('[KemonoLens] 黑名單操作失敗:', error);
             
             // 保存失敗，恢復原始狀態
             if (wasBlacklisted) {

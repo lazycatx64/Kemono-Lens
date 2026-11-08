@@ -1,4 +1,4 @@
-// Kemono Friends Content Script - 主控制器
+// Kemono Lens Content Script - 主控制器
 // 整合黑名單、收藏和懸停預覽功能
 
 // 使用全域 logger 和工具
@@ -119,7 +119,7 @@ function dismissPreviewForControlMode() {
 }
 
 // 黑名單和收藏管理器
-class KemonoFriends {
+class KemonoLens {
     constructor() {
         this.isActive = true;
         this.domManager = new DOMManager();
@@ -189,7 +189,7 @@ class KemonoFriends {
         window.__kfReaderMessageBound = true;
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action !== 'updateReaderSettings') return;
-            const inst = currentKemonoFriends;
+            const inst = currentKemonoLens;
             if (inst && typeof inst.handleReaderSettingsUpdate === 'function') {
                 inst.handleReaderSettingsUpdate(message.settings);
             } else if (window.KemonoReaderSettings) {
@@ -558,7 +558,7 @@ class KemonoFriends {
                     this.favoritesManager.applyFavoriteStyle(card);
                 }
             } catch (error) {
-                logger.error('[KemonoFriends] 處理卡片時發生錯誤:', error);
+                logger.error('[KemonoLens] 處理卡片時發生錯誤:', error);
             }
         });
 
@@ -582,7 +582,7 @@ class KemonoFriends {
         const userInfo = this.domManager.extractUserInfoFromCurrentPage();
         
         if (!userInfo) {
-            logger.log('[KemonoFriends] 無法提取個人頁面的創作者資訊');
+            logger.log('[KemonoLens] 無法提取個人頁面的創作者資訊');
             return;
         }
         
@@ -666,7 +666,7 @@ class KemonoFriends {
             // 設置初始的body類別
             this.updateBodyClasses(this.blacklistManager.visualSettings);
         } catch (error) {
-            console.error('[KemonoFriends] 載入視覺設定失敗:', error);
+            console.error('[KemonoLens] 載入視覺設定失敗:', error);
         }
     }
 
@@ -831,7 +831,7 @@ function createPreview(target, siteHandler, event) {
 }
 
 // 全域實例管理
-let currentKemonoFriends = null;
+let currentKemonoLens = null;
 let currentUrl = window.location.href;
 let urlChangeGen = 0;
 let urlChangeTimer = null;
@@ -847,9 +847,9 @@ const checkUrlChange = () => {
     endSuppressPreviewOnUrlChange();
 
     // 銷毀舊實例
-    if (currentKemonoFriends) {
-        currentKemonoFriends.destroy();
-        currentKemonoFriends = null;
+    if (currentKemonoLens) {
+        currentKemonoLens.destroy();
+        currentKemonoLens = null;
     }
 
     // 清除懸停預覽
@@ -873,13 +873,13 @@ const checkUrlChange = () => {
     const reinitDelay = currentUrl.includes('/post/') ? 200 : 800;
     urlChangeTimer = setTimeout(() => {
         if (gen !== urlChangeGen) return;
-        currentKemonoFriends = new KemonoFriends();
+        currentKemonoLens = new KemonoLens();
 
         urlChangeProfileTimer = setTimeout(() => {
             if (gen !== urlChangeGen) return;
-            if (currentKemonoFriends && currentKemonoFriends.isActive &&
-                currentKemonoFriends.domManager.isUserProfilePage()) {
-                currentKemonoFriends.processUserCards();
+            if (currentKemonoLens && currentKemonoLens.isActive &&
+                currentKemonoLens.domManager.isUserProfilePage()) {
+                currentKemonoLens.processUserCards();
             }
         }, 1500);
     }, reinitDelay);
@@ -928,10 +928,10 @@ history.replaceState = function(...args) {
 // 初始化
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        currentKemonoFriends = new KemonoFriends();
+        currentKemonoLens = new KemonoLens();
     });
 } else {
-    currentKemonoFriends = new KemonoFriends();
+    currentKemonoLens = new KemonoLens();
 }
 
 if (logger) {

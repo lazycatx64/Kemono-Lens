@@ -1,6 +1,6 @@
 // 統計管理器 - 處理黑名單和收藏統計
 
-console.log('[KemonoFriends] StatisticsManager 加載');
+console.log('[KemonoLens] StatisticsManager 加載');
 
 class StatisticsManager {
     constructor() {

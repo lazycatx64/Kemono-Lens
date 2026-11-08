@@ -1,6 +1,6 @@
 // 分頁管理器 - 處理頁籤切換邏輯
 
-console.log('[KemonoFriends] TabManager 加載');
+console.log('[KemonoLens] TabManager 加載');
 
 class TabManager {
     constructor() {

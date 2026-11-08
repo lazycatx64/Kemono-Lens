@@ -1,6 +1,6 @@
 // 訊息管理器 - 處理成功和錯誤訊息顯示
 
-console.log('[KemonoFriends] MessageManager 加載');
+console.log('[KemonoLens] MessageManager 加載');
 
 class MessageManager {
     constructor() {

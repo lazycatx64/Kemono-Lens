@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Kemono Friends",
+  "name": "Kemono Lens",
   "version": "1.0",
   "description": "管理Kemono網站上的創作者黑名單、收藏和懸停預覽功能",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   
   "permissions": [
     "storage",
@@ -68,7 +73,12 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Kemono Friends - 設定"
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Kemono Lens - 設定"
   },
   
   "background": {

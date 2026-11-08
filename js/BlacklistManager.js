@@ -1,6 +1,6 @@
 // 黑名單管理器 - 專門處理黑名單相關功能
 
-console.log('[KemonoFriends] BlacklistManager 加載');
+console.log('[KemonoLens] BlacklistManager 加載');
 
 class BlacklistManager {
     constructor(statisticsManager, messageManager) {

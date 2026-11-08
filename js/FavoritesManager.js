@@ -1,6 +1,6 @@
 // 收藏管理器 - 專門處理收藏同步相關功能
 
-console.log('[KemonoFriends] FavoritesManager 加載');
+console.log('[KemonoLens] FavoritesManager 加載');
 
 class FavoritesManager {
     constructor(statisticsManager, messageManager) {

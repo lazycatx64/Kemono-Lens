@@ -1,6 +1,6 @@
 // 請求排隊管理器 - 限制請求速率以避免過快發送
 
-console.log('[KemonoFriends] RequestQueue 加載');
+console.log('[KemonoLens] RequestQueue 加載');
 
 class RequestQueue {
     constructor() {

@@ -162,7 +162,7 @@ bindStorageListener();
  */
 function log(...args) {
     if (!shouldLog('info')) return;
-    console.log('[Kemono Friends]', ...args);
+    console.log('[Kemono Lens]', ...args);
 }
 
 /**
@@ -179,7 +179,7 @@ function info(...args) {
  */
 function verbose(...args) {
     if (!shouldLog('debug')) return;
-    console.log('[Kemono Friends]', ...args);
+    console.log('[Kemono Lens]', ...args);
 }
 
 /**
@@ -196,7 +196,7 @@ function debug(...args) {
  */
 function warn(...args) {
     if (!shouldLog('warn')) return;
-    console.warn('[Kemono Friends]', ...args);
+    console.warn('[Kemono Lens]', ...args);
 }
 
 /**
@@ -205,7 +205,7 @@ function warn(...args) {
  */
 function error(...args) {
     if (!shouldLog('error')) return;
-    console.error('[Kemono Friends]', ...args);
+    console.error('[Kemono Lens]', ...args);
 }
 
 window.KemonoLogger = {

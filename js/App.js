@@ -1,6 +1,6 @@
 // 主要應用程式管理器 - 整合所有模組
 
-console.log('[KemonoFriends] App 加載');
+console.log('[KemonoLens] App 加載');
 
 class App {
     constructor() {
