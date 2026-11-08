@@ -51,7 +51,7 @@ class PopupSettingsManager {
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
             preloadImageCount: 5,
-            previewControlMode: 'hold_to_hide',
+            previewControlMode: 'delay_show',
             previewShowDelay: 200,
             previewModifierKey: 'alt'
         };
@@ -304,7 +304,7 @@ class PopupSettingsManager {
                 preloadImageCount: this.settings.preloadImageCount !== undefined
                     ? this.settings.preloadImageCount
                     : (existing.preloadImageCount !== undefined ? existing.preloadImageCount : 5),
-                controlMode: this.settings.previewControlMode || 'hold_to_hide',
+                controlMode: this.settings.previewControlMode || 'delay_show',
                 showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
                 modifierKey: this.settings.previewModifierKey || 'alt'
             };
@@ -491,7 +491,7 @@ class PopupSettingsManager {
 
         const previewControlRadios = document.querySelectorAll('input[name="preview-control-mode"]');
         previewControlRadios.forEach(radio => {
-            radio.checked = radio.value === (this.settings.previewControlMode || 'hold_to_hide');
+            radio.checked = radio.value === (this.settings.previewControlMode || 'delay_show');
         });
 
         const previewShowDelayInput = document.getElementById('preview-show-delay');
@@ -531,7 +531,7 @@ class PopupSettingsManager {
             switchMode: this.settings.previewSwitchMode,
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
-            controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            controlMode: this.settings.previewControlMode || 'delay_show',
             showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };

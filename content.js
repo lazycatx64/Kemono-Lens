@@ -50,8 +50,8 @@ function isKeyboardModifierMatch(e) {
 function getControlMode() {
     const mode = getPreviewSettings().controlMode;
     if (mode === 'hold_to_show') return 'hold_to_show';
-    if (mode === 'delay_show') return 'delay_show';
-    return 'hold_to_hide';
+    if (mode === 'hold_to_hide') return 'hold_to_hide';
+    return 'delay_show';
 }
 
 function isModifierSuppressMode() {

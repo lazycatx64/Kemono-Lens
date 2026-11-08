@@ -85,7 +85,7 @@ class SettingsManager {
             previewSwitchMode: 'alt_scroll',
             previewMaxSize: 600,
             preloadImageCount: 5,
-            previewControlMode: 'hold_to_hide',
+            previewControlMode: 'delay_show',
             previewShowDelay: 200,
             previewModifierKey: 'alt',
             // 閱讀器快速鍵（皆為多按鍵陣列）
@@ -756,7 +756,7 @@ class SettingsManager {
             switchMode: this.settings.previewSwitchMode,
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
-            controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            controlMode: this.settings.previewControlMode || 'delay_show',
             showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };
@@ -801,7 +801,7 @@ class SettingsManager {
 
         const previewControlRadios = document.querySelectorAll('input[name="preview-control-mode"]');
         previewControlRadios.forEach(radio => {
-            radio.checked = radio.value === (this.settings.previewControlMode || 'hold_to_hide');
+            radio.checked = radio.value === (this.settings.previewControlMode || 'delay_show');
         });
 
         const previewShowDelayInput = document.getElementById('preview-show-delay');
@@ -876,7 +876,7 @@ class SettingsManager {
             switchMode: this.settings.previewSwitchMode,
             maxPreviewSize: this.settings.previewMaxSize,
             preloadImageCount: this.settings.preloadImageCount,
-            controlMode: this.settings.previewControlMode || 'hold_to_hide',
+            controlMode: this.settings.previewControlMode || 'delay_show',
             showDelay: this.settings.previewShowDelay !== undefined ? this.settings.previewShowDelay : 200,
             modifierKey: this.settings.previewModifierKey || 'alt'
         };

@@ -16,7 +16,7 @@ class SettingsManager {
       switchMode: 'alt_scroll', // 'scroll', 'alt_scroll', 'keyboard'
       maxPreviewSize: 600,
       preloadImageCount: 5, // 預載入接下來的圖片數量
-      controlMode: 'hold_to_hide', // 'hold_to_show' | 'hold_to_hide' | 'delay_show'
+      controlMode: 'delay_show', // 'hold_to_show' | 'hold_to_hide' | 'delay_show'
       showDelay: 200, // delay_show 模式的延遲毫秒數
       modifierKey: 'alt', // 'alt' | 'ctrl' | 'shift'
       loggerLevel: 'info', // 'silent' | 'error' | 'warn' | 'info' | 'debug'
@@ -183,7 +183,7 @@ class SettingsManager {
         <label class="kemono-settings-label">${i18n.t('preview_control_mode')}</label>
         <div class="kemono-radio-group">
           <label class="kemono-radio-label">
-            <input type="radio" name="controlMode" value="hold_to_hide" class="kemono-radio" ${(this.settings.controlMode || 'hold_to_hide') === 'hold_to_hide' ? 'checked' : ''}>
+            <input type="radio" name="controlMode" value="hold_to_hide" class="kemono-radio" ${this.settings.controlMode === 'hold_to_hide' ? 'checked' : ''}>
             <span>${i18n.t('control_hold_to_hide')}</span>
           </label>
           <label class="kemono-radio-label">
@@ -191,7 +191,7 @@ class SettingsManager {
             <span>${i18n.t('control_hold_to_show')}</span>
           </label>
           <label class="kemono-radio-label">
-            <input type="radio" name="controlMode" value="delay_show" class="kemono-radio" ${this.settings.controlMode === 'delay_show' ? 'checked' : ''}>
+            <input type="radio" name="controlMode" value="delay_show" class="kemono-radio" ${(this.settings.controlMode || 'delay_show') === 'delay_show' ? 'checked' : ''}>
             <span>${i18n.t('control_delay_show')}</span>
           </label>
         </div>
