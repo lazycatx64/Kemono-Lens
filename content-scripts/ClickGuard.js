@@ -2,6 +2,7 @@
  * ClickGuard - 擋住隱形廣告點擊劫持（MAIN world / document_start）
  * 主防線：清除全頁透明 overlay／iframe
  * 輔防線：攔截頂層跨來源 window.open
+ * 中鍵防護：短暫擋下 location／a.click() 強制導向，避免「新分頁開了、原分頁也被帶走」
  */
 (function () {
   'use strict';
@@ -11,6 +12,10 @@
   const HIGH_Z_INDEX = 1000;
   const markedAttr = 'data-kemono-clickguard';
   const REPORT_SOURCE = 'kemono-clickguard';
+  const MIDDLE_NAV_SUPPRESS_MS = 2000;
+
+  /** 中鍵手勢期間禁止目前分頁被腳本強制導向 */
+  let suppressDocumentNavigationUntil = 0;
 
   function summarizeElement(el) {
     if (!el || el.nodeType !== 1) {
@@ -231,6 +236,79 @@
     scanNode(document.documentElement);
   }
 
+  function armDocumentNavSuppress(ms) {
+    const until = Date.now() + (ms || MIDDLE_NAV_SUPPRESS_MS);
+    if (until > suppressDocumentNavigationUntil) {
+      suppressDocumentNavigationUntil = until;
+    }
+  }
+
+  function shouldSuppressDocumentNavigation() {
+    return Date.now() < suppressDocumentNavigationUntil;
+  }
+
+  function neutralizeTrapsAtPoint(x, y) {
+    let hitTrap = false;
+    try {
+      const stacked = document.elementsFromPoint(x, y) || [];
+      for (const node of stacked) {
+        if (node && node.nodeType === 1 && isFullViewportTrap(node)) {
+          neutralizeTrap(node);
+          hitTrap = true;
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    return hitTrap;
+  }
+
+  function findUnderlyingElement(x, y) {
+    try {
+      const stack = document.elementsFromPoint(x, y) || [];
+      return stack.find((node) => (
+        node
+        && node.nodeType === 1
+        && node.getAttribute(markedAttr) !== 'disabled'
+        && !isFullViewportTrap(node)
+        && !isExtensionUiNode(node)
+      )) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function findAnchorFromNode(node) {
+    if (!node || typeof node.closest !== 'function') {
+      return null;
+    }
+    try {
+      return node.closest('a[href]');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function onPointerDownCapture(event) {
+    if (isExtensionUiNode(event.target)) {
+      return;
+    }
+
+    // 中鍵：先拆陷阱並啟動「禁止原分頁被腳本帶走」視窗
+    if (event.button === 1) {
+      armDocumentNavSuppress(MIDDLE_NAV_SUPPRESS_MS);
+      if (neutralizeTrapsAtPoint(event.clientX, event.clientY)) {
+        reportHit('click_hijack', { tag: 'MIDDLE_DOWN', className: 'pointerdown-trap' });
+      }
+      return;
+    }
+
+    // 左鍵：若點到陷阱也先拆，讓後續事件較容易落到真實元素
+    if (event.button === 0) {
+      neutralizeTrapsAtPoint(event.clientX, event.clientY);
+    }
+  }
+
   function onClickCapture(event) {
     if (event.__kemonoClickGuardRetarget) {
       return;
@@ -239,6 +317,12 @@
     const target = event.target;
     if (!target || isExtensionUiNode(target)) {
       return;
+    }
+
+    const isMiddle = event.button === 1;
+
+    if (isMiddle) {
+      armDocumentNavSuppress(MIDDLE_NAV_SUPPRESS_MS);
     }
 
     let trap = null;
@@ -251,24 +335,14 @@
       el = el.parentElement;
     }
 
+    // 無陷阱的中鍵：仍靠 location 防護即可（瀏覽器開新分頁，擋腳本改 location）
     if (!trap) {
       return;
     }
 
     reportHit('click_hijack', summarizeElement(trap));
-
-    // 先禁用當下與同座標堆疊的陷阱，讓後續 elementsFromPoint 能穿透
     neutralizeTrap(trap);
-    try {
-      const stacked = document.elementsFromPoint(event.clientX, event.clientY) || [];
-      for (const node of stacked) {
-        if (node && node.nodeType === 1 && isFullViewportTrap(node)) {
-          neutralizeTrap(node);
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
+    neutralizeTrapsAtPoint(event.clientX, event.clientY);
 
     event.stopPropagation();
     event.preventDefault();
@@ -276,21 +350,22 @@
       event.stopImmediatePropagation();
     }
 
-    // 把點擊轉給陷阱底下的真實目標（恢復可點連結／按鈕）
-    let below = null;
-    try {
-      const stack = document.elementsFromPoint(event.clientX, event.clientY) || [];
-      below = stack.find((node) => (
-        node
-        && node.nodeType === 1
-        && node.getAttribute(markedAttr) !== 'disabled'
-        && !isFullViewportTrap(node)
-      )) || null;
-    } catch (_) {
-      below = null;
+    const below = findUnderlyingElement(event.clientX, event.clientY);
+    if (!below || below === trap) {
+      return;
     }
 
-    if (!below || below === trap) {
+    // 中鍵：用 window.open 開新分頁，避免合成事件或 .click() 帶走原分頁
+    if (isMiddle) {
+      const anchor = findAnchorFromNode(below);
+      const href = anchor && anchor.href;
+      if (href) {
+        try {
+          window.open(href, '_blank');
+        } catch (error) {
+          console.warn(LOG_PREFIX, '中鍵轉開新分頁失敗', error);
+        }
+      }
       return;
     }
 
@@ -315,6 +390,92 @@
       below.dispatchEvent(retarget);
     } catch (error) {
       console.warn(LOG_PREFIX, '轉送點擊失敗', error);
+    }
+  }
+
+  function installDocumentNavigationGuard() {
+    const locProto = window.Location && window.Location.prototype;
+    if (!locProto) {
+      return;
+    }
+
+    function blockIfNeeded(url, via) {
+      if (!shouldSuppressDocumentNavigation()) {
+        return false;
+      }
+      console.info(LOG_PREFIX, '已擋下中鍵期間的強制導向:', via, url);
+      reportHit('forced_navigation', {
+        blockedUrl: String(url == null ? '' : url).slice(0, 500),
+        openTarget: via
+      });
+      return true;
+    }
+
+    if (typeof locProto.assign === 'function' && !locProto.assign.__kemonoClickGuard) {
+      const originalAssign = locProto.assign;
+      locProto.assign = function guardedAssign(url) {
+        if (blockIfNeeded(url, 'location.assign')) {
+          return;
+        }
+        return originalAssign.call(this, url);
+      };
+      locProto.assign.__kemonoClickGuard = true;
+    }
+
+    if (typeof locProto.replace === 'function' && !locProto.replace.__kemonoClickGuard) {
+      const originalReplace = locProto.replace;
+      locProto.replace = function guardedReplace(url) {
+        if (blockIfNeeded(url, 'location.replace')) {
+          return;
+        }
+        return originalReplace.call(this, url);
+      };
+      locProto.replace.__kemonoClickGuard = true;
+    }
+
+    try {
+      const hrefDesc = Object.getOwnPropertyDescriptor(locProto, 'href');
+      if (hrefDesc && hrefDesc.set && hrefDesc.configurable && !hrefDesc.set.__kemonoClickGuard) {
+        const originalSet = hrefDesc.set;
+        const originalGet = hrefDesc.get;
+        const guardedSet = function guardedHrefSet(url) {
+          if (blockIfNeeded(url, 'location.href')) {
+            return;
+          }
+          return originalSet.call(this, url);
+        };
+        guardedSet.__kemonoClickGuard = true;
+        Object.defineProperty(locProto, 'href', {
+          configurable: true,
+          enumerable: hrefDesc.enumerable,
+          get: originalGet ? function () { return originalGet.call(this); } : undefined,
+          set: guardedSet
+        });
+      }
+    } catch (error) {
+      console.warn(LOG_PREFIX, '無法包裝 location.href', error);
+    }
+
+    // 廣告常在中鍵時對 <a> 呼叫 .click() 帶走原分頁
+    const htmlProto = window.HTMLElement && window.HTMLElement.prototype;
+    if (htmlProto && typeof htmlProto.click === 'function' && !htmlProto.click.__kemonoClickGuard) {
+      const originalClick = htmlProto.click;
+      htmlProto.click = function guardedElementClick() {
+        if (shouldSuppressDocumentNavigation()) {
+          const tag = (this && this.tagName) ? String(this.tagName).toUpperCase() : '';
+          const isLink = tag === 'A' || (typeof this.closest === 'function' && this.closest('a[href]'));
+          if (isLink) {
+            console.info(LOG_PREFIX, '已擋下中鍵期間的 a.click()');
+            reportHit('forced_navigation', {
+              blockedUrl: (this.href || (this.closest && this.closest('a') && this.closest('a').href) || '').toString().slice(0, 500),
+              openTarget: 'element.click'
+            });
+            return;
+          }
+        }
+        return originalClick.call(this);
+      };
+      htmlProto.click.__kemonoClickGuard = true;
     }
   }
 
@@ -399,7 +560,10 @@
   }
 
   installWindowOpenGuard();
+  installDocumentNavigationGuard();
 
+  document.addEventListener('pointerdown', onPointerDownCapture, true);
+  document.addEventListener('mousedown', onPointerDownCapture, true);
   document.addEventListener('click', onClickCapture, true);
   document.addEventListener('auxclick', onClickCapture, true);
 

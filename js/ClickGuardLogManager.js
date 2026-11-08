@@ -10,7 +10,8 @@ class ClickGuardLogManager {
         this.typeLabels = {
             invisible_overlay: '隱形覆蓋層',
             click_hijack: '點擊劫持',
-            window_open: '惡意開窗'
+            window_open: '惡意開窗',
+            forced_navigation: '強制導向'
         };
 
         this.elements = {
@@ -87,7 +88,7 @@ class ClickGuardLogManager {
     }
 
     typeBadgeClass(type) {
-        if (type === 'window_open') {
+        if (type === 'window_open' || type === 'forced_navigation') {
             return 'clickguard-type-open';
         }
         if (type === 'click_hijack') {
