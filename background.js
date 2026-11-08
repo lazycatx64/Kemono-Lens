@@ -22,7 +22,10 @@ function syncContentScripts() {
 
 async function doSyncContentScripts() {
     const domains = await DomainConfig.loadDomains();
-    const knownIds = Object.values(DomainConfig.CONTENT_SCRIPT_IDS);
+    const knownIds = [
+        ...Object.values(DomainConfig.CONTENT_SCRIPT_IDS),
+        ...Object.values(DomainConfig.CLICKGUARD_SCRIPT_IDS)
+    ];
 
     // 先移除既有自訂腳本（再註冊），避免並發或殘留造成 Duplicate script ID
     const existing = await chrome.scripting.getRegisteredContentScripts();
@@ -42,19 +45,29 @@ async function doSyncContentScripts() {
             continue;
         }
 
-        const matches = DomainConfig.buildMatchesForDomain(domain);
-        if (matches.length === 0) {
-            continue;
+        const featureMatches = DomainConfig.buildMatchesForDomain(domain);
+        if (featureMatches.length > 0) {
+            toRegister.push({
+                id: DomainConfig.CONTENT_SCRIPT_IDS[site],
+                matches: featureMatches,
+                js: DomainConfig.CONTENT_SCRIPT_JS,
+                css: DomainConfig.CONTENT_SCRIPT_CSS,
+                runAt: 'document_end',
+                persistAcrossSessions: true
+            });
         }
 
-        toRegister.push({
-            id: DomainConfig.CONTENT_SCRIPT_IDS[site],
-            matches,
-            js: DomainConfig.CONTENT_SCRIPT_JS,
-            css: DomainConfig.CONTENT_SCRIPT_CSS,
-            runAt: 'document_end',
-            persistAcrossSessions: true
-        });
+        const clickGuardMatches = DomainConfig.getOriginPatterns(domain);
+        if (clickGuardMatches.length > 0) {
+            toRegister.push({
+                id: DomainConfig.CLICKGUARD_SCRIPT_IDS[site],
+                matches: clickGuardMatches,
+                js: DomainConfig.CLICKGUARD_SCRIPT_JS,
+                runAt: 'document_start',
+                world: 'MAIN',
+                persistAcrossSessions: true
+            });
+        }
     }
 
     if (toRegister.length > 0) {

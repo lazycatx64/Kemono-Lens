@@ -16,6 +16,15 @@
         coomer: 'coomer-custom'
     };
 
+    const CLICKGUARD_SCRIPT_IDS = {
+        kemono: 'kemono-clickguard',
+        coomer: 'coomer-clickguard'
+    };
+
+    const CLICKGUARD_SCRIPT_JS = [
+        'content-scripts/ClickGuard.js'
+    ];
+
     const CONTENT_SCRIPT_PATHS = [
         '/artists*',
         '/artists/updated*',
@@ -319,6 +328,8 @@
         CONTENT_SCRIPT_IDS,
         CONTENT_SCRIPT_JS,
         CONTENT_SCRIPT_CSS,
+        CLICKGUARD_SCRIPT_IDS,
+        CLICKGUARD_SCRIPT_JS,
         normalizeDomain,
         getOriginPatterns,
         buildMatchesForDomain,
