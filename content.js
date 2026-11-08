@@ -16,6 +16,8 @@ let suppressPreviewResetTimer = null;
 // delay_show：懸停延遲顯示計時器
 let previewShowDelayTimer = null;
 let pendingPreviewTarget = null;
+// delay_show：游標旁進度指示器
+let delayIndicatorEl = null;
 
 const SCROLL_KEYS = new Set([
     ' ', 'Spacebar', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -65,12 +67,59 @@ function getShowDelayMs() {
     return 200;
 }
 
+function ensureDelayIndicator() {
+    if (delayIndicatorEl && delayIndicatorEl.isConnected) {
+        return delayIndicatorEl;
+    }
+    const el = document.createElement('div');
+    el.className = 'kemono-delay-indicator';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML =
+        '<svg class="kemono-delay-indicator__svg" viewBox="0 0 28 28" width="22" height="22">' +
+            '<circle class="kemono-delay-indicator__track" cx="14" cy="14" r="11" pathLength="100"></circle>' +
+            '<circle class="kemono-delay-indicator__progress" cx="14" cy="14" r="11" pathLength="100"></circle>' +
+        '</svg>';
+    el.hidden = true;
+    (document.documentElement || document.body).appendChild(el);
+    delayIndicatorEl = el;
+    return el;
+}
+
+function updateDelayIndicatorPosition(clientX, clientY) {
+    if (!delayIndicatorEl || delayIndicatorEl.hidden) return;
+    delayIndicatorEl.style.transform =
+        'translate3d(' + Math.round(clientX) + 'px,' + Math.round(clientY) + 'px,0)';
+}
+
+function showDelayIndicator(clientX, clientY, durationMs) {
+    const el = ensureDelayIndicator();
+    const progress = el.querySelector('.kemono-delay-indicator__progress');
+    el.hidden = false;
+    updateDelayIndicatorPosition(clientX, clientY);
+    if (!progress) return;
+    // 重啟動畫，時長對齊延遲毫秒數
+    progress.style.animation = 'none';
+    // 強制重繪以重播 CSS animation
+    void progress.getBoundingClientRect();
+    progress.style.animation = 'kemono-delay-donut-fill ' + durationMs + 'ms linear forwards';
+}
+
+function hideDelayIndicator() {
+    if (!delayIndicatorEl) return;
+    const progress = delayIndicatorEl.querySelector('.kemono-delay-indicator__progress');
+    if (progress) {
+        progress.style.animation = 'none';
+    }
+    delayIndicatorEl.hidden = true;
+}
+
 function clearPreviewShowDelay() {
     if (previewShowDelayTimer) {
         clearTimeout(previewShowDelayTimer);
         previewShowDelayTimer = null;
     }
     pendingPreviewTarget = null;
+    hideDelayIndicator();
 }
 
 function shouldCreatePreviewNow() {
@@ -149,13 +198,17 @@ function requestPreviewCreate(target, siteHandler, e) {
 
     if (delay <= 0) {
         pendingPreviewTarget = null;
+        hideDelayIndicator();
         createPreview(target, siteHandler, { clientX, clientY });
         return;
     }
 
+    showDelayIndicator(clientX, clientY, delay);
+
     previewShowDelayTimer = setTimeout(() => {
         previewShowDelayTimer = null;
         pendingPreviewTarget = null;
+        hideDelayIndicator();
         if (currentHoveredElement === target && shouldCreatePreviewNow()) {
             createPreview(target, siteHandler, { clientX, clientY });
         }
@@ -492,6 +545,11 @@ class KemonoLens {
         document.addEventListener('mousemove', function(e) {
             currSite = window.location.href;
             modifierKeyPressed = isEventModifierPressed(e);
+
+            // 延遲進度環跟隨游標
+            if (previewShowDelayTimer) {
+                updateDelayIndicatorPosition(e.clientX, e.clientY);
+            }
             
             const siteHandler = siteManager.getHandler(currSite);
             if (!siteHandler || !siteHandler.isPostsDirectory || !siteHandler.isPostsDirectory(currSite)) {

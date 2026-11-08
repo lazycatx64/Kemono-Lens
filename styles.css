@@ -404,3 +404,55 @@ body:not(.favorites-visual-disabled) .kemono-favorited {
     text-shadow: none;
     filter: none;
 }
+
+/* ========== 延遲顯示進度環（跟隨游標） ========== */
+
+.kemono-delay-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2147483646;
+    width: 22px;
+    height: 22px;
+    margin: 14px 0 0 14px;
+    pointer-events: none;
+    will-change: transform;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.kemono-delay-indicator[hidden] {
+    display: none !important;
+}
+
+.kemono-delay-indicator__svg {
+    display: block;
+    overflow: visible;
+}
+
+.kemono-delay-indicator__track,
+.kemono-delay-indicator__progress {
+    fill: none;
+    stroke-width: 3.5;
+}
+
+.kemono-delay-indicator__track {
+    stroke: rgba(0, 0, 0, 0.35);
+}
+
+.kemono-delay-indicator__progress {
+    stroke: #7CFFB2;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    transform: rotate(-90deg);
+    transform-origin: 14px 14px;
+}
+
+@keyframes kemono-delay-donut-fill {
+    from {
+        stroke-dashoffset: 100;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
