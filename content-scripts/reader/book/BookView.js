@@ -371,7 +371,10 @@
     }
 
     _getShortcutList(settingKey, fallback) {
-      const list = this.settings && this.settings[settingKey];
+      let list = this.settings && this.settings[settingKey];
+      if (typeof list === 'string') {
+        list = list.length > 0 ? [list] : [];
+      }
       if (Array.isArray(list) && list.length > 0) {
         return list.map((k) => this._normalizeMatchKey(k)).filter(Boolean);
       }
@@ -385,8 +388,8 @@
 
     _updateTopBarHint() {
       if (!this.topBarHintEl) return;
-      const raw = (this.settings && this.settings.toggleTopBarShortcut) || 'Escape';
-      const label = this._formatShortcutLabel(raw);
+      const keys = this._getShortcutList('toggleTopBarShortcut', ['Escape']);
+      const label = keys.map((k) => this._formatShortcutLabel(k)).join('／');
       this.topBarHintEl.textContent = this._t('shortcut_toggle_topbar_hint', { key: label });
     }
 
@@ -444,9 +447,8 @@
       if (e.metaKey || e.ctrlKey) return;
 
       const key = e.key;
-      const topBarShortcut = (this.settings && this.settings.toggleTopBarShortcut) || 'Escape';
-      if (this._normalizeMatchKey(key) === this._normalizeMatchKey(topBarShortcut)
-        || (topBarShortcut === 'Escape' && key === 'Escape')) {
+      const topBarKeys = this._getShortcutList('toggleTopBarShortcut', ['Escape']);
+      if (this._listIncludesKey(topBarKeys, key)) {
         e.preventDefault();
         e.stopPropagation();
         this._setTopBarVisible(this._topBarHidden);

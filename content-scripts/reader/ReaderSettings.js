@@ -5,9 +5,10 @@
   const STORAGE_KEY = 'kemono_reader_settings';
   const logger = window.KemonoLogger || console;
 
+  const DEFAULT_TOGGLE_READER_SHORTCUTS = ['`'];
   const DEFAULT_PREV_SHORTCUTS = ['a', 'ArrowLeft', 'ArrowUp'];
   const DEFAULT_NEXT_SHORTCUTS = ['d', 'ArrowRight', 'ArrowDown'];
-  const DEFAULT_TOGGLE_TOPBAR_SHORTCUT = 'Escape';
+  const DEFAULT_TOGGLE_TOPBAR_SHORTCUTS = ['Escape'];
 
   function normalizeShortcutKey(key) {
     if (typeof key !== 'string' || key.length === 0) return null;
@@ -16,10 +17,15 @@
   }
 
   function normalizeShortcutList(list, fallback) {
-    if (!Array.isArray(list)) return fallback.slice();
+    let source = list;
+    // 相容舊版單一字串快速鍵
+    if (typeof source === 'string') {
+      source = source.length > 0 ? [source] : [];
+    }
+    if (!Array.isArray(source)) return fallback.slice();
     const seen = new Set();
     const out = [];
-    list.forEach((item) => {
+    source.forEach((item) => {
       const key = normalizeShortcutKey(item);
       if (!key || seen.has(key)) return;
       seen.add(key);
@@ -37,16 +43,20 @@
       isChangeOddEven: false,
       showBookThumbs: true,
       forceUpscale: true, // 強制低解析度圖放大以符合槽位
-      toggleReaderShortcut: '`', // 開關閱讀器快速鍵（KeyboardEvent.key）
+      toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUTS.slice(),
       readerPrevShortcuts: DEFAULT_PREV_SHORTCUTS.slice(),
       readerNextShortcuts: DEFAULT_NEXT_SHORTCUTS.slice(),
-      toggleTopBarShortcut: DEFAULT_TOGGLE_TOPBAR_SHORTCUT
+      toggleTopBarShortcut: DEFAULT_TOGGLE_TOPBAR_SHORTCUTS.slice()
     };
   }
 
   function normalizeSettings(raw) {
     const defaults = getDefaultSettings();
     const merged = { ...defaults, ...(raw && typeof raw === 'object' ? raw : {}) };
+    merged.toggleReaderShortcut = normalizeShortcutList(
+      merged.toggleReaderShortcut,
+      DEFAULT_TOGGLE_READER_SHORTCUTS
+    );
     merged.readerPrevShortcuts = normalizeShortcutList(
       merged.readerPrevShortcuts,
       DEFAULT_PREV_SHORTCUTS
@@ -55,15 +65,10 @@
       merged.readerNextShortcuts,
       DEFAULT_NEXT_SHORTCUTS
     );
-    const topBar = normalizeShortcutKey(merged.toggleTopBarShortcut);
-    merged.toggleTopBarShortcut = topBar || DEFAULT_TOGGLE_TOPBAR_SHORTCUT;
-    const toggleReader = normalizeShortcutKey(merged.toggleReaderShortcut);
-    // 單一字元已小寫；保留 ` 等非字母鍵原樣
-    if (typeof merged.toggleReaderShortcut === 'string' && merged.toggleReaderShortcut.length === 1) {
-      merged.toggleReaderShortcut = toggleReader || defaults.toggleReaderShortcut;
-    } else if (!merged.toggleReaderShortcut) {
-      merged.toggleReaderShortcut = defaults.toggleReaderShortcut;
-    }
+    merged.toggleTopBarShortcut = normalizeShortcutList(
+      merged.toggleTopBarShortcut,
+      DEFAULT_TOGGLE_TOPBAR_SHORTCUTS
+    );
     return merged;
   }
 
@@ -84,8 +89,10 @@
     get() {
       return {
         ...this.settings,
+        toggleReaderShortcut: (this.settings.toggleReaderShortcut || []).slice(),
         readerPrevShortcuts: (this.settings.readerPrevShortcuts || []).slice(),
-        readerNextShortcuts: (this.settings.readerNextShortcuts || []).slice()
+        readerNextShortcuts: (this.settings.readerNextShortcuts || []).slice(),
+        toggleTopBarShortcut: (this.settings.toggleTopBarShortcut || []).slice()
       };
     }
 
@@ -163,9 +170,10 @@
 
   window.KemonoReaderSettings = new ReaderSettings();
   window.KemonoReaderShortcutDefaults = {
+    toggleReaderShortcut: DEFAULT_TOGGLE_READER_SHORTCUTS.slice(),
     readerPrevShortcuts: DEFAULT_PREV_SHORTCUTS.slice(),
     readerNextShortcuts: DEFAULT_NEXT_SHORTCUTS.slice(),
-    toggleTopBarShortcut: DEFAULT_TOGGLE_TOPBAR_SHORTCUT,
+    toggleTopBarShortcut: DEFAULT_TOGGLE_TOPBAR_SHORTCUTS.slice(),
     normalizeShortcutKey,
     normalizeShortcutList
   };

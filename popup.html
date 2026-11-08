@@ -205,6 +205,59 @@
         .shortcut-reset-btn:hover {
             background: #5a6268;
         }
+
+        .shortcut-chips {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .shortcut-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f8f9fa;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .shortcut-chip-remove {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1;
+            padding: 0 1px;
+        }
+
+        .shortcut-chip-remove:hover {
+            color: #dc3545;
+        }
+
+        .shortcut-add-btn {
+            min-width: 28px;
+            padding: 4px 8px;
+            border: 1px dashed #007cba;
+            border-radius: 4px;
+            background: #fff;
+            color: #007cba;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .shortcut-add-btn:hover,
+        .shortcut-add-btn.recording {
+            background: #e7f3ff;
+        }
     </style>
 </head>
 <body>
@@ -267,10 +320,11 @@
             <div class="help-text">在作品頁顯示右側浮出按鈕，點擊後以書本模式閱讀圖片</div>
             <div class="help-text" style="margin-top: 10px; margin-bottom: 4px;">開關閱讀器快速鍵：</div>
             <div class="shortcut-row">
-                <button type="button" id="shortcut-toggle-reader" class="shortcut-capture" title="點擊後按下新快速鍵">`</button>
+                <div class="shortcut-chips" id="shortcut-toggle-reader-chips"></div>
+                <button type="button" id="shortcut-toggle-reader-add" class="shortcut-add-btn" title="新增快速鍵">＋</button>
                 <button type="button" id="shortcut-toggle-reader-reset" class="shortcut-reset-btn">還原預設</button>
             </div>
-            <div class="help-text">預設為 ` ；點擊欄位後按下新鍵即可修改</div>
+            <div class="help-text">預設為 ` ；可綁定多個按鍵，點擊「＋」後按下新鍵即可追加</div>
         </div>
 
         <div class="settings-group">

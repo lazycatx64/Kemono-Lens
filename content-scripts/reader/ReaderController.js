@@ -49,7 +49,7 @@
       this._prevOverflow = '';
       this._onSettingsChanged = null;
       this._boundToggleKey = null;
-      this._toggleShortcut = DEFAULT_TOGGLE_SHORTCUT;
+      this._toggleShortcuts = [DEFAULT_TOGGLE_SHORTCUT];
       this._initGen = 0;
       this._destroyed = false;
       this._watchedUrl = window.location.href;
@@ -250,24 +250,42 @@
       return postPageKey(this._watchedUrl) === current;
     }
 
-    _syncToggleShortcutFromSettings(settings) {
-      const key = settings && settings.toggleReaderShortcut;
-      if (typeof key === 'string' && key.length > 0) {
-        this._toggleShortcut = key.length === 1 ? key.toLowerCase() : key;
-      } else {
-        this._toggleShortcut = DEFAULT_TOGGLE_SHORTCUT;
+    _normalizeShortcutKey(key) {
+      if (typeof key !== 'string' || key.length === 0) return null;
+      return key.length === 1 ? key.toLowerCase() : key;
+    }
+
+    _normalizeShortcutList(value, fallback) {
+      let source = value;
+      if (typeof source === 'string') {
+        source = source.length > 0 ? [source] : [];
       }
+      if (!Array.isArray(source)) return fallback.slice();
+      const seen = new Set();
+      const out = [];
+      source.forEach((item) => {
+        const key = this._normalizeShortcutKey(item);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        out.push(key);
+      });
+      return out.length > 0 ? out : fallback.slice();
+    }
+
+    _syncToggleShortcutFromSettings(settings) {
+      this._toggleShortcuts = this._normalizeShortcutList(
+        settings && settings.toggleReaderShortcut,
+        [DEFAULT_TOGGLE_SHORTCUT]
+      );
     }
 
     _matchesToggleShortcut(e) {
-      const shortcut = this._toggleShortcut || DEFAULT_TOGGLE_SHORTCUT;
-      const pressed = e.key;
-      if (pressed === shortcut) return true;
-      if (shortcut.length === 1 && typeof pressed === 'string' && pressed.length === 1
-        && pressed.toLowerCase() === shortcut) {
-        return true;
-      }
-      if (shortcut === '`' && e.code === 'Backquote') return true;
+      const shortcuts = this._toggleShortcuts && this._toggleShortcuts.length > 0
+        ? this._toggleShortcuts
+        : [DEFAULT_TOGGLE_SHORTCUT];
+      const pressed = this._normalizeShortcutKey(e.key);
+      if (pressed && shortcuts.includes(pressed)) return true;
+      if (shortcuts.includes('`') && e.code === 'Backquote') return true;
       return false;
     }
 
@@ -305,7 +323,10 @@
       const label = (window.KemonoI18n && window.KemonoI18n.t)
         ? window.KemonoI18n.t('reader_open')
         : '閱讀器';
-      const keyLabel = formatShortcutLabel(this._toggleShortcut);
+      const shortcuts = this._toggleShortcuts && this._toggleShortcuts.length > 0
+        ? this._toggleShortcuts
+        : [DEFAULT_TOGGLE_SHORTCUT];
+      const keyLabel = shortcuts.map((k) => formatShortcutLabel(k)).join('／');
       const hint = (window.KemonoI18n && window.KemonoI18n.t)
         ? window.KemonoI18n.t('shortcut_toggle_reader_hint', { key: keyLabel })
         : keyLabel;

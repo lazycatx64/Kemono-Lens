@@ -1028,21 +1028,22 @@
         <div class="tab-content" data-tab="shortcuts">
             <div class="section">
                 <h2>快速鍵管理</h2>
-                <p class="help-text">點擊按鍵欄位後按下新快速鍵即可綁定。輸入框內不會觸發這些快速鍵。</p>
+                <p class="help-text">點擊「＋」後按下新快速鍵即可追加綁定；每項可設定多個按鍵。輸入框內不會觸發這些快速鍵。</p>
 
                 <div class="settings-group">
                     <h3>📖 閱讀器</h3>
                     <div class="shortcut-row">
                         <span class="shortcut-label">開關閱讀器</span>
-                        <button type="button" id="shortcut-toggle-reader" class="shortcut-capture" title="點擊後按下新快速鍵">`</button>
+                        <div class="shortcut-chips" id="shortcut-toggle-reader-chips"></div>
+                        <button type="button" id="shortcut-toggle-reader-add" class="shortcut-add-btn" title="新增快速鍵">＋</button>
                         <button type="button" id="shortcut-toggle-reader-reset" class="shortcut-reset-btn">還原預設</button>
                     </div>
                     <div class="help-text">
-                        預設為 <code>`</code>（鍵盤左上角波浪鍵）。在作品頁可快速開啟或關閉書本閱讀器。
+                        預設：<code>`</code>（鍵盤左上角波浪鍵）。可綁定多個按鍵；在作品頁可快速開啟或關閉書本閱讀器。
                     </div>
 
                     <div class="shortcut-row">
-                        <span class="shortcut-label">上一跨頁</span>
+                        <span class="shortcut-label">上一頁</span>
                         <div class="shortcut-chips" id="shortcut-prev-chips"></div>
                         <button type="button" id="shortcut-prev-add" class="shortcut-add-btn" title="新增快速鍵">＋</button>
                         <button type="button" id="shortcut-prev-reset" class="shortcut-reset-btn">還原預設</button>
@@ -1052,7 +1053,7 @@
                     </div>
 
                     <div class="shortcut-row">
-                        <span class="shortcut-label">下一跨頁</span>
+                        <span class="shortcut-label">下一頁</span>
                         <div class="shortcut-chips" id="shortcut-next-chips"></div>
                         <button type="button" id="shortcut-next-add" class="shortcut-add-btn" title="新增快速鍵">＋</button>
                         <button type="button" id="shortcut-next-reset" class="shortcut-reset-btn">還原預設</button>
@@ -1063,11 +1064,12 @@
 
                     <div class="shortcut-row">
                         <span class="shortcut-label">顯示／隱藏控制列</span>
-                        <button type="button" id="shortcut-toggle-topbar" class="shortcut-capture" title="點擊後按下新快速鍵">Esc</button>
+                        <div class="shortcut-chips" id="shortcut-toggle-topbar-chips"></div>
+                        <button type="button" id="shortcut-toggle-topbar-add" class="shortcut-add-btn" title="新增快速鍵">＋</button>
                         <button type="button" id="shortcut-toggle-topbar-reset" class="shortcut-reset-btn">還原預設</button>
                     </div>
                     <div class="help-text">
-                        預設為 <code>Esc</code>。錄製中按 Esc 會取消；若要恢復 Esc 請用「還原預設」。關閉閱讀器請用開關快速鍵或頂欄關閉按鈕。
+                        預設：<code>Esc</code>。可綁定多個按鍵；錄製中按 Esc 會取消，若要加入 Esc 請用「還原預設」。關閉閱讀器請用開關快速鍵或頂欄關閉按鈕。
                     </div>
                 </div>
             </div>
