@@ -10,6 +10,48 @@
   const AREA_RATIO_THRESHOLD = 0.7;
   const HIGH_Z_INDEX = 1000;
   const markedAttr = 'data-kemono-clickguard';
+  const REPORT_EVENT = 'kemono-clickguard-log';
+
+  function summarizeElement(el) {
+    if (!el || el.nodeType !== 1) {
+      return {};
+    }
+    const tag = (el.tagName || '').toUpperCase();
+    const id = el.id || '';
+    const className = typeof el.className === 'string'
+      ? el.className
+      : (el.className && el.className.baseVal) || '';
+    let src = '';
+    try {
+      src = el.getAttribute('src') || el.href || '';
+    } catch (_) {
+      src = '';
+    }
+    if (src.length > 300) {
+      src = `${src.slice(0, 300)}…`;
+    }
+    return {
+      tag,
+      elementId: id.slice(0, 120),
+      className: String(className).slice(0, 200),
+      src
+    };
+  }
+
+  function reportHit(type, extra) {
+    try {
+      window.dispatchEvent(new CustomEvent(REPORT_EVENT, {
+        detail: Object.assign({
+          type,
+          time: Date.now(),
+          pageUrl: String(location.href || '').slice(0, 500),
+          pageHost: location.hostname || ''
+        }, extra || {})
+      }));
+    } catch (_) {
+      // ignore
+    }
+  }
 
   function isExtensionUiNode(node) {
     if (!node || node.nodeType !== 1) {
@@ -156,6 +198,7 @@
         el.style.setProperty('display', 'none', 'important');
       }
       console.info(LOG_PREFIX, '已禁用隱形點擊陷阱', tag, el.className || el.id || '');
+      reportHit('invisible_overlay', summarizeElement(el));
     } catch (error) {
       console.warn(LOG_PREFIX, '禁用陷阱失敗', error);
     }
@@ -211,6 +254,8 @@
     if (!trap) {
       return;
     }
+
+    reportHit('click_hijack', summarizeElement(trap));
 
     // 先禁用當下與同座標堆疊的陷阱，讓後續 elementsFromPoint 能穿透
     neutralizeTrap(trap);
@@ -312,6 +357,10 @@
     function guardedOpen(url, target, features) {
       if (!isAllowedOpenUrl(url)) {
         console.info(LOG_PREFIX, '已擋下跨來源 window.open:', url);
+        reportHit('window_open', {
+          blockedUrl: String(url == null ? '' : url).slice(0, 500),
+          openTarget: target == null ? '' : String(target).slice(0, 80)
+        });
         return null;
       }
       return originalOpen.call(window, url, target, features);

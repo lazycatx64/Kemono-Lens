@@ -10,6 +10,7 @@ class App {
         this.settingsManager = new SettingsManager(this.messageManager);
         this.blacklistManager = new BlacklistManager(this.statisticsManager, this.messageManager);
         this.favoritesManager = new FavoritesManager(this.statisticsManager, this.messageManager);
+        this.clickGuardLogManager = new ClickGuardLogManager(this.messageManager);
         
         this.init();
     }
@@ -19,6 +20,7 @@ class App {
         await this.settingsManager.loadSettings();
         await this.blacklistManager.loadBlacklist();
         await this.favoritesManager.loadFavorites();
+        await this.clickGuardLogManager.loadLogs();
         
         // 渲染初始狀態
         this.render();
@@ -31,6 +33,9 @@ class App {
         
         // 渲染收藏
         this.favoritesManager.render();
+
+        // 渲染防護紀錄
+        this.clickGuardLogManager.render();
     }
 
     // 當收藏資料更新時，重新渲染黑名單以顯示收藏標記

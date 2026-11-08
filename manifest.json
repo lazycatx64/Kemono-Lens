@@ -41,6 +41,18 @@
     },
     {
       "matches": [
+        "https://kemono.cr/*",
+        "https://*.kemono.cr/*",
+        "https://coomer.st/*",
+        "https://*.coomer.st/*"
+      ],
+      "js": [
+        "content-scripts/ClickGuardBridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "https://kemono.cr/artists*",
         "https://kemono.cr/artists/updated*",
         "https://kemono.cr/*/user/*",

@@ -63,6 +63,88 @@
             display: block;
         }
 
+        .clickguard-log-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .clickguard-log-meta {
+            color: #666;
+            font-size: 14px;
+            margin-right: auto;
+        }
+
+        .clickguard-log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .clickguard-log-item {
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            padding: 12px 14px;
+            background: #fafafa;
+        }
+
+        .clickguard-log-head {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .clickguard-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .clickguard-type-overlay {
+            background: #6c757d;
+        }
+
+        .clickguard-type-click {
+            background: #c45c26;
+        }
+
+        .clickguard-type-open {
+            background: #b00020;
+        }
+
+        .clickguard-log-time {
+            color: #333;
+            font-size: 13px;
+        }
+
+        .clickguard-log-host {
+            color: #007cba;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .clickguard-log-detail {
+            color: #555;
+            font-size: 13px;
+            line-height: 1.5;
+            word-break: break-all;
+        }
+
+        .clickguard-log-empty {
+            color: #888;
+            padding: 24px;
+            text-align: center;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
         .section {
             margin-bottom: 30px;
         }
@@ -747,6 +829,7 @@
             <button class="tab-button" data-tab="favorites">⭐ 收藏管理</button>
             <button class="tab-button" data-tab="preview">🖼️ 預覽設定</button>
             <button class="tab-button" data-tab="shortcuts">⌨️ 快速鍵</button>
+            <button class="tab-button" data-tab="clickguard">🛡️ 防護紀錄</button>
             <button class="tab-button" data-tab="settings">⚙️ 顯示設定</button>
         </div>
 
@@ -982,6 +1065,21 @@
             </div>
         </div>
 
+        <!-- 防護紀錄頁籤 -->
+        <div class="tab-content" data-tab="clickguard">
+            <div class="section">
+                <h2>點擊防護紀錄</h2>
+                <p class="help-text">記錄 ClickGuard 攔截到的隱形覆蓋層、點擊劫持與惡意開窗（最多保留 200 筆）</p>
+                <div class="clickguard-log-toolbar">
+                    <span class="clickguard-log-meta">目前 <strong id="clickguard-log-count">0</strong> 筆</span>
+                    <button type="button" id="clickguard-log-refresh" class="import-btn">重新整理</button>
+                    <button type="button" id="clickguard-log-clear" class="clear-all-btn">清空紀錄</button>
+                </div>
+                <div id="clickguard-log-empty" class="clickguard-log-empty">尚無防護紀錄</div>
+                <div id="clickguard-log-list" class="clickguard-log-list"></div>
+            </div>
+        </div>
+
         <!-- 顯示設定頁籤 -->
         <div class="tab-content" data-tab="settings">
             <div class="section">
@@ -1198,6 +1296,7 @@
     <script src="js/SettingsManager.js"></script>
     <script src="js/BlacklistManager.js"></script>
     <script src="js/FavoritesManager.js"></script>
+    <script src="js/ClickGuardLogManager.js"></script>
     <script src="js/App.js"></script>
 </body>
 </html>

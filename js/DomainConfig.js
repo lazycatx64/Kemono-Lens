@@ -21,8 +21,17 @@
         coomer: 'coomer-clickguard'
     };
 
+    const CLICKGUARD_BRIDGE_SCRIPT_IDS = {
+        kemono: 'kemono-clickguard-bridge',
+        coomer: 'coomer-clickguard-bridge'
+    };
+
     const CLICKGUARD_SCRIPT_JS = [
         'content-scripts/ClickGuard.js'
+    ];
+
+    const CLICKGUARD_BRIDGE_SCRIPT_JS = [
+        'content-scripts/ClickGuardBridge.js'
     ];
 
     const CONTENT_SCRIPT_PATHS = [
@@ -330,6 +339,8 @@
         CONTENT_SCRIPT_CSS,
         CLICKGUARD_SCRIPT_IDS,
         CLICKGUARD_SCRIPT_JS,
+        CLICKGUARD_BRIDGE_SCRIPT_IDS,
+        CLICKGUARD_BRIDGE_SCRIPT_JS,
         normalizeDomain,
         getOriginPatterns,
         buildMatchesForDomain,

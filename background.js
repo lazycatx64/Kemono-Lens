@@ -24,7 +24,8 @@ async function doSyncContentScripts() {
     const domains = await DomainConfig.loadDomains();
     const knownIds = [
         ...Object.values(DomainConfig.CONTENT_SCRIPT_IDS),
-        ...Object.values(DomainConfig.CLICKGUARD_SCRIPT_IDS)
+        ...Object.values(DomainConfig.CLICKGUARD_SCRIPT_IDS),
+        ...Object.values(DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_IDS)
     ];
 
     // 先移除既有自訂腳本（再註冊），避免並發或殘留造成 Duplicate script ID
@@ -65,6 +66,13 @@ async function doSyncContentScripts() {
                 js: DomainConfig.CLICKGUARD_SCRIPT_JS,
                 runAt: 'document_start',
                 world: 'MAIN',
+                persistAcrossSessions: true
+            });
+            toRegister.push({
+                id: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_IDS[site],
+                matches: clickGuardMatches,
+                js: DomainConfig.CLICKGUARD_BRIDGE_SCRIPT_JS,
+                runAt: 'document_start',
                 persistAcrossSessions: true
             });
         }
